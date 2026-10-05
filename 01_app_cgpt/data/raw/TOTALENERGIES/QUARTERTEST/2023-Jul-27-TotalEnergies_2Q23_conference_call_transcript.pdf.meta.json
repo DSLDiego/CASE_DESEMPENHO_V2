@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/sites/g/files/nytnzq121/files/documents/2023-07/2023-Jul-27-TotalEnergies_2Q23_conference_call_transcript.pdf",
+  "sha256": "c6a8b5159e870c3b92df85208e5fb142a23d2d7e363b27763c938f9710f1e471",
+  "size": 380559,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:48Z",
+  "meta": {
+    "pages_detected": 23,
+    "text_sample_chars": 14693,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

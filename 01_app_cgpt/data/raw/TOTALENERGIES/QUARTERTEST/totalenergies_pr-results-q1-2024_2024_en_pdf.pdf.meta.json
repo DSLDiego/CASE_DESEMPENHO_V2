@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/2024-04/totalenergies_pr-results-q1-2024_2024_en_pdf.pdf",
+  "sha256": "66596dd34d37710d3af1a2421976a5292b8b9ec8d3bd35960581c0b8fad064e8",
+  "size": 944881,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:50Z",
+  "meta": {
+    "pages_detected": 42,
+    "text_sample_chars": 64793,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

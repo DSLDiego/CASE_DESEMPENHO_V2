@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/2024-07/totalenergies_Dividende-2T24_en_pdf.pdf",
+  "sha256": "9dab5b48d8f688715bcd311095b931b41783867b86e10642726a359089236dfb",
+  "size": 223454,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:52Z",
+  "meta": {
+    "pages_detected": 2,
+    "text_sample_chars": 6732,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+:root { --bg: #f4f4f4; --fg: #222; --card: #fff; --line: #ccc; --acc: #e8e8e8; --btn: #e0e0e0; }
+body.dark { --bg: #1e1e1e; --fg: #e0e0e0; --card: #2b2b2b; --line: #555; --acc: #333; --btn: #3c3c3c; }
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; background: var(--bg); color: var(--fg); height: 100vh; display: flex; flex-direction: column; }
+header { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 14px; margin: 0; flex: 1; }
+button, select { font-size: 11px; padding: 2px 8px; background: var(--btn); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+#shell { display: flex; flex: 1; min-height: 0; }
+#sidebar { width: 25%; border-right: 1px solid var(--line); overflow: auto; padding: 6px; }
+#sidebar.hidden { display: none; }
+#collapse { width: 20px; border: none; border-right: 1px solid var(--line); font-size: 11px; }
+#chartarea { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 6px; }
+.acc { width: 100%; text-align: left; margin-top: 4px; font-weight: bold; }
+.panel { max-height: 0; overflow: hidden; transition: max-height .2s ease-out; }
+.panel.open { max-height: 600px; overflow: auto; }
+.panel label { display: block; margin: 4px 0 2px; }
+.panel select { width: 100%; }
+.tabbar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.tabbar button.active { outline: 2px solid #1f77b4; }
+.tabpane { display: none; flex: 1; min-height: 0; overflow: auto; }
+.tabpane.active { display: block; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cell { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px; min-height: 360px; }
+.cell.wide { grid-column: 1 / -1; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid var(--line); padding: 4px; text-align: left; }
+th { background: var(--acc); }
+.card { background: var(--card); border: 1px solid var(--line); padding: 8px; border-radius: 6px; margin-bottom: 6px; }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 6px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-left: 4px solid #1f77b4; border-radius: 6px; padding: 6px 8px; }
+.kpi-l { font-size: 10px; opacity: .8; }
+.kpi-v { font-size: 16px; font-weight: bold; }
+.kpi-v small { font-size: 10px; font-weight: normal; }
+.kpi-d { font-size: 10px; opacity: .8; }
+.split { display: grid; grid-template-columns: 3fr 1fr; gap: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <button id="btnSide" title="colapsar/expandir sidebar">☰</button>
+  <h1>{{TITLE}}</h1>
+  <button id="btnTheme" title="alternar tema">◐ tema</button>
+</header>
+<div id="shell">
+  <nav id="sidebar">
+    <div class="acc-sec">
+      <button class="acc">Filtros</button>
+      <div class="panel">
+        <label>Período</label><select id="fPeriod">{{PERIODS_OPTIONS}}</select>
+        <label>Empresa</label><select id="fCompany"><option value="">todas</option>{{COMPANIES_OPTIONS}}</select>
+        <label>Indicador</label><select id="fInd"><option value="">todos</option>{{INDICATORS_OPTIONS}}</select>
+        <label>Severidade (qualidade)</label><select id="fSev"><option value="">todas</option><option>WARNING</option><option>ERROR</option><option>INFO</option></select>
+      </div>
+    </div>
+    <div class="acc-sec">
+      <button class="acc">Exibição</button>
+      <div class="panel">
+        <label>Tema</label><select id="fTheme"><option value="light">light</option><option value="dark">dark</option></select>
+      </div>
+    </div>
+    <div class="acc-sec">
+      <button class="acc">Navegação</button>
+      <div class="panel" id="navPanel"></div>
+    </div>
+    <div class="acc-sec">
+      <button class="acc">Sobre</button>
+      <div class="panel"><p>PoC v0 — Python + SQLite + Plotly.<br>Filtros atuam na tabela de dados/qualidade.</p></div>
+    </div>
+  </nav>
+  <button id="collapse" title="colapsar/expandir sidebar">❮</button>
+  <main id="chartarea">
+    <div class="tabbar" id="tabbar"></div>
+    <section class="tabpane" id="tab-exec"><div class="kpis">{{KPI_CARDS}}</div><div class="card">{{NARRATIVE}}</div><div class="split"><div class="cell">{{FIG_BENCH}}</div><div class="card"><b>Ranking EBITDA ajustado</b><table><tr><th>#</th><th>Empresa</th><th>USD M</th></tr>{{RANK_ROWS}}</table></div></div></section>
+    <section class="tabpane" id="tab-evol"><div class="grid"><div class="cell wide">{{FIG_EVOL}}</div></div></section>
+    <section class="tabpane" id="tab-prod"><div class="grid"><div class="cell wide">{{FIG_PROD}}</div></div></section>
+    <section class="tabpane" id="tab-data"><div class="card"><table id="dataTable"><tr><th>Empresa</th><th>Período</th><th>Indicador</th><th>Valor</th><th>Unidade</th><th>Conf</th></tr>{{DATA_ROWS}}</table></div></section>
+    <section class="tabpane" id="tab-qual"><div class="card"><table id="qualTable"><tr><th>Regra</th><th>Severidade</th><th>Mensagem</th></tr>{{QUALITY_ROWS}}</table></div></section>
+    <section class="tabpane" id="tab-font"><div class="card"><table><tr><th>Site</th><th>Documento</th><th>Extensão</th><th>Pasta</th><th>Data download</th></tr>{{DOCS_ROWS}}</table></div></section>
+    <section class="tabpane" id="tab-api"><div class="card"><table><tr><th>Site</th><th>Fonte</th><th>API JSON</th><th>Status</th><th>Verificada em</th><th>Amostra</th></tr>{{API_ROWS}}</table></div></section>
+  </main>
+</div>
+<script>
+const TABS = [["tab-exec","Executiva"],["tab-evol","Evolução"],["tab-prod","Produtividade"],["tab-data","Dados"],["tab-qual","Qualidade"],["tab-font","Fontes"],["tab-api","APIs"]];
+const bar = document.getElementById("tabbar"), nav = document.getElementById("navPanel");
+TABS.forEach(([id, label], i) => {
+  const b = document.createElement("button");
+  b.textContent = label; b.dataset.tab = id;
+  b.onclick = () => openTab(id);
+  bar.appendChild(b);
+  const n = document.createElement("button");
+  n.textContent = label; n.style.display = "block"; n.style.width = "100%"; n.style.marginTop = "2px";
+  n.onclick = () => openTab(id);
+  nav.appendChild(n);
+});
+function openTab(id) {
+  document.querySelectorAll(".tabpane").forEach(p => p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll("#tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+  if (window.Plotly) document.querySelectorAll("#" + id + " .plotly-graph-div").forEach(d => Plotly.Plots.resize(d));
+}
+openTab("tab-exec");
+document.querySelectorAll(".acc").forEach(a => a.onclick = () => {
+  const p = a.nextElementSibling, open = p.classList.toggle("open");
+  p.style.maxHeight = open ? p.scrollHeight + "px" : null;
+});
+document.querySelector(".acc").click();
+const side = document.getElementById("sidebar"), col = document.getElementById("collapse");
+function toggleSide() {
+  const hidden = side.classList.toggle("hidden");
+  col.textContent = hidden ? "❯" : "❮";
+  document.getElementById("btnSide").textContent = hidden ? "☰+" : "☰";
+  if (window.Plotly) document.querySelectorAll(".plotly-graph-div").forEach(d => Plotly.Plots.resize(d));
+}
+col.onclick = toggleSide;
+document.getElementById("btnSide").onclick = toggleSide;
+function setTheme(name) {
+  document.body.classList.toggle("dark", name === "dark");
+  document.getElementById("fTheme").value = name;
+  const bg = name === "dark" ? "#2b2b2b" : "#fff", fg = name === "dark" ? "#e0e0e0" : "#222";
+  if (window.Plotly) document.querySelectorAll(".plotly-graph-div").forEach(d =>
+    Plotly.relayout(d, {"paper_bgcolor": bg, "plot_bgcolor": bg, "font.color": fg}));
+}
+document.getElementById("btnTheme").onclick = () =>
+  setTheme(document.body.classList.contains("dark") ? "light" : "dark");
+document.getElementById("fTheme").onchange = e => setTheme(e.target.value);
+function filterTable(tid, cols) {
+  const rows = document.querySelectorAll("#" + tid + " tr");
+  rows.forEach((tr, i) => {
+    if (!i) return;
+    const tds = tr.querySelectorAll("td");
+    tr.style.display = cols.every(([ci, val]) => !val || (tds[ci] && tds[ci].textContent === val)) ? "" : "none";
+  });
+}
+function applyFilters() {
+  filterTable("dataTable", [[0, fCompany.value], [1, fPeriod.value], [2, fInd.value]]);
+  filterTable("qualTable", [[1, fSev.value]]);
+}
+["fPeriod", "fCompany", "fInd", "fSev"].forEach(id => document.getElementById(id).onchange = applyFilters);
+</script>
+</body>
+</html>

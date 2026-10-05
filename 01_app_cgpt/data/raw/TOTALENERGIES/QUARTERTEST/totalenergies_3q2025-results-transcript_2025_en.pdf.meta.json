@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/sites/g/files/nytnzq121/files/documents/totalenergies_3q2025-results-transcript_2025_en.pdf",
+  "sha256": "8cbde1e745221477814e358f97b8d2af87c35455b37309b142d37f61645a134e",
+  "size": 380643,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:55Z",
+  "meta": {
+    "pages_detected": 22,
+    "text_sample_chars": 36003,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

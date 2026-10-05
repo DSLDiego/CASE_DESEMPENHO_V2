@@ -1,0 +1,1238 @@
+Ok. Vamos melhorar:
+0) Crie um novo Script que unar o melhor de todos os scripts da pasta. Chame de AppScript_Replace.ps1
+=> Ele deve generalizas e modularizar o máximo possível sem perder as funcionalidades.
+1) Preciso que antes de aplicar qualquer substituição faça uma duplicação do arquivos alvos:
+1.1) Crie uma pasta com nome "Old" + TimeStamp (dia-mes-ano_HH-mm-ss)
+2) Caso de erro na leitura, escrita ou substituição de qualquer arquivo não, aborte/interropar/pule o processamento daquele arquivo sem corromper ou pagar o conteúdo do mesmo.
+3) Crie um interface gráfica em powershell
+
+4) Busque implementar os requisitos abaixo:
+
+4.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+4.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+4.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+6) Após as atividades anteriores deixe somente o AppScript_Replace.ps1 e remova os demais.
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+OK. Melhore o App:
+
+1) Implemente:
+1.1) Grupos configuráveis:
+=> cada grupo = pasta + filtro (*.dat) + recursivo + lista de regras Buscar/Substituir (editor multi-linha embutido).
+=> Ordem da lista = ordem de execução; arquivos dentro do grupo processam em paralelo.
+
+1.2) Backup obrigatório:
+=> antes de qualquer alteração, todos os arquivos-alvo são copiados para Old_dd-MM-yyyy_HH-mm-ss (preservando estrutura de subpastas).
+1.3) Escrita segura:
+=> grava em .tmp e só então substitui o original (Move-Item -Force).
+=> Erro de leitura/escrita/substituição marca só aquele arquivo como "Erro" na fila, sem corromper conteúdo nem parar os demais.
+
+1.4) Painel Hardware & Paralelismo:
+=> CPUs lógicos/físicos, RAM e GPU (via nvidia-smi, fallback Win32_VideoController), botão "Atualizar", combo de lote (5/10/15/Auto), e 3 mecanismos — RunspacePool (recomendado), Start-Job (isolado) e Sequencial.
+
+1.5) Fechamento gracioso: 
+=> Ao fechar a janela durante o processamento, cancela runspaces/jobs em andamento.
+=> Adaptação importante (conforme combinado): 
+=> o item 4 original citava conceitos Python (psutil, torch.cuda, ProcessPoolExecutor, GIL) que não existem/não se aplicam ao PowerShell. Adaptei para: RunspacePool = paralelismo real via threads .NET (sem GIL, diferente do Python); GPU é apenas detectada e informada, nunca usada, pois o trabalho é busca/substituição literal de texto (I/O + string matching), não é operação matricial/tensorial.
+
+1.6) Preservação de dados: as regras de 12 dos 15 scripts (que tinham conteúdo real de produção) foram extraídas para Rules/*.json antes da exclusão — carregáveis pela GUI via "Carregar JSON". Os 3 restantes (v1, v2, v3) eram apenas templates de teste, sem valor de produção, e não foram migrados.
+
+2) Cuidado com os Bugs encontrados nos scripts originais (agora corrigidos no novo script):
+
+PRB.ps1 e PRB1.ps1 tinham chaves duplicadas no hashtable — nunca teriam rodado.
+PRB1.ps1 tinha um comentário sem # que quebrava o parsing.
+PRB1.ps1 tinha uma regra Buscar="" vazia no final, que causaria erro em todo arquivo processado (.Replace("","") lança exceção em .NET). O novo script ignora regras com "Buscar" vazio.
+
+3) Execute os Testes: 
+=> sintaxe válida, GUI abre sem exceções (corrigi um Width="*" inválido em StackPanel), e a lógica central (substituição, no-op, subpastas, regra vazia, escrita atômica) validada em teste headless. Pasta final contém apenas AppScript_Replace.ps1 e Rules.
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+Ok. Melhore:
+
+1) Grupo agora suporta duas origens de arquivos, selecionáveis por radio button no painel de detalhes do grupo:
+
+=> "Pasta + filtro" (como antes): pasta + padrão (*.dat) + recursivo.
+=> "Lista de arquivos": lista explícita de arquivos avulsos, adicionados via diálogo de seleção múltipla (botão "Adicionar arquivos..."), removíveis individualmente ("Remover").
+
+2) Detalhes técnicos:
+
+2.1) O painel alterna automaticamente (mostra/esconde) conforme a origem escolhida.
+2.2) Presets JSON (Rules/*.json) ganharam os campos TipoOrigem/Arquivos, com fallback compatível para os presets antigos (assumem Pasta/lista vazia).
+2.3) No backup e no processamento, arquivos avulsos de pastas diferentes com o mesmo nome não colidem — o caminho de backup é derivado do diretório original completo (ex.: L:\res\x → L\res\x).
+2.4) Arquivo da lista que não existir mais no disco é reportado como erro e pulado individualmente, sem interromper o grupo.
+2.5) Faça os testes: sintaxe válida, BOM UTF-8 preservado, GUI abre sem exceções com os novos controles.
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+Ok. Melhore:
+
+1) Grupo agora suporta duas origens de arquivos, selecionáveis por radio button no painel de detalhes do grupo:
+
+=> "Pasta + filtro" (como antes): pasta + padrão (*.dat) + (mas deve ser definido pelo usuário) + recursivo.
+=> "Lista de arquivos": lista explícita de arquivos avulsos, adicionados via diálogo de seleção múltipla (botão "Adicionar arquivos..."), removíveis individualmente ("Remover"). Deve aceitar os seguintes formatos de endereços:
+
+1.1) Lista em Linha:
+ex:
+
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_01_IPB_log.txt"; "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_02_PID1.inc"; "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_02_PID1_log.txt"; "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_03_PID2.inc"; "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_03_PID2_log.txt"; "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_04_PID4.inc"
+
+1.2) Lista em coluna:
+ex:
+
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_01_IPB_log.txt"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_02_PID1.inc"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_02_PID1_log.txt"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_03_PID2.inc"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_03_PID2_log.txt"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\Includes\Cronograma\PN2731v1\PN2731_04_PID4.inc"
+
+Lista dentro de um arquivo de texto:
+ex: Lista.txt (em coluna ou em linha)
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+
+Ok. Melhore:
+
+1) Filtro obrigatório no modo "Pasta + filtro": removido o default silencioso *.dat — o campo agora começa vazio e o rótulo indica "obrigatório". Se o usuário deixar em branco, o grupo é pulado com aviso no log (mesma lógica de validação já usada para pasta vazia).
+
+2) Modo "Lista de arquivos" agora aceita 3 formas de entrada, além do diálogo de seleção:
+
+Colar lista em linha: "caminho1"; "caminho2"; "caminho3"... num campo de texto.
+Colar lista em coluna: uma linha por caminho, cada um entre aspas.
+Carregar de .txt: mesmo conteúdo (linha ou coluna) lido de um arquivo.
+Implementado com um parser único (Get-FilePathsFromText) que extrai tudo entre aspas via regex — funciona igual para linha e coluna, já que a aspas é o delimitador real (não o ; ou a quebra de linha). Testado com os exemplos exatos do pedido (3 casos + fallback sem aspas + texto vazio) — todos corretos.
+
+Botões novos no painel "Lista de arquivos": "Adicionar da lista colada" e "Carregar de .txt...", reaproveitando a mesma função Add-FilesToGroup do diálogo de arquivos (evita duplicatas, avisa quantos arquivos não existem no disco no momento da adição).
+
+Testado: sintaxe válida, BOM preservado, GUI abre sem exceções.
+
+Starting: Add UI elements for file path input (3/3)
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+ok. Melhore:
+1) Assim como foi feito na Aba Substituir, crie os conceitos e funcionalidades para:
+1.1) Grupo: conjunto ou lista de arquivos que serão mergeados/unidos.
+1.2) Json para salvar uma operação de merge feita. Assim como tem a pasta Rules crie a pasta Merges e salve os jsons de merges feitos. Crie o sistema CRUD para os jsons (Semelhante ao que existe na aba Substituir)
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+ok. Melhore:
+1) Crie a funcionalidade inversa do Merge, crie o Split de arquivos(Schedules).
+1.1) Os arquivos gerados do split do arquivo ( ou de vários arquivos = > lista de arquivos ou uma pasta com arquivos) definido(s) pelo usuário, deverá ser salvo um uma pasta Splits e um subpasta split_NomeDoArquivo_DateTime, onde NomeDoArquivo = nome do arquivo e datetime em dd_mm_aaaa_hh_mm_ss.
+1.2) De a possibilidade de splitar/dividir o(s) arquivo(s) de várias formas:
+1.3) Identifique o mês e anos de inicio e mês e ano de fim dos arquivos.
+1.2.1) por ano (ano a ano), os arquivos devem ser salvos com nomenclatura do ano; por exemplo: 2026.inc, 2027.inc, 2028.inc, etc
+1.2.2) por mes_ano, os arquivos devem ser salvos com nomenclatura do mes_ano; por exemplo: 01_2026.inc, 01_2027.inc, 01_2028.inc, etc
+1.2.3) por período ( ano a ano), os arquivos devem ser salvos com nomenclatura do ano1_ano2; por exemplo: 02026_2028.inc, 2029_2031.inc, etc
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+Corrija o script:
+1) testes todos os botoes e deixe eles funcionais.
+2) Generalize e Modularize o que for possível
+3) Refatore e Reuse funções.
+4) Melhore GUI distribuindo melhor os elementos e aproveitando mais os espações. deixe o app GUi mais compacto mantendo o espaçamento e a compreensão de todos os elementos.
+
+
+Diagnóstico completo do script (2669 linhas)
+1) BUGS encontrados
+=> Tabela: #, Severidade, Local, Descrição
+2) Função(ões) morta(s)
+3) Duplicações por handler
+=> Tabela: Padrão, Handler A, Handler B, Handler C, Linhas duplicadas
+4) O que está funcional
+5) Plano de refatoração
+=> Tabela: Etapa, Ação, Arquivo, Linhas
+6) Estimativa final: 
+=> Exemplo: ~300 linhas a menos, 65% do código duplicado eliminado, sem alteração de comportamento.
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+Ok.
+ 
+Para: "C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\AppParsePy\parsePyGUI.py"
+
+Melhore o Ui/Ux:
+1) Na parte de configuração, o usuário deverá escolher qual os alvos do processamento (Modo Arquivos ou Modo Pastas): 
+1.1) Com input de vários arquivos. py ou o input de várias pastas
+1.2) As formas de input:
+1.2.1) Para arquivos ou para pastas:
+=> Caixa de dialogo para selecionar um ou vários arquivos.
+=> Caixa de dialogo para adicionar uma lista de arquivo, no formatos 1 ou formato 2:
+
+formato 1: (lista de endereços separada por ponto-virgula ou virgula ou espaço)
+
+	C:/pasta/arquivo1.py; C:/pasta/arquivo2.py; C:/pasta/arquivo3.py; ...
+
+formato 2: (lista de endereços em coluna) 
+
+	C:/pasta/arquivo1.py
+	C:/pasta/arquivo2.py
+	C:/pasta/arquivo3.py
+	...
+
+	=> Nesse caso deve-se abrir uma janela secundária para o usuário colar (Aceitar CTRL+V) uma lista de caminhos (1 textbox, botao de ok e botao de cancel)
+	=> Aceitar tabulação.
+
+formato 3: (um arquivo.txt com o conteúdo com lista de endereços no formato 1 ou formato 2)
+
+2) De a possibilidade de:
+2.1) Trabalhar com o processamento em lista (FILO)
+2.2) Usar algoritmos de escalonamento de processos:
+=> Os principais algoritmos de escalonamento de processos:
+=> 1) SJF (Shortest Job First)
+=> 2) SRTF (Shortest Remaining Time First)
+=> 3) Round-Robin (RR)
+=> 4) Por Prioridade
+=> 5) Múltiplas Filas (Multilevel Queue - MLQ)
+=> 6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+=> 7) HRRN (Highest Response Ratio Next)
+=> 8) Fair-Share
+
+##################################################################################################################################################################
+##################################################################################################################################################################
+##################################################################################################################################################################
+
+ok. Melhore:
+1) Altere a nomenclatura das pastas:
+"...\AppReplace\Merges" =>"...\AppReplace\db_Merges"
+"...\AppReplace\Rules" => "...\AppReplace\db_Rules" 
+"...\AppReplace\Splits" =>"...\AppReplace\db_Splits"
+
+1) Altere onde for necessário no código
+2) Se as pastas não existirem, faça o app cria-las
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+ok. Melhore:
+1) Altere a nomenclatura das pastas:
+"...\AppReplace\Workers" => appReplace_workers
+"...\AppReplace\Controller" => appReplace_controller
+"...\AppReplace\Model" => appReplace_model
+"...\AppReplace\View" => appReplace_view
+1) Altere onde for necessário no código
+2) Se as pastas não existirem, faça o app cria-las
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Leia e entenda os arquivos:
+C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppCopyPaste\Copy-FilesByExtension_simples.ps1
+C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppCopyPaste\Copy-MultiFilter.ps1
+C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppCopyPaste\Copy-MultiFilter_otim.ps1
+C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppCopyPaste\Copy-FilesByExtension.ps1 
+
+depois faça:
+1)Crie uma nova Aba "Copy Files"  no C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1
+2) implemente a funcionalidades dos scripts acima
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Leia e entenda o arquivo:
+=> "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\excel\delta_gen.ps1"
+
+depois faça:
+1) Crie uma nova Aba "Delta Gen"  no C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1
+2) implemente a funcionalidades do script acima
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Leia e entenda o arquivo:
+=> "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\html\Analise_PN_2731.ps1"
+
+depois faça:
+1) Crie uma nova Aba "Plot Series"  no C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1
+2) implemente a funcionalidades do script acima
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. Melhore:
+
+1) Como requisito não-funcional, par gestão (CRUD):
+=> de pastas, 
+=> de arquivos gerais(.txt,.md,  .inc, .dat, etc),
+=> banco de dados (.sql), 
+=> arquivos de configs
+=> arquivos de logs.
+
+1.1) Mantenha o caminho dos script/software como padrão para criar os demais e/ou dê a possibilidade do usuário definir caminhos onde criar e salvar pastas e arquivos.
+1.2) Sempre pergunte se o usuário quer manter criar local ou definir um caminho específico.
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+ 
+Ok. Melhore:
+1) Modularize e Generalize o máximo possível
+2) Faça uma Refatoração e Maximize o Reuso de funções, modulo ou classes
+3) Retira componente duplicados e redundates.
+
+Ok. Crie as Documentações para o C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1
+1) PRD (Product Requirements Document) 
+2) AQR (Requisitos de Arquitetura) ou documento de arquitetura de software (DAS)
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+OK. Vamos evoluir:
+
+1) Entendar os arquivos:
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppMerge\Merge-ScheduleFiles.ps1"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppMerge\Merge-ScheduleFiles-CLI.ps1"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppMerge\Merge-ScheduleFiles-v2.ps1"
+
+2) Implemente as funcionalidades os scripts acima como uma nova funcionalidade no "C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1"
+3) Melhore o Ui e Ux para ter as funcionalidade de Substituir e Merge bem definidas.
+=> Talvez usar um sidebar menu left com as sessões: "Replace" (Susbstituir) e Merge (Unir). E Region right com tabs para as funcionalidades e painéis de configuração.
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. Melhore:
+1) Vamos melhor o UI, Vamos trocas as Abas de string para números, criando a seguinte legenda/correspondência. Mostre a legenda de funcionalidades para o usuário.
+1-Move Date Blocks
+2-Delta gen
+3-Plot Series
+e assim pode diante.
+2) Coloque as abas numéricas na vertical
+
+Faça:
+1) Leia e entenda o script:
+2) Crie um GUI com WPF com todos as funcionalidades previstas no script
+3)
+
+Se inspire no C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Fast_PowerShell\AppReplace\AppScript_Replace.ps1
+
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Verifique se é possivel instalar as skills no github copilot:
+https://github.com/obra/superpowers
+https://github.com/gsd-build/get-shit-done
+https://github.com/tashfeenahmed/freellmapi
+https://github.com/cheahjs/free-llm-api-resources
+
+
+copilot plugin marketplace add obra/superpowers-marketplace
+copilot plugin install superpowers@superpowers-marketplace
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. Melhore o app:
+1) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+2) Construa um monólito (todo o código em um único arquivo)
+3) Separe os módulos, submodulos, classes e/ou estruturas de dados por comentário (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. Melhore:
+1) Foque em economizar espaços e melhor distribuição de elementos do GUI. 
+2) Utilize formas diferentes de disposição dos elementos em forma de GRID (3x3 ou 2x2 ou 2x1 ou 3x1 ou 1x3, etc)
+3) Para textbox e botes, coloque o textbox em uma coluna e os botoes em outra coluna.
+4) Para checkboxes e botes, coloque os checkboxes em uma coluna e os botoes em outra coluna.
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. melhore:
+
+Para o projeto C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Apps_Pyhton_BRK\multi_plot_desktop, faça:
+
+1) Leia e entenda os scripts:
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Apps_Pyhton_BRK\multi_plot_desktop\core.py"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Apps_Pyhton_BRK\multi_plot_desktop\themes.py"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Apps_Pyhton_BRK\multi_plot_desktop\app_ctk.py"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\06_Ferramentas\Apps_Pyhton_BRK\multi_plot_desktop\app_qt.py"
+
+Melhore o app (para cada GUI => QT ou CTK):
+2) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+3) Construa um monólito (todo o código em um único arquivo)
+4) Separe os módulos, submodulos, classes e/ou estruturas de dados por comentário (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+
+5) Busque implementar os requisitos abaixo:
+
+5.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing/reading/loading de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+5.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+5.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing/reading/loading é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+############################################################################################################################################################################
+############################################################################################################################################################################
+############################################################################################################################################################################
+
+Ok. Melhore: projeto(L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh)
+1) Crie um monólito, todos os scripts e código em um unico arquivo.py
+2) Generalize o script e de a possibilidade do usuário passar o arquivo de referencia (sr3 ou dat)
+3) Generalize o script e de a possibilidade do usuário passar a propriedade alvo ( de todos as opções passiveis ou opções default)
+4) O script deve detectar as regioes e os blockgroups definido no dat ou sr3 ou nos incs dentro do dat.
+5) Crie um interface CLI e GUI( PyQT/Pyside6)
+6) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+7) Construa um monólito (todo o código em um único arquivo)
+8) Separe os módulos, submodulos, classes e/ou estruturas de dados por comentários (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+
+9) Busque implementar os requisitos abaixo:
+
+9.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+9.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+9.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python extractPyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+################################################################################################################################################################################################
+################################################################################################################################################################################################
+################################################################################################################################################################################################
+
+Ok. Melhore: (projeto: "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh")
+1) Crie um monolito, todos os scripts e código em um unico arquivo.py
+2) Generalize o script e de a possibilidade do usuário passar o arquivo de referencia (sr3 ou dat)
+3) Generalize o script e de a possibilidade do usuário passar a propriedade alvo ( de todos as opções possiveis ou opções default)
+4) O script deve detectar as regioes e os blockgroups definido no dat ou sr3 ou nos incs dentro do dat.
+5) Crie um interfaxe CLI e GUI( PyQT/Pyside6)
+6) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+7) Construa um monólito (todo o código em um único arquivo)
+8) Separe os módulos, submodulos, classes e/ou estruturas de dados por comentários (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+8.1) adicionar auto-descoberta dos SR3 a partir do diretório do ref-dat, ou
+8.2) permitir escolher qualquer dataset existente no SpatialProperties/000000 sem lista fixa.
+
+9) Busque implementar os requisitos abaixo:
+
+
+9.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+9.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+9.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python extractPyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+
+
+Ok. Melhore:
+1)Leia, entenda e estudo os arquivos:
+1.1)"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\super_SKILL.md"
+1.2)"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\RESUMO.md"
+
+2) Leia, entenda e estude os arquivos:
+2.1) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\region_transforms_v4_exact.json"
+2.2) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\sr3_grid.py"
+2.3) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\sr3_wells.py"
+2.4) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\build_html_v8_correct.py"
+2.5) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\dat_blockgroups.py"
+2.6) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\generate_kh_html.py"
+2.7) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\inc_masks.py"
+2.8) "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\region_transforms.py"
+
+Faça:
+1) Crie um monolito, todos os scripts e código em um unico arquivo.py
+2) Generalize o script e de a possibilidade do usuário passar o arquivo de referencia (sr3 ou dat)
+3) Generalize o script e de a possibilidade do usuário passar a propriedade alvo ( de todos as opções possiveis ou opções default)
+4) O script deve detectar as regioes e os blockgroups definido no dat ou sr3 ou nos incs dentro do dat.
+5) Crie um interfaxe CLI e GUI( PyQT/Pyside6)
+6) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+7) Construa um monólito (todo o código em um único arquivo)
+8) Separe os módulos, submodulos, classes e/ou estruturas de dados por comentários (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+8.1) adicionar auto-descoberta dos SR3 a partir do diretório do ref-dat, ou
+8.2) permitir escolher qualquer dataset existente no SpatialProperties/000000 sem lista fixa.
+
+9) Busque implementar os requisitos abaixo:
+
+9.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+9.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+9.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python extractPyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+OBS1: Verifique a lista de tarefas pedidas/abaixo. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas corrija) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 10, 15, 20, 40, 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores
+
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+OK. Vamos evoluir:
+1) NO GUI, dê opções de propriedades alvo possíveis.
+=> De possibilidade de calcular operações com as propriedade alvos ou entre propriedades, por exemplo: propriedade derivada = PREMI/PERMJ
+2) DE possibilidade de mudar a escala do gráfico: log ou valor nominal ou valor/10000
+3) De a possibilidade de mudar a escala de cores, por exemplo: de azul para vermelho
+
+OBS1: Verifique a lista de tarefas pedidas. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 10, 15, 20, 40, 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores
+
+OBS: Divida em 32 tarefas objetivas, robustas e seguras, que podem ser feitas em 2 ou 3 steps.
+
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+OK. Acho que agora ficou perfeito. Faça:
+1) Analise e estudo todo o histórico do CHAT.
+2) Adicione mais detalhes do que foi feito nos arquivos abaixo: (Mantenha o conteudo que já existe nesses documentos e adicione mais detalhe ou melhorias de detalhes)
+	"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\docs\RESUMO.md"
+	"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\docs\super_SKILL.md"
+
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+OBS: Boas Práticas de Escrita em Memória. Use:
+
+=> io.StringIO para tratar blocos de texto como se fossem arquivos abertos na RAM.
+=> Acumule partes menores em uma list e chame "".join(lista) apenas no final para montar os 90MB de uma só vez.
+=> Prefira operadores de escrita incremental em disco (arquivo.write()) se o limite de memória for restrito.
+
+Exemplos Práticos1:
+	Usando io.StringIOpythonimport io
+
+	# Cria o buffer na memória
+	buffer = io.StringIO()
+
+	# Escreve pedaço por pedaço de forma eficiente
+	for i in range(100000):
+	  buffer.write(f'Linha de texto número {i}\n')
+
+	# Recupera a string completa de 90MB (se atingir esse tamanho)
+	big_string = buffer.getvalue()
+	buffer.close()
+
+	Use o código com cuidado.
+
+Exemplos Práticos2:
+	Usando Lista e joinpython
+	# Acumula pedaços em uma lista (baixo custo de processamento)
+	pedaços = []
+	for i in range(100000):
+	  pedaços.append(f'Bloco de dados {i}')
+
+	# Junta tudo de uma única vez no final
+	big_string = ''.join(pedaços)
+	Use o código com cuidado.
+
+Exemplos Práticos3:
+
+Gravando direto em arquivo (Ideal para economizar RAM) python
+# Escreve diretamente no disco sem manter os 90MB na memória RAM
+with open('arquivo_grande.txt', 'w', encoding='utf-8') as f:
+  for i in range(100000):
+    f.write(f'Dados gravados diretamente no disco {i}\n')
+	
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+Faça: (divida em 20 ou mais tarefas de 2 ou 3 passos)
+
+1) Guarde os números dos traces após o calculo dos Percentis P10, P50 e P90. Esses números dos traces serviram como referencia para colorir os valores nas abas Tabelas, Resumos e Blox Plot
+2) Na inicialização do html, os gráficos são carregado mas parecem não seguir o layout default definido. Verifique e Corrija.
+3) Identifique e remova scripts desnecessários, sem vinculo com o projeto e temporários.
+
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+OK. Faça: (Divida em 100 tarefas ou mais)
+
+0) Com base nas ultimas tarefas realizadas. Descreva com detalhes qual era o problema e qual foi a solução
+
+1) Proponha uma Plano de Desacoplamento HTML/CSS/JS/Python (mas não execute) se é possível:
+1.1) Desacopla o html, css e js do python. talvez criar 3 arquivos:
+1.1.1) html_template.html (um template em html) => um Vizualizado de dados
+1.1.2) css_template.css (um template em css) => para o html
+1.1.3) js_template.js (um template em js => para o html
+Somente um template_builder.py que faria:
+2.1) ETL (extrair, transformar e carregar) dos dados dos arquivos em db.json ou db.parquet com o schema/estrutura necessária para ser carregado pelo html. Esse arquivo (db.json, db.parquet) será um base dados/banco de dados para preencher os elementos do html_template.html
+2.2) O html_template.hmtl deve carregar o arquivo (db.json ou db.parquet) e mostras as informações e series temporais
+
+2) Proposta de Plano: Desacoplamento HTML/CSS/JS/Python
+2.1) Visão geral da nova arquitetura. Por exemplo:
+
+view/html_templates/
+├── static/
+│   ├── template_dashboard.html   ← estrutura HTML pura
+│   ├── dashboard.css             ← todos os estilos
+│   └── dashboard.js              ← toda a lógica JS
+└── template_builder.py          ← único arquivo Python (ETL + geração do db.json)
+
+O HTML carrega seus assets locais e o db.json gerado pelo Python.
+
+OBS: Boas Práticas de trabalhar com Big Strings e Leitura/Escrita em Memória. Use:
+
+=> io.StringIO para tratar blocos de texto como se fossem arquivos abertos na RAM.
+=> Acumule partes menores em uma list e chame "".join(lista) apenas no final para montar os 90MB de uma só vez.
+=> Prefira operadores de escrita incremental em disco (arquivo.write()) se o limite de memória for restrito.
+
+3) O Python faz apenas o ETL:
+
+3.1) Extrai: lê arquivos .sr3/.dat/.inc (já existente em data_loader.py)
+3.2) Transforma: calcula percentis, delta, filtra datas
+3.3) Carrega: serializa para db.json (ou db.parquet para dados grandes)
+
+=> Pasta com assets separados (melhor para debug):
+output/
+├── html_dashboard.html   ← aponta para db.json local
+├── db.json ou db.parquet
+├── dashboard.css (desacoplar para melhore debug, correções e evolução)
+└── dashboard.js (desacoplar para melhore debug, correções e evolução)
+
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+2.5) Recomendação
+2.5.1) Plano viável e recomendado — a separação resolverá definitivamente os problemas recorrentes de regressão.
+
+Sequência sugerida de implementação:
+
+Fase 1 (baixo risco, 2h): 
+  Extrair CSS → dashboard.css
+  Extrair _generate_advanced_js → dashboard.js
+  template_10.py faz open() do .js em vez de string inline
+
+Fase 2 (médio risco, 6h):
+  Definir schema db.json
+  Criar template_builder.py com ETL
+  HTML com <script>const DB = {...};</script> inline
+
+Fase 3 (alto risco, 8h):
+  Reescrever renderização em JS puro (initDashboard)
+  Eliminar _generate_chart_tables, _generate_summary_tab, _generate_boxplot_tab Python
+  Testes end-to-end
+
+Fase 4 (opcional, 4h):
+  Opção B: assets separados + servidor local (Python http.server)
+  db.parquet via DuckDB WASM para datasets > 50MB
+  
+ 
+################################################################################################################
+################################################################################################################
+################################################################################################################
+
+Plano completo revisado (55 passos)
+Ciclo 0 — Consolidação (pre-requisito de tudo)
+Etapa 0.1 — Checkpoint git (segurança)
+
+Criar branch refactor/desacoplamento
+Commit do estado atual (stable) com git add -A && git commit
+Verificar via git show --stat que todos os arquivos foram incluídos
+Checar .gitignore por padrões tipo *temp* que possam excluir pastas
+Etapa 0.2 — Unificar template_9 + template_10 → template_dashboard.py
+
+Auditar o que template_10 importa de template_9 (hoje: 5 funções)
+Auditar o que template_9 tem que template_10 redefine/sobrescreve (STRIP_FUNCS)
+Criar view/html_templates/template_dashboard.py — arquivo único
+Copiar todas as funções do template_9 para o novo arquivo
+Copiar todas as funções do template_10 para o novo arquivo, eliminando os imports cruzados
+Substituir chamada from .template_9 import X por definições locais ou referências internas
+Eliminar _generate_advanced_js_t9 (redundante — template_10 já tem _generate_advanced_js_t10 com os extras)
+Consolidar _generate_main_content_advanced (t9, 3 abas) + _generate_main_content_t10 (4 abas) → manter só a versão de 4 abas
+Verificar que generate_template_9() e generate_template_10() ainda existem (compatibilidade)
+Atualizar __init__.py: importar de template_dashboard em vez de template_9/template_10
+Rodar test_compatibility.py + todos os outros testes → 25/25 passando
+Deletar template_9.py e template_10.py (agora obsoletos)
+Commit: "chore: unify template_9 + template_10 → template_dashboard"
+Etapa 0.3 — Criar script de auto-verificação de integridade
+
+Criar tests/test_template_integrity.py: verifica que as funções críticas (pctColorForTrace, formatSummaryDate, _generate_advanced_js, etc.) nunca desaparecem do arquivo unificado
+Adicionar ao CI / scripts de pré-commit
+
+🟢 Ciclo 1 — Extrair CSS
+Extrair todo o CSS do _generate_header_advanced() para view/html_templates/static/dashboard.css
+Ajustar _generate_header_advanced() para usar <link rel="stylesheet" href="dashboard.css"> (opção A: embed inline; opção B: link externo)
+Testar: HTML gerado carrega corretamente os estilos
+Rodar 25/25 testes
+
+🟡 Ciclo 2 — Extrair JS base para arquivo externo
+Extrair _generate_advanced_js() inteira para view/html_templates/static/dashboard_base.js
+Extrair js_extras do _generate_advanced_js_t10() para view/html_templates/static/dashboard_extras.js
+Extrair JS de Tabelas (_generate_chart_tables) para view/html_templates/static/dashboard_tables.js
+Extrair JS de Resumo (_generate_summary_tab) para view/html_templates/static/dashboard_summary.js
+Extrair JS de Boxplot para view/html_templates/static/dashboard_boxplot.js
+Ajustar as funções Python para ler os .js via open() em vez de string literal
+Adicionar função _embed_js(filename) que faz open(static_dir/filename).read() com fallback a CDN se não encontrar
+Testar: HTML gerado com JS embutido funciona igual
+Rodar 25/25 testes
+
+🔴 Ciclo 3 — Definir schema db.json
+Definir schema db.json:
+
+Criar view/html_templates/db_builder.py com função build_db(figure_data, percentile_info) → dict
+Criar view/html_templates/db_writer.py com write_db_json(db, path) e embed_db_in_html(db, html) → html
+Testar serialização round-trip: build_db → write → load → assert igual
+
+🔴 Ciclo 4 — Criar template_dashboard.html estático
+Criar view/html_templates/static/template_dashboard.html com estrutura HTML pura (sem dados)
+Adicionar <script>const DB = __DB_JSON__;</script> como único placeholder
+Adicionar <link> para CSS e <script src> para os JS externos
+Criar initDashboard(db) em dashboard_extras.js que monta as abas a partir de DB
+Implementar initDashboard → renderização dos gráficos via Plotly a partir de db.figures
+Implementar initDashboard → aba Tabelas (buildAllAccordions a partir de db)
+Implementar initDashboard → aba Resumo (updateSummaryTable a partir de db)
+Implementar initDashboard → aba Boxplot (BOXPLOT_PROPERTIES a partir de db)
+
+🔴 Ciclo 5 — Unificar geração no template_builder.py
+Criar view/html_templates/template_builder.py com função única generate_html(figs, percentile_info, output_path)
+generate_html faz: ETL → build_db → embed_db_in_html → salva arquivo
+Remover generate_template_9, generate_template_10, save_figs_to_html (substituídos)
+Atualizar html_exporter.py para usar template_builder
+Atualizar cli.py para usar nova interface
+Rodar 25/25 testes
+🏁 Ciclo 6 — Validação final
+Testar com dados reais: rodar Analise_AMP_PRB.ps1 completo e abrir HTML
+Verificar 4 abas, traces 3 dígitos, Boxplot Modo 1 multi-select, Resumo com data BR
+Validar que o HTML funciona offline (sem internet) com assets embutidos
+Commit final: "feat: desacoplamento HTML/CSS/JS/Python completo"
+Atualizar ARQUITETURA.md com a nova estrutura
+
+Resumo da ordem de prioridade
+Ciclo	Tarefa-chave	Risco	Bloqueia
+0	Unificar t9+t10	Médio	Tudo
+0	Script de integridade	Baixo	Regressões futuras
+1	Extrair CSS	Baixo	—
+2	Extrair JS	Médio	Ciclos 3–5
+3	Schema db.json	Médio	Ciclos 4–5
+4	HTML estático	Alto	Ciclo 5
+5	template_builder	Alto	—
+6	Validação	—	Ship
+
+##########################################################################################################################################################################################################
+##########################################################################################################################################################################################################
+##########################################################################################################################################################################################################
+
+Ciclos 0, 1 e 2 completos
+Estado final da estrutura
+view/html_templates/
+├── template_dashboard.py    44 KB  ← ANTES: template_9.py(64KB) + template_10.py(73KB) = 137KB
+├── template_comparacao.py   24 KB  (inalterado)
+├── __init__.py               4 KB  (atualizado)
+├── download_libs.py          2 KB  (inalterado)
+└── static/                         ← NOVO (Ciclos 1+2)
+    ├── dashboard.css        11 KB  ← CSS extraído de _generate_header_advanced
+    ├── dashboard_base.js     7 KB  ← JS base (_generate_advanced_js)
+    ├── dashboard_tables.js  28 KB  ← JS aba Tabelas (_generate_chart_tables)
+    ├── dashboard_summary.js 12 KB  ← JS aba Resumo (_generate_summary_tab)
+    ├── dashboard_boxplot.js 21 KB  ← JS aba Boxplot (_generate_boxplot_tab)
+    └── dashboard_extras.js  20 KB  ← JS extras T10 (_generate_advanced_js_t10)
+	
+##########################################################################################################################################################################################################
+##########################################################################################################################################################################################################
+##########################################################################################################################################################################################################
+
+OK. Melhore: (divida em 50 tarefas ou mais)
+1) Na tab Mapa Principal, faça:
+1.1) na sessão Painel use um grid 3x3, distribua os elementos, e coloque-os com o mesmo tamanho, ocupando todos os espaços das celular
+1.2) Plot um segundo mapa 2d: com com I x J original do .dat(ou sr3 ou .inc) ao lado do mapa já existente, mostrando a mesma propriedade
+1.3) De a opção de:
+1.3.1) Mudar a paleta de cores do mapa 2d
+1.3.1) Mudar os valores do mapa 2d: log10, log2, nominal, valor/1000, intervalo(min, máx), e outros possiveis
+
+2) Na tab Perfil por Profundiade, faça:
+2.1) Ao selecionar um poço diferente o gráfico deve mudar, isso não ocorre atualmente.
+2.2) Mudar as cores do gráfico conforme o tema (dark ou light)
+2.3) Deixe o grafico ocupar todo o espaço disponível.
+
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+
+OK. Melhore: (divida em 50 tarefas ou mais)
+1) Crie uma nova tab Mapa de Saturação (mostrar saturação individual (So ou Sw ou Sg) e saturação ternária (So e Sw e Sg) :
+1.1) Na região dos mapas 2d: Mapa Todo (x1), Mapa das Regioes(x1), Mapa por poço (x3)
+1.2) Mapa por poço (serão 3 gráficos):
+=> o usuário deverá selecionar o poço. a partir da posição do poço criar mapa de grid de IxJ, IxK (perfil do poço por profundidade) e JxK (perfil do poço por profundidade)
+
+#########################################################################################################################################################################
+#########################################################################################################################################################################
+#########################################################################################################################################################################
+
+ok. Corrija: (divida em 50 tarefas)
+1) mapa de poço por profundidade, as funções do seletor de poços e a atualização do gráfico.
+2) mapa de saturação, as funções do seletor de poços e a atualização do gráfico (posição).
+3) mapa de saturação, o mapa de saturação no mapa total faça o J crescer de baixo para cima. (semelhante ao mapa de regiões)
+
+Corrija sem alterar as demais TABS ou perder funções. Busque solução robusta, modularizada e desacoplada
+
+#########################################################################################################################################################################
+#########################################################################################################################################################################
+#########################################################################################################################################################################
+
+
+OBS1: Verifique a lista de tarefas pedidas. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 10, 15, 20, 40, 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores
+
+########################################################################################################################################
+########################################################################################################################################
+########################################################################################################################################
+
+Ok. Melhore. (Divida em 32 tarefas objetivas, robustas e seguras, que podem ser feitas em 2 ou 3 steps.)
+
+=> Na aba tabs Tabelas, refaça o algoritmo da tab e deixe funcional:
+1) Essa aba deve mostrar os valores dos gráficos em formato tabelar (ou tabular). São as series temporais dos gráficos no formato de tabela.
+2) foque o interior das tabelas nos valores numéricos. USe o DateTIme como numeros de dias. De a possibilidade de alternar entre: números de dias ou data
+3) Crie uma legenda de correspondência: 
+
+trace 0 = "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\00.P50_v3\RMSv14_er03_geoeng_output03_087_00_MP.opt.data",
+trace 1 = "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\00.P50_v3\RMSv14_er03_geoeng_output03_087_01_IPB.opt.data", 
+etc ...
+
+3) aproveite a coluna X ( coluna de tempo das series temporais ) que é igual em todas as curvas e utilize ela somente uma vez na tabela, ou seja não é necessário repetir para todos as curvas de uma mesma tabela.
+use essa legenda como colunas y das curvas de um mesmo gráfico.
+
+4) Faça paginação das tabela. De a possibilidade do usá rios definir numero de colunas e números de linhas por página na paginação da tabela. Por padrão utilize 500 linhas e 10 colunas.
+
+
+=> Na ba Resumo, refaça o algoritmo da tab e deixe funcional:
+1) Na aba de Resumo teremos uma tabela resumo com valores das curvas/series temporais em um determinada data. Por padrão, na inicialização do html, coloque a última data como default.
+2) Segue o formato da tabela de resumo:
+
+Data	Propriedade 1	Propriedade 2	Propriedade 3	Propriedade 4	Propriedade 5
+trace 0	Valor 11	Valor 21	Valor 31	Valor 41	Valor 51
+trace 1	Valor 12	Valor 21	Valor 31	Valor 41	Valor 51
+trace 2	Valor 13	Valor 21	Valor 31	Valor 41	Valor 51
+trace 3	Valor 14	Valor 21	Valor 31	Valor 41	Valor 51
+trace 4	Valor 15	Valor 21	Valor 31	Valor 41	Valor 51
+trace 5	Valor 16	Valor 21	Valor 31	Valor 41	Valor 51
+trace 6	Valor 17	Valor 21	Valor 31	Valor 41	Valor 51
+					
+					
+01/12/2060	Propriedade 1	Propriedade 2	Propriedade 3	Propriedade 4	Propriedade 5
+trace 0	53	90	89	81	18
+trace 1	0	39	67	4	12
+trace 2	88	22	23	86	25
+trace 3	40	80	95	0	3
+trace 4	44	14	78	25	37
+trace 5	3	12	50	70	7
+trace 6	6	9	23	94	20
+
+3) O usuário poderá alterar a data que ele deseja ver os valores, ao alterar os valores na tabela deverão ser alterados e filtrados para os valores daquela data definida
+4) Mantenha o padrão de Ui, Ux e cores do html.
+
+
+5) Nas abas Tabelas e Resumo, coloque os números formatados com "." para milhares, milhões, etc e "," para os decimais
+6) Nas abas Tabelas e Resumo, os valores números relativos as curvas/traces P10, P50 e P90 devem está nas mesma cores dessas curvas.
+7) Crie um nova aba Plot Box, onde será plotado os gráficos de plot box para as propriedades
+8) Na aba Tabelas, coloque a legenda em um accordion toggleavel( possibilidade de colapsar):
+	Legenda de Traces:
+	Trace 0 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_002.data
+	Trace 1 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_003.data
+	Trace 2 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_004.data
+	Trace 3 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_005.data
+	Trace 4 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_006.data
+	Trace 5 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_007.data
+	Trace 6 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAI
+
+#####################################################################################################################################################################
+#####################################################################################################################################################################
+#####################################################################################################################################################################
+
+Prezado Bruno, boa tarde.
+
+Seguem os casos para JUBARTE.
+
+A) Geologo Responsável: Pedro Marchon 
+b) Critérios utilizados:
+=> Divisão de setores usando a geologia e o mapa de pressões último. 
+=> Utilizado requisitos objetivos de VOOIP < 0,5 bilhão de boe 
+=> Utilizado a recomendação de agrupar injetores e produtores próximos.
+ 
+C) Criadas as seguintes regiões:
+=> PRB1, PRB2, BAZ Sul, BAZ Norte, JUB-34H, JUB-48A, JUB-62DA, BFR-6, BFR-1, BFR-12PA e BAZ-8.
+
+D) Pasta com casos simulados:
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas
+
+################################################################################################
+################################################################################################
+################################################################################################
+
+OK. melhore:
+
+1) Mostre qual foi as curvas/trace P10, P50 e P90 utilizadas para criar a região P10-P90
+2) De a possibilidade do usuário trocar as curvas/traces P10,P50 e P90. Para simplificar trabalhe com os números das curvas/traces
+3) De a possibilidade de substituir por novas curvas/traces definidos pelo usuário. Para simplificar trabalhe com os números das curvas/traces
+4) Nas abas Tabelas e Resumo, coloque os números formatados com "." para milhares, milhoes, etc e "," para os decimais
+5) Nas abas Tabelas e Resumo, os valores números relativos as curvas/traces P10, P50 e P90 devem está nas mesma cores dessas curvas.
+6) Crie um nova aba Plot Box, onde será plotado os gráficos de plot box para as propriedades
+7) Na aba Tabelas, coloque a legenda em um accordion toggleavel( possibilidade de colapsar):
+	Legenda de Traces:
+	Trace 0 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_002.data
+	Trace 1 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_003.data
+	Trace 2 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_004.data
+	Trace 3 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_005.data
+	Trace 4 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_006.data
+	Trace 5 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAICSPB_007.data
+	Trace 6 = .../Ensemble/WSAout7_PID4_ICSPB_4/RMSv15_er03_brkwtq8_out07_WSAI
+	
+8) Dê a possibilidade do plot box ou histogram ser feito para uma curva ou trace específico (trace 13, por exemplo) fazendo para todos valores da serie temporal ou fazer para vários traces de propriedade( um ponto especifico no tempo para vários traces, ou todos os pontos das series temporais de todos os traces).
+
+################################################################################################
+################################################################################################
+################################################################################################
+
+Ok. Melhore:
+
+1) Cuidado com as alterações, define bem os limites das funções (os inícios e fins dos escopos, principalmente no javascript), não quebre os scripts.
+2) Melhor o UI/UX dos elementos ( disponibilização do elementos e tamanhos proporcionais, use grid/matriz 2x2 ou 3x3 ou 4x1 etc) de configuração e filtro da abas Tabela, Resumo e Plot Box
+
+################################################################################################
+################################################################################################
+################################################################################################
+
+Leia e entenda o projeto:
+L:\res\campos\jubarte\er\er02\00_Programas\python\script\atual\Suporte_Ensemble\
+
+Faça:
+1) Corrija: Aba Tabelas e Resumo novamente com erro, valores tabulares não aparecem. Corrija primeiro e depois Implemente uma forma mais robusta para que esse erro não aconteção novamente. Separe as funções por comentários ou adicione em um estrutura de dados mais robusta.
+
+Faça:
+1.1) Faça um resumo do histórico do Chat.
+1.2) Liste as atividades pendentes.
+1.3) Abrir um novo chat do github copilot para e dar um refresh/renovar a janela do contexto
+1.4) Divida em tarefas menores para conseguir prosseguir
+1.5) Crie uma para L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\memories/historico_dia_mes_ano e coloque os arquivos gerados.
+
+########################################################################################
+########################################################################################
+########################################################################################
+
+ok. Melhore:
+1) faça um teste de saida dos arquivos gerados na pasta L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\output_desacoplado2
+2) Crie um .bat para executar o GUI no python
+
+########################################################################################
+########################################################################################
+########################################################################################
+
+Faça:
+1) Um resumo do chat.
+2) Liste atividades feitas e concluídas.
+3) Liste atividades pendentes e faltantes.
+4) Salve em arquivo.md para ser utilizado em outro chat. Informe o caminho completo
+5) Crie uma pasta L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat/historico_dia_mes_ano e adicione os arquivos gerados.
+
+Ok. Continue. Faça melhorias e testes.
+
+01) Foque em otimização e ganhos de velocidade.
+02) Foque em Design( UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+03) Generalize, Modularize e Refatore.
+
+########################################################################################
+########################################################################################
+########################################################################################
+
+Reveja o GUI.
+
+Faça o gui com:
+1.1) Sidebar Menu Left com 25% da janela
+1.2) WorkArea Right com 75% da janela (com tabs)
+1.3) Com e themas light e dark
+
+########################################################################################
+########################################################################################
+########################################################################################
+
+Ok. Corrija:
+
+Na tab mapa:
+01) Na sessão painel, remova o dropdownlist do painel.
+02) reveja o dropdownlist das propriedade
+
+Na tab Block Groups:
+01) traga os poços para frente do mapa, ou seja,acima dos mapas 2d
+
+ok. Vamos evoluir:
+1) vamos criar uma alternativa ao extrator de dados:
+1.1) Inspirado no extrator em python(todos os requisitos, funcionalidades, modulos e bibliotecas) existente no projeto, iremos criar um extrator em RUST. O objetivo é medir velocidade e performace de extração.
+1.2) Seguem possíveis orientações para a criação:
+
+
+https://github.com/pyo3/pyo3
+https://medium.com/@mdbaraujo/pyo3-integra%C3%A7%C3%A3o-entre-rust-e-python-4afbbf7f9bbe
+https://github.com/aldanor/hdf5-rust
+https://github.com/stephenberry/hdf5-pure
+https://github.com/rust-lang/cargo
+
+
+1.3) Gere um solução, crie com um arquitetura de referencia (MVC-W) e multi-process
+1.4) faça os testes de extração já mapeados.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Ok. Melhore:
+
+1) Como requisito não-funcional, crie funcionalidades para gestão (CRUD):
+=> de pastas, 
+=> de arquivos gerais(.txt,.md,  .inc, .dat, etc),
+=> banco de dados (.sql), 
+=> arquivos de configs
+=> arquivos de logs.
+
+1.1) Mantenha o caminho dos script/software como padrão para criar os demais e/ou dê a possibilidade do usuário definir caminhos onde criar e salvar pastas e arquivos.
+1.2) Sempre pergunte se o usuário quer manter como referência a pasta de origem do script ou definir um caminho específico.
+1.3) No modo pasta, de a possibilidade de cada pasta ter uma pasta de destino diferente das outras. Crie a possibilidade de um DexPara: Pasta Alvo x Pasta Destino
+
+2) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+3) Construa um monólito (todo o código em um único arquivo)
+4) Separe os módulos, submódulos, classes e/ou estruturas de dados por comentário (que favoreça/facilite uma possível split/divisão do monólito em arquivos menores, no futuro)
+5) Modularize e Generalize o máximo possível
+6) Faça uma Refatoração e Maximize o Reuso de funções, modulo ou classes
+7) Retire componentes duplicados e redundantes.
+
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+
+Ok. Melhore e Corrija:
+
+1) Na sessão Pasta de Destino e Hieraquia, 
+=> traga o botão e a funcionalidade doo DexPara (Pasta-Origem|Pasta-Destino) 
+=> Adicione mais uma coluna para Definir Pasta-Mae ( pasta que deve ser criada se não existir onde ficará os arquivos do parse). Pasta-Mae deve ser criado dentro da Pasta-Destino
+=> Adicione um botão de OK após o preenchimento dos dados pedidos (Pasta-Destino e Nome-Pasta)
+=> Mostre na sessão a Tabela com o preenchimento final. No final devemos ter uma tabela com: Pasta Origem|Pasta Destino|Nome Pasta
+=> Coloque o CRUD em outra sessao.
+2) Alterar a lógica do parse para ele buscar os arquivos na Pasta-Origem e salvar os arquivos de saida do parse na Pasta-Mae dentro da Pasta-Destino
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Adicione na lista de tarefas para o projeto modificado (L:\res\campos\jubarte\er\er02\00_Programas\python\script\atual\Suporte_Ensemble\ensemble_refactored.py):
+1) Busque implementar os requisitos abaixo para acelerar o processamento:
+
+1.1) Detecção de hardware (novo painel "Hardware & paralelismo"): CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+1.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+1.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+
+2) Corrija os scripts abaixo de acordo coo o projeto modificado (L:\res\campos\jubarte\er\er02\00_Programas\python\script\atual\Suporte_Ensemble\ensemble_refactored.py):
+
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\html\Analise_PN_2731.ps1
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\06_ICSPB_F2_GAR\Docs_PRB\Analise_AMP_PRB.ps1
+
+2.1) Aproveite e Generalize, Modularize, Reaftore e Simplifique os scripts .ps1 acima.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Ok. Melhore:
+1) No script: file:///L:/res/campos/jubarte/er/er03/JUB_PRB_MCBCOQ/2026/06_ICSPB_F2_GAR/Simu/Ensemble/WSAout7_PID4_ICSPB_4/html/Analise_AMP_PRB.html, faça:
+1.1) De a possibilidade de escolher poços específicos e ueps específicas
+1.2) Corrija no L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\00_PE2731_Ciclo0\01.P50_v5\html\Analise_PN_2731.ps1 se necessários
+
+2) Visto a reposta/saida file:///L:/res/campos/jubarte/er/er03/JUB_PRB_MCBCOQ/2026/06_ICSPB_F2_GAR/Simu/Ensemble/WSAout7_PID4_ICSPB_4/html/Analise_AMP_PRB.html, faça
+2.1) Melhore template do projeto:
+2.2) Se inspire no template 9 e crie um template 10 onde:
+2.2.1) Sibe bar menu left, ajuste as funcionalidades para um tamanho razoavel, os botoes não precisam ser tão grandes e padronize uma palleta de cores para um DASHBord. Busque melhorar a velocidade de renderização das curvas.
+Para muitas curvas ou traces (acima de 10) padronizes gráficos sem legenda
+2.2.2) Verifique se é possível unir sessões semelhantes, com funções semelhantes.
+
+3) Quando a entrada for uma pasta, verifique se o calculo do percentil está sendo feito. Padronize: 
+=> as cores de todos os traces em cinza
+=> Candidatos a P10 em vermelho
+=> Candidatos a P50 em verde
+=> Candidatos a P90 em azul
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Ok. Vamos evoluir, preciso acelerar a leitura e extração de dados:
+1) Busque implementar os requisitos abaixo (para aumentar a velocidade de extração dos dados:
+
+1.1) Detecção de hardware (novo painel "Hardware & paralelismo"):
+=> CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). 
+=> Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. 
+=> Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+1.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+1.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+2) De a possibilidade de:
+2.1) Trabalhar com o processamento em lista (FILO)
+2.2) Usar algoritmos de escalonamento de processos:
+=> Os principais algoritmos de escalonamento de processos:
+=> 1) SJF (Shortest Job First)
+=> 2) SRTF (Shortest Remaining Time First)
+=> 3) Round-Robin (RR)
+=> 4) Por Prioridade
+=> 5) Múltiplas Filas (Multilevel Queue - MLQ)
+=> 6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+=> 7) HRRN (Highest Response Ratio Next)
+=> 8) Fair-Share
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+ok. Vamos Evoluir:
+1) leia e entenda os arquivos da pasta: "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\kh_extractor_rs\docs"
+2) implemente o etl em rust, o objetivo é ganha velocidade na extração dos dados.
+3) Compare os etl's: em C, em RUST, em Python, no requisito velocidade
+4) Use os mesmo modelo do html como visualizador
+5) melhore o "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\app_gera_ensemble_html\gerar_dashboards.bat" para usar o etl em rust, etl em c/c++ ou etl em python.
+
+A melhor escolha para construir processos de ETL (Extract, Transform, Load) de alto desempenho utilizando Rust é combinar o Polars para a manipulação e transformação de dados com ecossistemas orientados a colunas como o Apache Arrow e o DataFusion.Embora Rust não possua um framework monolítico de ETL pronto para uso universal equivalente ao que o Python tem com Airflow ou Pandas (já que a construção de múltiplos conectores costuma ser mais ágil em linguagens de alto nível), o ecossistema moderno de dados em Rust oferece ferramentas extremamente potentes e rápidas.Principais Ferramentas e Bibliotecas para ETL em RustPolars: É a principal biblioteca de DataFrames em Rust (com bindings para Python). Construída sobre o formato colunar do Apache Arrow, suporta fluxos de trabalho lazy (preguiçosos) e em streaming, permitindo processar grandes volumes de dados de forma eficiente com uso previsível de memória.Apache DataFusion: Um mecanismo de consulta (query engine) extensível escrito em Rust que usa o Apache Arrow como formato de memória. É excelente se você precisar criar motores de processamento distribuídos ou consultas SQL customizadas sobre seus dados.Delta Lake (crate em Rust): Permite ler e gravar tabelas no formato Delta Lake diretamente em aplicações Rust, garantindo transações ACID e controle de histórico para os dados transformados.Conectores e Streams (Tokio / Axum / RdKafka): Para a camada de extração e carga assíncrona, bibliotecas como tokio (para concorrência) e rdkafka permitem ingerir e despachar milhares de eventos por segundo via filas de mensagens ou APIs com eficiência máxima.Vantagens de usar Rust em ETLDesempenho Extremo: Processamento de arquivos pesados ou parsing de formatos customizados pode ser dezenas ou centenas de vezes mais rápido que em Python, sem o overhead de um coletor de lixo (garbage collector).Segurança de Tipos: Erros de lógica de negócio e incompatibilidades de esquema são pegos em tempo de compilação.Uso Consistente de Memória: O modelo de propriedade (ownership) do Rust evita vazamentos de memória e garante picos de uso previsíveis ao lidar com grandes massas de dados.
+
+C++ é a melhor escolha entre as duas para desenvolver processos ou bibliotecas de ETL (Extração, Transformação e Carga) devido aos seus recursos modernos de alto desempenho e segurança, como a biblioteca padrão ETL (Embedded Template Library) e templates que evitam alocação dinâmica de memória.Por que C++ supera o C em ETLAbstrações eficientes: Recursos como constexpr e templates permitem criar lógicas de transformação complexas sem perda de velocidade em relação ao C.Segurança de memória: O uso de smart pointers e conceitos de RAII (Resource Acquisition Is Initialization) ajuda a evitar vazamentos de memória comuns ao manipular grandes volumes de dados.Estruturas prontas: O ecossistema e a biblioteca padrão oferecem manipulação avançada de contêineres e algoritmos que reduzem o código repetitivo.Quando usar C puroSistemas extremamente restritos: Caso o ambiente de execução não suporte o ecossistema C++ ou exija integração direta e imediata com componentes mínimos de kernel/hardware.Controle absoluto de cada byte: Se a complexidade dos templates do C++ for considerada um obstáculo para a equipe.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas;Pasta 2: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas_v2 
+
+Ok. Melhore:
+
+Crie um DexPara: pasta alvo e pasta de saida
+Pastas : 2 pasta(s) ativa(s)
+[1] L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas
+[2] L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas_v2
+Saida 1: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\outputs
+Saida 2: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas_v2\outputs

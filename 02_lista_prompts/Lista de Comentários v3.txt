@@ -1,0 +1,1882 @@
+Adicione na lista de tarefas: implemente o plano proposto:
+
+Criar dois builders Python isolados: _build_tables_js(fig_map_json) e _build_tables_html(options) para Tabelas, e _build_summary_js(props_json) e _build_summary_html(options) para Resumo.
+As funções principais _generate_chart_tables e _generate_summary_tab se tornam orquestradoras finas que apenas montam dados e delegam para os builders.
+Vou reescrever o arquivo com essa estrutura — primeiro adicionando os builders antes de _generate_chart_tables, depois reescrevendo as duas funções orquestradoras.
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+Use a SKILL:
+=> C:\Users\AKP4\.agents\skills\kh-grid-interactive
+Leia o SR3:
+
+=>"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.sr3"
+
+Crie um apresentação em HTML com os resultado do KH grid por poço e profundidade.
+
+Save HTML na pasta: "L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh"
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+Ok. Corrija: ( faça em 100 tarefas ou mais)
+
+1) A ideia é que o html_template.html seja um vizualizador padrao para todas as propriedades e propriedades deverivadas (kh, kh/mi, so, sw, sg, etc)
+2) Vamos evoluir a parte da Extração de dados do .sr3, .dat, .inc
+2.1) A extração poderá ser feita para db.json e db.parquet.
+2.2) O html_template.html deverá ler e carregar os dado db.json ou db.parquet.
+2.3) Foque em evoluir o extrator de dados para ele conseguir:
+=> gerar um db(.json e/ou .parquet) com todos os dados de todas as propriedades solicitada.
+=> gerar vários db(.json e/ou .parquet), sendo cada db para cada propriedade solicitada.
+2.4) generalize, modularize e refatore o que for possível sem quebrar o sistema.
+ 
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+Faça:
+1) Leia e entenda os arquivos abaixo: (são prompts para chat LLMs)
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\00_Estrutura\Lista de Comentários v2.txt"
+"C:\Users\AKP4\OneDrive - PETROBRAS\Desktop\00_Estrutura\Lista de Comentários v1.txt"
+2) Faça:
+2.1) Uma skill dev_eng_arq_desing.md de:
+=> programador em python master 
+=> engenheiro de software
+=> arquiteto dde software
+=> design Ux e Ui
+com a descrição detalhadas para skill: objetivo, entradas, saidas, metas, plano de tarefas (passo-a-passo)
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+Ok. Vamos Evoluir a extração:
+1) Faça para o Projeto em RUST:
+1.1) Extração de dados dos poços: (Series temporais)
+1.2) Vazão de Oleo, Vazão de Agua,Vazão de gas,Acumulada de Oleo, Acumulada de Agua, Acumulada de Gas, BSW, RGO
+2) Faça para o Projeto em Python:
+2.1) Extração de dados dos poços: (Series temporais)
+2.2) Vazão de Oleo, Vazão de Agua,Vazão de gas,Acumulada de Oleo, Acumulada de Agua, Acumulada de Gas, BSW, RGO
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+1)Leia e entenda o projeto
+1.1) L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao
+
+2)A ideia é melhorar o projeto, para o campo de jubarte. 
+2.1) Os .dat, .sr3, .log e .out alvos são da pasta:
+
+PASTA: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas
+ARQUIVOS:
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\wells_sectors.json"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\extract_wells_clean.py"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\extract_wells_sectors.py"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_00_MP.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_01_IPB.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_02_PID2.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_03_PID1.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_04_PID4.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_05_EVPRO.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.data"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.dist"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.job.end"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.job.err"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.job.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.job.sim"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.job.start"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.log"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.out"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.sh"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.sr3"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.sub"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_JUB.opt.wcoord"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\RMSv14_er03_geoeng_output03_087_06_ICSPB_PRB.opt.dat"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\wells_list.json"
+
+2.1) Faça a adaptação das já funções existentes no projeto para os arquivos acima.
+2.2) Faça testes. 
+2.3) Crie um .bat com uma main() com opções enumerada para acionar as funções e os testes. 
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+ok. Não ficou bom:
+1) Reveja os posicionamentos.
+1.1) o eixo x deve crescer da esquerda para a direita
+1.1) o eixo y deve crescer de baixo par acima
+
+Para acessar os arquivos do include:
+
+Exemplo:
+
+INCLUDE '/dfs_geral_ep/res/campos/jubarte/er/er03/JUB_PRB_MCBCOQ/BRLoop/jubprb_mcbcoq_geoeng/Anexo/Deterministico/Escalar/jubarte_rogerio_maio-2024_3Q_LBC_TRESgrad.inc'
+
+Faça as trocas nos caminhos:
+1) "/dfs_geral_ep/..." por "L:/..."
+2) "/..." por "\...") 
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+OK. Acho que agora ficou perfeito. Faça:
+1) Analise e estudo todo o histórico do CHAT.
+2) Um resumo.md de como construir esses gráficos de MAPA 2D
+3) Detalhe todas as especificações:
+=> Como buscar dados de poços
+=> Como buscar dados do mapa todo
+=> Como buscar dados de regiões/setores
+4) Detalhar o fluxo de trabalho ordenado e Sequencia Ordenada de script ou algoritmos
+=> Detalhar a leitura do .sr3, .dat e .inc (com caminhos windowns ou linux e as transformações necessárias)
+=> Detalhar  Proporção geográfica real do mapa. Por exemplo: ( generalize isso nos scripts para cada sr3 pode ser diferente)
+	=> scaleanchor: 'y' + scaleratio: 1 — força o Plotly a respeitar a proporção real do campo
+	=> Campo tem 17.5 km × 31 km → razão Y/X ≈ 1.77
+	=> Mapa agora ocupa 800px de altura (antes: 500px)
+	=> Resultado: o eixo Y (Easting) é ~1.77× mais longo que o eixo X (Northing) — proporção geográfica real
+=> Detalhar as funções de transformação da posição dos elementos no gráfico
+=> Detalhar a disposição dos elementos no gráfico 
+5) Crie os scripts de busca e criação do MAPA 2D na pasta
+6) Generalize para qualquer propriedade do poço ou qualquer propriedade do Mapa Todo ou qualquer propriedade das regioes/setores
+7) Generalize, Modularize E Refatore os scripts. Seja simples e objetivo. Faça ou pouco e necessários códigos.
+8) Crie uma SKILL evoluída para user-case:
+8.1) Se inspire nas SKILLs:
+8.1.1) "C:\Users\AKP4\Downloads\AgentBR\Skills\awesome-agentebr-skills-dev_buzios\.agentebr\skills\explore-sr3-buzios\SKILL.md"
+8.1.2) "C:\Users\AKP4\Downloads\AgentBR\Skills\awesome-agentebr-skills-dev_buzios\.agentebr\skills\explore-sr3-buzios\SKILL.md"
+8.1.3) "C:\Users\AKP4\Downloads\AgentBR\Skills\awesome-agentebr-skills-dev_buzios\.agentebr\skills\explore-sr3\SKILL.md"
+8.1.4) "C:\Users\AKP4\Downloads\AgentBR\Skills\awesome-agentebr-skills-dev_buzios\.agentebr\skills\explore-dat\SKILL.md"
+
+8.2) Faça um super_SKILL.md que seja composição das acima e resolva a demanda de gerar gráficos MAPA 2D, Propriedade por Profundidade ( poço ), Propriedade no tempo(poço ou grupo), tabelas de valores de posição (poço ou grupo) e etc.
+
+OBS: A ideia é que a descrição detalhada seja compreendida por outro LLM e o mesmo seja mais rápido na resposta correta quando a demanda for solicitada.
+
+9) ao final, remova todos os arquivos intermediários ou de teste utilizados para achar a solução final na pasta, deixe somente os arquivos finais e definitivos.
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+Ok. melhore:
+1) no grafico traga para frente na ordem de vizualizaçõ: poços, setores/blockgrupos menores, mapa todo
+2) melhore a seleção dos setores e blockGrups menores. Quando selecionar um os outros devem desaparecer. De a possibilidade de selecionar mais de um.
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+
+Ok. Melhore:
+1) Coloque no Mapa 2d, o Grupo de células definias no Painel (MP, IPB, etc) para trás no gráfico. Crie um botão para tornar invisível o  Mapa do Painel do gráfico.
+2) Coloque o seletor de poço junto com o gráfico de perfil por profundidade.
+3) Adicionar uma legenda com os nomes dos Block Groups ao lado do mapa categórico.
+4) Otimizar performance para grids muito grandes (ex.: usar Canvas/WebGL de forma mais agressiva, ou permitir downsample).
+5) Na tabela de valores dos poços adicione o mi e o Kh/mi (max, min, medio), onde  mi = viscosidade.
+6) Adicionar um botão "Selecionar todos" / "Limpar seleção" no seletor de setores.
+7) Adicionar uma legenda fixa (fora do gráfico) mostrando a correspondência cor↔setor no Mapa de Block Groups.
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+ok. Melhore:
+
+1) Na sessão de Mapas
+
+1.1) Mostre o contorno do campo inteiro. Depois distribua a propriedade e os poços. Mude a escala para pegar somente a região do campo (ou seja de um zoom).
+1.2) Inverta o X e Y novamente.
+1.3) Coloque o contorno do Campos. Linha preta escura
+1.4) Preencha com as propriedade/elementos de cada aba das tabs
+
+2) Na sessão Perfil por Profundidade, faça
+
+2.1) Volte a inversão do X e Y, mostre o anterior
+2.2) Mude a cor do gráfico de kh/mi para verde
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+ok. Melhore:
+
+1) Na sessão de Mapas
+1.1) Para que houve a inversão somente do X e Y dos poços. O mesmo não ocorreu com das células do grid e com as células dos setores.
+Corrija: faça inversão para as células do grid e para células dos setores.
+ok. Melhore:
+
+1) Na sessão de Mapas. Corrija:
+1.1) As funções de transformações que foram aplicadas na posição das celulas do grid e nos poços, também devem ser aplicadas nas células dos setores, block_grids e sector_arrays.
+1.2) Testar o HTML gerado no navegador e ajustar detalhes finos de layout/CSS.
+1.3) Adicionar um contador "X de Y setores selecionados" ao lado dos botões "Selecionar todos"/"Limpar seleção".
+1.4) Adicionar um aviso na interface quando o Mapa do Painel estiver com downsample agressivo, indicando que setores/poços continuam em resolução completa.
+1.5) Adicionar uma validação extra que compare o bounding box decodificado com um "tamanho esperado" (se você tiver essa informação) e emita um alerta mais visível em caso de discrepância.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+
+1)Segue exemplo de .inc:
+faça: Ajustar o regex _RANGE_HEADER_RE para o formato exato do seu arquivo .inc, caso você compartilhe uma amostra.
+
+BLOCKGROUP 'REG_BFR12_300COQ' ALL
+INCLUDE 'Setores\REG_BFR12_300COQ.inc'
+
+Conteudo do include:
+**Property name in Petrel: Region_BFR1_300COQ
+**UNKNOWN *ALL
+1148148*0 1 134*0 3*1 133*0 5*1 132*0 5*1 
+129*0 1 0 6*1 131*0 6*1 130*0 7*1 
+129*0 8*1 127*0 10*1 118*0 5*1 4*0 10*1 
+117*0 6*1 3*0 11*1 115*0 22*1 113*0 21*1 
+0 1 113*0 23*1 112*0 26*1 110*0 27*1 
+108*0 23*1 0 5*1 107*0 23*1 0 6*1 
+105*0 32*1 104*0 33*1 105*0 30*1 0 1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 9*1 0 3*1 
+125*0 11*1 126*0 7*1 0 1 128*0 8*1 
+130*0 4*1 0 1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27729*0 1 
+134*0 3*1 133*0 5*1 132*0 5*1 131*0 6*1 
+131*0 6*1 131*0 6*1 124*0 1 4*0 8*1 
+124*0 1 2*0 10*1 118*0 1 0 4*1 
+2*0 11*1 117*0 7*1 2*0 11*1 116*0 7*1 
+0 13*1 114*0 22*1 113*0 19*1 0 4*1 
+111*0 24*1 0 1 110*0 20*1 0 6*1 
+108*0 29*1 107*0 30*1 105*0 32*1 104*0 27*1 
+0 5*1 105*0 30*1 0 1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 15*1 123*0 9*1 0 3*1 125*0 9*1 
+0 1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27592*0 1 135*0 2*1 135*0 2*1 
+134*0 4*1 132*0 5*1 131*0 6*1 131*0 6*1 
+131*0 6*1 124*0 1 3*0 9*1 121*0 4*1 
+2*0 10*1 118*0 6*1 2*0 11*1 117*0 7*1 
+2*0 11*1 115*0 9*1 0 12*1 113*0 23*1 
+113*0 24*1 111*0 24*1 0 1 110*0 27*1 
+108*0 29*1 107*0 30*1 105*0 32*1 104*0 33*1 
+105*0 30*1 0 1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 9*1 0 3*1 125*0 11*1 126*0 5*1 
+2*0 2*1 128*0 5*1 0 2*1 130*0 2*1 
+0 3*1 132*0 5*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27591*0 2*1 135*0 2*1 
+134*0 1 0 1 134*0 4*1 131*0 6*1 
+131*0 6*1 132*0 5*1 130*0 1 0 5*1 
+128*0 9*1 120*0 4*1 3*0 10*1 118*0 19*1 
+117*0 8*1 0 11*1 115*0 9*1 2*0 11*1 
+113*0 10*1 0 12*1 113*0 24*1 111*0 25*1 
+111*0 24*1 0 1 109*0 16*1 0 9*1 
+0 2*1 107*0 27*1 0 2*1 105*0 31*1 
+105*0 32*1 106*0 30*1 108*0 30*1 108*0 26*1 
+111*0 24*1 114*0 16*1 0 3*1 118*0 4*1 
+0 12*1 120*0 15*1 123*0 9*1 0 3*1 
+125*0 7*1 0 3*1 126*0 6*1 0 2*1 
+128*0 5*1 0 1 131*0 6*1 131*0 6*1 
+133*0 2*1 134*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 135*0 2*1 135*0 1 135*0 3*1 
+134*0 4*1 131*0 6*1 131*0 6*1 128*0 1 
+2*0 6*1 130*0 7*1 129*0 8*1 120*0 5*1 
+2*0 10*1 118*0 19*1 117*0 8*1 0 11*1 
+115*0 10*1 0 11*1 113*0 23*1 113*0 24*1 
+111*0 26*1 110*0 27*1 108*0 27*1 109*0 27*1 
+108*0 30*1 106*0 30*1 108*0 31*1 107*0 29*1 
+109*0 26*1 111*0 24*1 114*0 16*1 0 3*1 
+118*0 4*1 0 12*1 120*0 11*1 0 3*1 
+123*0 9*1 0 3*1 125*0 11*1 126*0 6*1 
+0 2*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 2*1 135*0 2*1 136*0 1 
+27455*0 1 135*0 2*1 134*0 3*1 134*0 3*1 
+134*0 4*1 132*0 5*1 132*0 5*1 128*0 1 
+2*0 6*1 126*0 2*1 2*0 7*1 125*0 2*1 
+2*0 8*1 120*0 1 0 4*1 0 10*1 
+118*0 7*1 0 11*1 117*0 8*1 0 11*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 27*1 109*0 29*1 106*0 30*1 
+106*0 32*1 106*0 31*1 107*0 29*1 109*0 26*1 
+111*0 24*1 114*0 16*1 0 3*1 118*0 4*1 
+0 12*1 120*0 15*1 123*0 9*1 0 3*1 
+125*0 11*1 126*0 6*1 0 2*1 128*0 8*1 
+130*0 2*1 3*0 1 131*0 5*1 133*0 4*1 
+133*0 2*1 135*0 1 137*0 1 27591*0 2*1 
+134*0 3*1 134*0 3*1 134*0 4*1 132*0 5*1 
+131*0 6*1 130*0 7*1 126*0 11*1 125*0 12*1 
+122*0 15*1 119*0 18*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+108*0 29*1 107*0 30*1 105*0 32*1 104*0 33*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 7*1 131*0 3*1 
+134*0 3*1 136*0 1 135*0 2*1 28002*0 2*1 
+135*0 2*1 135*0 3*1 132*0 5*1 130*0 7*1 
+128*0 9*1 126*0 11*1 121*0 1 3*0 12*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+108*0 29*1 108*0 29*1 105*0 32*1 104*0 33*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 18*1 
+0 5*1 114*0 14*1 0 5*1 118*0 12*1 
+3*0 2*1 120*0 15*1 124*0 12*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 3*1 
+2*0 1 135*0 1 135*0 1 135*0 1 
+27729*0 1 134*0 3*1 133*0 1 0 2*1 
+135*0 3*1 132*0 5*1 129*0 8*1 128*0 9*1 
+126*0 11*1 121*0 1 3*0 12*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 113*0 23*1 
+113*0 24*1 111*0 26*1 110*0 27*1 108*0 29*1 
+108*0 29*1 105*0 32*1 104*0 32*1 106*0 32*1 
+106*0 30*1 108*0 26*1 111*0 18*1 0 5*1 
+114*0 16*1 0 3*1 118*0 17*1 120*0 15*1 
+124*0 12*1 125*0 5*1 0 5*1 126*0 9*1 
+128*0 3*1 2*0 3*1 130*0 2*1 0 3*1 
+131*0 1 2*0 1 0 1 132*0 1 
+2*0 1 133*0 1 0 1 135*0 1 
+136*0 1 27455*0 1 135*0 2*1 133*0 4*1 
+133*0 4*1 132*0 6*1 129*0 8*1 128*0 9*1 
+127*0 10*1 125*0 12*1 122*0 15*1 121*0 16*1 
+119*0 18*1 117*0 20*1 116*0 21*1 114*0 22*1 
+114*0 23*1 112*0 25*1 110*0 27*1 108*0 29*1 
+107*0 27*1 0 2*1 106*0 26*1 2*0 3*1 
+104*0 26*1 3*0 3*1 106*0 25*1 0 6*1 
+106*0 22*1 2*0 6*1 108*0 21*1 0 4*1 
+111*0 18*1 0 1 0 3*1 114*0 7*1 
+0 5*1 0 2*1 0 1 0 1 
+118*0 17*1 120*0 13*1 0 1 124*0 12*1 
+125*0 11*1 126*0 5*1 0 3*1 128*0 8*1 
+130*0 1 0 4*1 131*0 4*1 0 1 
+132*0 1 136*0 1 0 1 135*0 1 
+136*0 1 27455*0 1 135*0 2*1 133*0 4*1 
+133*0 4*1 131*0 7*1 129*0 8*1 128*0 9*1 
+126*0 11*1 124*0 13*1 122*0 15*1 121*0 16*1 
+119*0 18*1 117*0 20*1 115*0 22*1 113*0 23*1 
+113*0 24*1 112*0 25*1 111*0 26*1 108*0 28*1 
+108*0 28*1 108*0 28*1 2*0 1 104*0 28*1 
+3*0 1 106*0 25*1 0 6*1 106*0 22*1 
+0 2*1 0 4*1 108*0 18*1 5*0 3*1 
+111*0 17*1 2*0 1 0 3*1 114*0 7*1 
+0 5*1 0 3*1 2*0 1 118*0 17*1 
+120*0 13*1 0 1 123*0 9*1 2*0 2*1 
+125*0 8*1 2*0 1 126*0 5*1 0 2*1 
+129*0 8*1 130*0 1 0 4*1 131*0 3*1 
+0 2*1 132*0 1 0 2*1 134*0 2*1 
+134*0 2*1 136*0 1 27727*0 3*1 132*0 5*1 
+131*0 7*1 129*0 8*1 128*0 9*1 125*0 12*1 
+124*0 13*1 121*0 16*1 121*0 16*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+112*0 25*1 111*0 26*1 110*0 27*1 108*0 28*1 
+107*0 29*1 0 1 105*0 28*1 2*0 1 
+106*0 32*1 106*0 30*1 108*0 18*1 3*0 5*1 
+111*0 24*1 114*0 7*1 0 12*1 118*0 17*1 
+120*0 11*1 2*0 2*1 123*0 9*1 3*0 1 
+125*0 7*1 3*0 1 126*0 7*1 130*0 5*1 
+133*0 4*1 0 1 131*0 3*1 0 2*1 
+134*0 2*1 134*0 2*1 134*0 2*1 136*0 1 
+27455*0 1 273*0 1 132*0 2*1 0 2*1 
+131*0 7*1 129*0 8*1 128*0 9*1 125*0 12*1 
+124*0 13*1 121*0 16*1 121*0 16*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+112*0 25*1 110*0 27*1 108*0 29*1 107*0 30*1 
+106*0 31*1 105*0 24*1 0 6*1 106*0 22*1 
+0 9*1 106*0 20*1 2*0 8*1 108*0 18*1 
+2*0 6*1 111*0 24*1 114*0 20*1 118*0 13*1 
+0 3*1 120*0 11*1 0 3*1 123*0 9*1 
+0 3*1 125*0 11*1 126*0 8*1 129*0 8*1 
+130*0 4*1 0 1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+136*0 1 135*0 2*1 134*0 3*1 132*0 6*1 
+130*0 7*1 129*0 8*1 128*0 9*1 124*0 13*1 
+122*0 15*1 121*0 16*1 120*0 17*1 118*0 19*1 
+116*0 21*1 114*0 22*1 114*0 23*1 112*0 25*1 
+110*0 27*1 108*0 29*1 107*0 1 0 28*1 
+106*0 1 0 29*1 105*0 1 0 20*1 
+0 9*1 105*0 20*1 3*0 9*1 106*0 18*1 
+3*0 9*1 108*0 16*1 0 1 2*0 6*1 
+111*0 10*1 0 4*1 3*0 6*1 114*0 13*1 
+3*0 4*1 118*0 11*1 3*0 3*1 120*0 10*1 
+2*0 3*1 123*0 9*1 0 3*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27591*0 2*1 135*0 2*1 134*0 3*1 133*0 5*1 
+131*0 6*1 129*0 8*1 128*0 9*1 125*0 1 
+0 10*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 116*0 21*1 114*0 1 0 20*1 
+114*0 23*1 112*0 25*1 110*0 27*1 109*0 28*1 
+108*0 29*1 106*0 31*1 105*0 22*1 0 9*1 
+105*0 20*1 3*0 9*1 106*0 19*1 2*0 9*1 
+108*0 18*1 2*0 6*1 111*0 15*1 3*0 6*1 
+114*0 13*1 0 1 0 4*1 118*0 11*1 
+0 1 0 3*1 120*0 11*1 2*0 2*1 
+123*0 9*1 0 3*1 125*0 11*1 126*0 5*1 
+0 3*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27591*0 1 137*0 1 134*0 3*1 133*0 5*1 
+127*0 1 3*0 6*1 129*0 8*1 128*0 9*1 
+127*0 10*1 125*0 12*1 124*0 13*1 121*0 16*1 
+118*0 3*1 0 15*1 118*0 2*1 0 16*1 
+114*0 1 0 20*1 114*0 23*1 112*0 25*1 
+110*0 27*1 109*0 28*1 108*0 28*1 108*0 29*1 
+106*0 31*1 106*0 20*1 3*0 8*1 107*0 19*1 
+3*0 8*1 108*0 18*1 2*0 6*1 111*0 15*1 
+3*0 6*1 114*0 20*1 118*0 11*1 0 5*1 
+120*0 12*1 0 2*1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 1 138*0 1 134*0 3*1 
+133*0 5*1 127*0 1 3*0 6*1 131*0 6*1 
+129*0 8*1 128*0 9*1 127*0 10*1 123*0 2*1 
+0 11*1 121*0 1 3*0 12*1 120*0 1 
+3*0 13*1 119*0 1 0 16*1 118*0 1 
+0 16*1 120*0 17*1 118*0 19*1 117*0 19*1 
+116*0 21*1 110*0 1 3*0 21*1 110*0 1 
+3*0 23*1 109*0 1 3*0 21*1 111*0 2*1 
+3*0 19*1 0 1 114*0 19*1 0 1 
+115*0 18*1 2*0 1 116*0 16*1 2*0 2*1 
+118*0 19*1 119*0 12*1 0 4*1 120*0 12*1 
+0 2*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 5*1 0 2*1 130*0 3*1 0 2*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 1 0 1 
+134*0 3*1 134*0 3*1 132*0 6*1 130*0 7*1 
+128*0 1 0 7*1 127*0 1 2*0 7*1 
+129*0 8*1 127*0 10*1 123*0 2*1 0 11*1 
+121*0 1 3*0 12*1 120*0 1 3*0 13*1 
+119*0 1 0 16*1 120*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 21*1 114*0 21*1 
+114*0 23*1 109*0 1 3*0 22*1 110*0 2*1 
+3*0 21*1 2*0 2*1 109*0 25*1 112*0 18*1 
+0 2*1 116*0 16*1 2*0 1 2*0 2*1 
+115*0 14*1 2*0 2*1 0 1 118*0 13*1 
+0 3*1 120*0 15*1 123*0 11*1 0 1 
+125*0 11*1 126*0 9*1 128*0 6*1 0 1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 136*0 1 
+134*0 2*1 135*0 3*1 132*0 6*1 130*0 5*1 
+130*0 1 0 4*1 0 2*1 127*0 1 
+0 4*1 0 3*1 129*0 8*1 128*0 3*1 
+0 5*1 126*0 11*1 125*0 12*1 124*0 13*1 
+123*0 14*1 122*0 14*1 121*0 16*1 119*0 18*1 
+115*0 1 0 20*1 113*0 24*1 113*0 22*1 
+112*0 24*1 0 1 110*0 21*1 0 2*1 
+112*0 23*1 2*0 4*1 106*0 26*1 2*0 1 
+109*0 20*1 0 1 115*0 17*1 0 1 
+2*0 2*1 115*0 15*1 4*0 1 118*0 14*1 
+0 1 121*0 13*1 125*0 11*1 0 1 
+125*0 11*1 126*0 6*1 0 2*1 128*0 8*1 
+130*0 6*1 132*0 5*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27591*0 1 135*0 1 
+133*0 1 3*0 2*1 133*0 4*1 128*0 2*1 
+0 7*1 127*0 1 2*0 5*1 0 1 
+128*0 9*1 130*0 4*1 0 2*1 128*0 4*1 
+2*0 3*1 125*0 1 2*0 9*1 123*0 1 
+3*0 10*1 120*0 1 0 1 2*0 12*1 
+121*0 2*1 2*0 12*1 120*0 1 3*0 12*1 
+117*0 1 2*0 17*1 114*0 1 3*0 19*1 
+113*0 1 0 22*1 112*0 25*1 112*0 25*1 
+110*0 27*1 106*0 1 2*0 21*1 0 3*1 
+108*0 1 2*0 5*1 0 16*1 4*0 3*1 
+106*0 24*1 4*0 1 109*0 19*1 2*0 1 
+115*0 18*1 120*0 16*1 122*0 14*1 123*0 3*1 
+0 9*1 125*0 11*1 127*0 7*1 0 1 
+0 1 126*0 6*1 0 2*1 128*0 4*1 
+2*0 2*1 130*0 6*1 132*0 5*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+135*0 1 135*0 1 133*0 1 4*0 1 
+130*0 1 4*0 3*1 127*0 2*1 2*0 6*1 
+126*0 2*1 0 8*1 125*0 12*1 125*0 12*1 
+123*0 1 0 12*1 122*0 1 2*0 12*1 
+121*0 3*1 0 12*1 119*0 5*1 0 12*1 
+118*0 19*1 117*0 19*1 117*0 20*1 113*0 24*1 
+112*0 25*1 111*0 26*1 112*0 25*1 111*0 26*1 
+106*0 1 2*0 27*1 106*0 1 2*0 21*1 
+3*0 5*1 107*0 21*1 116*0 19*1 118*0 18*1 
+3*0 3*1 114*0 16*1 122*0 14*1 123*0 3*1 
+0 6*1 0 1 126*0 11*1 127*0 7*1 
+0 2*1 127*0 8*1 129*0 4*1 0 3*1 
+130*0 6*1 132*0 5*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 135*0 1 
+135*0 1 133*0 1 135*0 1 4*0 3*1 
+127*0 2*1 2*0 6*1 126*0 1 2*0 8*1 
+125*0 12*1 125*0 12*1 123*0 14*1 122*0 15*1 
+121*0 16*1 119*0 18*1 118*0 19*1 116*0 20*1 
+117*0 20*1 113*0 24*1 112*0 1 0 21*1 
+0 1 111*0 1 0 24*1 113*0 23*1 
+112*0 24*1 0 1 106*0 1 2*0 22*1 
+0 5*1 105*0 1 2*0 22*1 2*0 5*1 
+107*0 21*1 3*0 1 2*0 1 109*0 19*1 
+118*0 18*1 3*0 3*1 114*0 15*1 4*0 1 
+118*0 14*1 123*0 3*1 0 6*1 0 1 
+126*0 8*1 0 3*1 126*0 5*1 0 1 
+0 2*1 127*0 7*1 0 1 128*0 4*1 
+0 3*1 130*0 2*1 0 3*1 132*0 2*1 
+0 2*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 28001*0 1 2*0 1 128*0 1 
+2*0 6*1 126*0 1 3*0 7*1 125*0 12*1 
+124*0 13*1 124*0 13*1 123*0 14*1 121*0 16*1 
+119*0 18*1 117*0 7*1 0 12*1 116*0 20*1 
+116*0 21*1 115*0 22*1 114*0 23*1 113*0 24*1 
+111*0 26*1 110*0 26*1 109*0 29*1 107*0 30*1 
+106*0 30*1 108*0 20*1 0 1 0 3*1 
+111*0 18*1 2*0 1 0 2*1 114*0 16*1 
+3*0 1 118*0 13*1 124*0 3*1 0 8*1 
+2*0 1 123*0 13*1 125*0 5*1 4*0 2*1 
+126*0 4*1 4*0 1 128*0 4*1 3*0 1 
+130*0 2*1 3*0 1 135*0 2*1 133*0 3*1 
+133*0 3*1 134*0 2*1 136*0 1 28001*0 1 
+131*0 1 2*0 2*1 0 1 0 1 
+130*0 4*1 0 2*1 128*0 9*1 124*0 13*1 
+123*0 14*1 122*0 15*1 121*0 5*1 0 10*1 
+119*0 5*1 2*0 11*1 117*0 6*1 2*0 12*1 
+116*0 7*1 2*0 11*1 116*0 21*1 114*0 23*1 
+112*0 25*1 111*0 26*1 110*0 27*1 108*0 23*1 
+0 5*1 107*0 30*1 106*0 31*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 16*1 0 1 
+0 1 118*0 13*1 0 1 0 1 
+120*0 12*1 2*0 1 123*0 10*1 0 2*1 
+125*0 6*1 3*0 2*1 126*0 5*1 3*0 1 
+128*0 4*1 3*0 1 130*0 2*1 3*0 1 
+131*0 1 0 1 0 2*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 28141*0 1 
+134*0 3*1 130*0 4*1 127*0 1 2*0 4*1 
+129*0 2*1 0 2*1 131*0 4*1 132*0 4*1 
+11*0 1 119*0 4*1 11*0 3*1 118*0 4*1 
+11*0 4*1 117*0 4*1 9*0 6*1 116*0 4*1 
+10*0 5*1 116*0 5*1 9*0 8*1 113*0 5*1 
+10*0 8*1 0 1 111*0 5*1 9*0 12*1 
+110*0 4*1 10*0 13*1 108*0 5*1 9*0 9*1 
+2*0 4*1 107*0 2*1 0 2*1 8*0 17*1 
+106*0 2*1 0 2*1 8*0 8*1 0 9*1 
+108*0 2*1 8*0 9*1 0 8*1 108*0 3*1 
+6*0 17*1 111*0 2*1 6*0 9*1 0 6*1 
+114*0 2*1 3*0 10*1 2*0 3*1 118*0 13*1 
+0 1 0 1 120*0 12*1 126*0 10*1 
+2*0 1 125*0 6*1 131*0 5*1 132*0 4*1 
+134*0 2*1 2*0 2*1 131*0 1 0 1 
+0 2*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 28140*0 2*1 134*0 3*1 132*0 2*1 
+133*0 1 129*0 1 3*0 1 129*0 5*1 
+131*0 2*1 0 2*1 12*0 1 117*0 1 
+3*0 2*1 11*0 3*1 116*0 1 2*0 3*1 
+11*0 4*1 117*0 2*1 0 1 9*0 6*1 
+116*0 4*1 10*0 5*1 0 1 115*0 4*1 
+9*0 6*1 0 1 114*0 4*1 10*0 8*1 
+0 1 111*0 5*1 9*0 12*1 111*0 3*1 
+10*0 10*1 112*0 4*1 9*0 8*1 115*0 4*1 
+8*0 12*1 2*0 3*1 107*0 4*1 8*0 12*1 
+0 5*1 106*0 1 0 2*1 8*0 10*1 
+0 7*1 108*0 3*1 6*0 17*1 111*0 2*1 
+6*0 9*1 0 6*1 114*0 2*1 3*0 11*1 
+0 3*1 118*0 17*1 120*0 15*1 123*0 7*1 
+0 5*1 125*0 7*1 3*0 1 126*0 4*1 
+0 1 131*0 3*1 3*0 2*1 130*0 2*1 
+2*0 2*1 131*0 2*1 2*0 2*1 133*0 3*1 
+133*0 3*1 134*0 2*1 136*0 1 28139*0 3*1 
+136*0 1 133*0 1 131*0 1 131*0 1 
+133*0 5*1 131*0 2*1 0 2*1 12*0 1 
+117*0 1 3*0 2*1 11*0 3*1 116*0 1 
+2*0 2*1 12*0 4*1 119*0 2*1 9*0 6*1 
+115*0 2*1 0 2*1 10*0 7*1 117*0 2*1 
+9*0 9*1 115*0 2*1 10*0 10*1 111*0 5*1 
+9*0 11*1 112*0 1 0 1 10*0 12*1 
+110*0 4*1 9*0 12*1 111*0 4*1 8*0 16*1 
+108*0 4*1 8*0 17*1 107*0 2*1 0 1 
+8*0 12*1 0 5*1 108*0 3*1 6*0 17*1 
+111*0 2*1 6*0 16*1 114*0 2*1 3*0 15*1 
+118*0 17*1 120*0 15*1 123*0 9*1 0 3*1 
+125*0 7*1 3*0 1 126*0 6*1 2*0 1 
+128*0 3*1 3*0 2*1 130*0 2*1 3*0 1 
+131*0 2*1 2*0 2*1 134*0 2*1 133*0 3*1 
+134*0 2*1 136*0 1 27866*0 1 135*0 3*1 
+133*0 4*1 131*0 3*1 0 2*1 130*0 4*1 
+131*0 2*1 130*0 1 135*0 1 0 1 
+135*0 1 12*0 1 121*0 1 12*0 3*1 
+120*0 1 12*0 4*1 119*0 1 10*0 6*1 
+115*0 1 2*0 1 11*0 7*1 115*0 1 
+0 2*1 9*0 9*1 113*0 1 0 2*1 
+10*0 10*1 109*0 1 2*0 1 0 1 
+10*0 12*1 112*0 2*1 10*0 13*1 111*0 2*1 
+9*0 15*1 108*0 4*1 8*0 17*1 106*0 5*1 
+8*0 18*1 106*0 4*1 8*0 18*1 108*0 3*1 
+6*0 17*1 111*0 2*1 6*0 16*1 114*0 2*1 
+3*0 15*1 118*0 14*1 0 2*1 120*0 15*1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27866*0 1 135*0 3*1 
+133*0 4*1 131*0 6*1 130*0 3*1 133*0 1 
+401*0 1 15*0 1 135*0 2*1 133*0 4*1 
+131*0 5*1 114*0 1 15*0 7*1 113*0 4*1 
+11*0 9*1 112*0 3*1 12*0 10*1 109*0 1 
+0 3*1 12*0 11*1 109*0 4*1 11*0 13*1 
+107*0 5*1 10*0 15*1 105*0 6*1 9*0 17*1 
+105*0 6*1 8*0 18*1 106*0 4*1 8*0 18*1 
+108*0 2*1 8*0 16*1 111*0 2*1 6*0 16*1 
+114*0 1 5*0 14*1 118*0 14*1 0 2*1 
+120*0 15*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 28002*0 3*1 
+131*0 6*1 130*0 7*1 128*0 5*1 133*0 1 
+129*0 1 136*0 2*1 133*0 1 15*0 1 
+119*0 2*1 14*0 2*1 117*0 3*1 13*0 4*1 
+116*0 3*1 12*0 5*1 114*0 1 0 3*1 
+11*0 7*1 113*0 4*1 11*0 9*1 112*0 4*1 
+11*0 10*1 111*0 4*1 11*0 6*1 0 4*1 
+109*0 4*1 11*0 13*1 107*0 5*1 10*0 9*1 
+0 5*1 105*0 6*1 9*0 10*1 0 6*1 
+105*0 6*1 8*0 9*1 3*0 6*1 106*0 4*1 
+8*0 7*1 5*0 6*1 108*0 2*1 8*0 7*1 
+4*0 5*1 111*0 2*1 6*0 4*1 0 4*1 
+0 1 2*0 3*1 114*0 1 5*0 14*1 
+118*0 14*1 0 2*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27866*0 1 133*0 5*1 131*0 6*1 
+129*0 8*1 128*0 5*1 130*0 4*1 129*0 1 
+3*0 1 132*0 3*1 148*0 1 119*0 2*1 
+14*0 2*1 117*0 3*1 13*0 4*1 116*0 3*1 
+12*0 5*1 116*0 3*1 11*0 7*1 113*0 3*1 
+12*0 9*1 112*0 4*1 11*0 10*1 111*0 4*1 
+11*0 11*1 109*0 4*1 11*0 11*1 109*0 5*1 
+10*0 8*1 2*0 1 110*0 5*1 9*0 10*1 
+0 2*1 0 1 107*0 6*1 8*0 9*1 
+3*0 1 111*0 4*1 8*0 8*1 4*0 2*1 
+2*0 2*1 108*0 2*1 8*0 8*1 3*0 2*1 
+0 1 112*0 2*1 6*0 9*1 5*0 1 
+115*0 1 5*0 9*1 123*0 5*1 0 8*1 
+123*0 13*1 125*0 11*1 0 1 125*0 11*1 
+126*0 5*1 0 3*1 128*0 4*1 0 3*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27866*0 1 133*0 5*1 
+130*0 7*1 129*0 8*1 127*0 7*1 129*0 5*1 
+130*0 4*1 131*0 5*1 132*0 3*1 11*0 1 
+120*0 2*1 13*0 2*1 118*0 2*1 0 2*1 
+10*0 4*1 115*0 1 0 3*1 0 1 
+9*0 5*1 115*0 7*1 8*0 7*1 114*0 6*1 
+8*0 8*1 114*0 6*1 8*0 7*1 113*0 4*1 
+0 2*1 9*0 7*1 114*0 5*1 9*0 7*1 
+5*0 1 107*0 6*1 9*0 8*1 5*0 2*1 
+105*0 7*1 8*0 10*1 3*0 4*1 105*0 6*1 
+8*0 6*1 0 2*1 4*0 5*1 106*0 4*1 
+8*0 5*1 2*0 1 6*0 4*1 108*0 2*1 
+8*0 8*1 6*0 2*1 111*0 2*1 6*0 6*1 
+0 2*1 6*0 1 114*0 1 5*0 9*1 
+123*0 5*1 0 7*1 124*0 13*1 125*0 11*1 
+127*0 8*1 0 1 127*0 5*1 0 3*1 
+128*0 4*1 0 3*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+28001*0 4*1 130*0 7*1 129*0 6*1 129*0 7*1 
+128*0 6*1 129*0 5*1 2*0 1 128*0 6*1 
+130*0 5*1 131*0 2*1 0 2*1 0 1 
+126*0 8*1 128*0 8*1 128*0 8*1 127*0 8*1 
+128*0 8*1 127*0 8*1 128*0 7*1 20*0 1 
+107*0 8*1 20*0 2*1 105*0 8*1 20*0 4*1 
+105*0 6*1 21*0 5*1 106*0 4*1 22*0 4*1 
+109*0 1 22*0 2*1 134*0 1 29491*0 1 
+0 1 137*0 1 134*0 4*1 128*0 1 
+0 7*1 127*0 1 0 6*1 129*0 6*1 
+129*0 5*1 0 1 127*0 9*1 127*0 7*1 
+128*0 1 0 7*1 126*0 2*1 0 7*1 
+126*0 2*1 0 5*1 128*0 8*1 128*0 8*1 
+127*0 8*1 128*0 7*1 129*0 7*1 128*0 7*1 
+129*0 7*1 129*0 6*1 131*0 4*1 24*0 2*1 
+106*0 4*1 24*0 2*1 108*0 2*1 29650*0 1 
+0 2*1 136*0 1 130*0 1 3*0 4*1 
+127*0 10*1 127*0 8*1 129*0 7*1 128*0 7*1 
+127*0 9*1 127*0 8*1 127*0 9*1 126*0 10*1 
+126*0 9*1 127*0 8*1 128*0 8*1 128*0 7*1 
+128*0 8*1 128*0 7*1 129*0 6*1 131*0 5*1 
+20*0 2*1 108*0 5*1 21*0 3*1 107*0 4*1 
+23*0 3*1 106*0 4*1 23*0 3*1 108*0 2*1 
+29651*0 3*1 132*0 5*1 130*0 8*1 127*0 10*1 
+127*0 8*1 128*0 8*1 128*0 7*1 128*0 8*1 
+127*0 8*1 128*0 8*1 126*0 1 0 8*1 
+126*0 1 0 2*1 0 4*1 127*0 8*1 
+128*0 8*1 128*0 7*1 128*0 8*1 129*0 6*1 
+18*0 1 110*0 6*1 19*0 2*1 108*0 7*1 
+19*0 3*1 107*0 6*1 20*0 4*1 107*0 4*1 
+21*0 5*1 107*0 3*1 22*0 4*1 108*0 2*1 
+23*0 1 29627*0 3*1 132*0 5*1 130*0 8*1 
+127*0 10*1 126*0 9*1 127*0 9*1 127*0 8*1 
+128*0 8*1 128*0 7*1 129*0 7*1 128*0 8*1 
+128*0 7*1 128*0 7*1 128*0 8*1 128*0 7*1 
+129*0 7*1 129*0 6*1 18*0 1 110*0 6*1 
+19*0 2*1 108*0 7*1 19*0 3*1 107*0 5*1 
+21*0 4*1 107*0 4*1 21*0 4*1 108*0 2*1 
+22*0 5*1 108*0 1 23*0 2*1 134*0 1 
+29493*0 2*1 132*0 5*1 130*0 2*1 2*0 4*1 
+127*0 2*1 2*0 6*1 126*0 2*1 0 6*1 
+127*0 9*1 127*0 8*1 128*0 8*1 128*0 7*1 
+129*0 7*1 128*0 8*1 127*0 8*1 128*0 7*1 
+128*0 8*1 128*0 7*1 128*0 8*1 128*0 7*1 
+18*0 1 110*0 4*1 0 1 19*0 2*1 
+108*0 7*1 19*0 3*1 107*0 5*1 21*0 4*1 
+108*0 3*1 21*0 4*1 109*0 1 22*0 5*1 
+132*0 2*1 134*0 1 29628*0 1 273*0 2*1 
+130*0 1 0 6*1 127*0 2*1 0 6*1 
+127*0 8*1 126*0 10*1 126*0 9*1 126*0 10*1 
+126*0 10*1 125*0 10*1 126*0 9*1 126*0 10*1 
+126*0 9*1 127*0 9*1 127*0 8*1 18*0 1 
+109*0 7*1 19*0 2*1 106*0 9*1 19*0 3*1 
+104*0 9*1 20*0 4*1 105*0 6*1 21*0 4*1 
+107*0 4*1 22*0 4*1 29489*0 1 134*0 3*1 
+133*0 3*1 132*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 11*1 124*0 11*1 
+125*0 11*1 5*0 1 118*0 11*1 5*0 2*1 
+118*0 11*1 2*0 2*1 0 2*1 117*0 12*1 
+2*0 4*1 117*0 12*1 5*0 1 118*0 11*1 
+4*0 1 119*0 12*1 2*0 3*1 8*0 1 
+110*0 11*1 3*0 3*1 7*0 3*1 108*0 12*1 
+4*0 2*1 7*0 4*1 107*0 11*1 4*0 2*1 
+7*0 1 0 4*1 105*0 11*1 4*0 2*1 
+8*0 7*1 104*0 11*1 4*0 1 10*0 7*1 
+105*0 8*1 3*0 3*1 6*0 1 2*0 8*1 
+107*0 6*1 3*0 3*1 5*0 2*1 0 5*1 
+0 4*1 108*0 4*1 2*0 4*1 8*0 4*1 
+115*0 3*1 0 4*1 6*0 1 2*0 6*1 
+116*0 5*1 9*0 2*1 0 2*1 131*0 1 
+0 2*1 133*0 2*1 134*0 2*1 133*0 1 
+0 1 131*0 1 135*0 1 28276*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 16*1 0 6*1 113*0 24*1 
+111*0 26*1 110*0 27*1 108*0 29*1 107*0 25*1 
+0 4*1 105*0 32*1 104*0 33*1 105*0 31*1 
+107*0 30*1 108*0 22*1 0 3*1 111*0 24*1 
+114*0 20*1 118*0 5*1 0 8*1 0 2*1 
+120*0 15*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 114*0 15*1 0 6*1 113*0 24*1 
+111*0 26*1 110*0 27*1 109*0 28*1 108*0 29*1 
+108*0 29*1 108*0 29*1 107*0 23*1 0 5*1 
+107*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 5*1 0 8*1 0 2*1 120*0 15*1 
+123*0 1 0 11*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 5*1 0 23*1 108*0 29*1 
+105*0 5*1 0 26*1 105*0 28*1 0 3*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 5*1 0 11*1 120*0 15*1 
+123*0 1 0 11*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 29*1 108*0 26*1 0 2*1 
+105*0 28*1 0 3*1 105*0 32*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 1 0 11*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 113*0 23*1 
+113*0 24*1 111*0 26*1 110*0 27*1 109*0 28*1 
+108*0 29*1 108*0 29*1 106*0 31*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 8*1 
+0 11*1 118*0 17*1 120*0 15*1 123*0 1 
+0 11*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+109*0 28*1 110*0 27*1 108*0 29*1 106*0 31*1 
+105*0 1 0 30*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 8*1 0 11*1 118*0 17*1 
+120*0 15*1 123*0 1 0 11*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+111*0 26*1 110*0 27*1 109*0 1 0 26*1 
+111*0 26*1 109*0 28*1 106*0 1 0 29*1 
+107*0 30*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 8*1 0 11*1 118*0 17*1 120*0 15*1 
+123*0 1 0 11*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 2*1 0 3*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+111*0 26*1 110*0 27*1 109*0 1 0 26*1 
+111*0 26*1 109*0 28*1 106*0 1 0 29*1 
+105*0 1 0 30*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 1 0 11*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 2*1 0 3*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+112*0 25*1 110*0 27*1 109*0 24*1 0 3*1 
+109*0 28*1 109*0 28*1 108*0 29*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 10*1 0 2*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 2*1 
+0 3*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27591*0 2*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 113*0 23*1 
+113*0 24*1 112*0 25*1 110*0 27*1 108*0 29*1 
+109*0 28*1 109*0 28*1 107*0 30*1 106*0 31*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 10*1 0 2*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 2*1 
+0 3*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27590*0 1 0 1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+108*0 29*1 108*0 1 0 27*1 107*0 1 
+0 28*1 106*0 31*1 105*0 32*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 15*1 123*0 10*1 0 2*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 2*1 0 3*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 113*0 23*1 
+113*0 24*1 111*0 26*1 110*0 27*1 109*0 28*1 
+108*0 29*1 107*0 30*1 106*0 31*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 10*1 0 2*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 2*1 
+0 3*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 3*1 132*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 111*0 26*1 
+109*0 28*1 108*0 29*1 107*0 30*1 107*0 30*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 15*1 123*0 10*1 
+0 2*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 2*1 0 3*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 124*0 13*1 
+121*0 1 0 14*1 120*0 17*1 118*0 19*1 
+117*0 20*1 116*0 21*1 113*0 1 0 21*1 
+115*0 22*1 113*0 24*1 112*0 25*1 110*0 27*1 
+109*0 28*1 109*0 28*1 107*0 30*1 106*0 31*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 10*1 0 2*1 
+125*0 11*1 126*0 6*1 0 2*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+127*0 10*1 126*0 11*1 125*0 12*1 123*0 14*1 
+122*0 15*1 121*0 16*1 121*0 16*1 117*0 20*1 
+116*0 20*1 114*0 1 0 21*1 115*0 22*1 
+114*0 23*1 111*0 26*1 111*0 26*1 109*0 28*1 
+107*0 30*1 107*0 30*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 10*1 0 2*1 125*0 11*1 126*0 6*1 
+0 2*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 1 0 14*1 120*0 17*1 
+118*0 19*1 117*0 20*1 116*0 18*1 0 2*1 
+115*0 21*1 114*0 23*1 114*0 23*1 110*0 1 
+0 25*1 111*0 26*1 111*0 25*1 110*0 27*1 
+106*0 1 0 27*1 0 1 108*0 29*1 
+107*0 27*1 2*0 1 108*0 24*1 113*0 24*1 
+114*0 18*1 0 1 118*0 16*1 121*0 15*1 
+123*0 10*1 0 2*1 125*0 11*1 126*0 6*1 
+0 2*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 116*0 21*1 115*0 21*1 114*0 23*1 
+113*0 24*1 110*0 1 0 25*1 110*0 27*1 
+107*0 2*1 0 27*1 106*0 29*1 107*0 29*1 
+108*0 1 0 26*1 2*0 1 107*0 27*1 
+2*0 1 108*0 25*1 112*0 24*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 10*1 0 2*1 
+125*0 11*1 126*0 6*1 0 2*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+114*0 22*1 113*0 24*1 113*0 24*1 112*0 25*1 
+110*0 27*1 107*0 30*1 106*0 31*1 106*0 31*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 17*1 0 2*1 118*0 17*1 120*0 15*1 
+123*0 10*1 0 2*1 125*0 11*1 126*0 6*1 
+0 2*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 24*1 
+111*0 26*1 110*0 27*1 108*0 1 0 27*1 
+107*0 30*1 106*0 31*1 104*0 33*1 105*0 32*1 
+106*0 16*1 0 13*1 108*0 26*1 111*0 24*1 
+114*0 17*1 0 2*1 118*0 17*1 120*0 15*1 
+123*0 13*1 125*0 11*1 126*0 6*1 0 2*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 29*1 107*0 30*1 106*0 31*1 
+104*0 33*1 105*0 32*1 106*0 16*1 0 13*1 
+108*0 26*1 111*0 24*1 114*0 17*1 0 2*1 
+118*0 17*1 120*0 15*1 123*0 13*1 125*0 11*1 
+126*0 6*1 0 2*1 128*0 8*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 113*0 23*1 
+114*0 23*1 111*0 26*1 110*0 27*1 108*0 29*1 
+107*0 30*1 105*0 32*1 104*0 33*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 17*1 
+0 2*1 118*0 17*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 6*1 0 2*1 128*0 8*1 
+130*0 6*1 131*0 1 0 4*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+117*0 20*1 116*0 20*1 114*0 1 0 21*1 
+111*0 1 2*0 23*1 110*0 27*1 108*0 1 
+2*0 26*1 107*0 2*1 0 27*1 105*0 32*1 
+104*0 33*1 105*0 32*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 4*1 
+0 10*1 123*0 13*1 125*0 11*1 126*0 6*1 
+0 2*1 128*0 8*1 130*0 6*1 131*0 1 
+0 4*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 128*0 9*1 127*0 10*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 116*0 21*1 114*0 1 
+0 20*1 114*0 23*1 111*0 1 0 24*1 
+110*0 27*1 108*0 1 2*0 26*1 107*0 1 
+2*0 27*1 106*0 31*1 106*0 31*1 105*0 32*1 
+106*0 30*1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 4*1 0 10*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 1 0 4*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 116*0 21*1 
+114*0 22*1 114*0 23*1 111*0 1 0 24*1 
+110*0 27*1 108*0 29*1 107*0 30*1 105*0 32*1 
+104*0 1 0 31*1 105*0 32*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 4*1 0 10*1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 1 
+0 4*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 134*0 3*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 121*0 16*1 120*0 17*1 
+118*0 19*1 117*0 20*1 115*0 22*1 114*0 22*1 
+114*0 23*1 111*0 26*1 110*0 27*1 108*0 29*1 
+107*0 29*1 106*0 30*1 0 1 104*0 1 
+0 30*1 107*0 27*1 0 3*1 106*0 28*1 
+0 1 108*0 26*1 111*0 24*1 114*0 20*1 
+118*0 17*1 120*0 4*1 0 10*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 1 0 4*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27592*0 1 134*0 3*1 
+131*0 6*1 130*0 8*1 127*0 10*1 127*0 10*1 
+124*0 1 0 11*1 123*0 14*1 122*0 15*1 
+120*0 17*1 118*0 19*1 117*0 1 0 18*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 109*0 28*1 109*0 28*1 107*0 30*1 
+105*0 32*1 105*0 19*1 0 12*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 15*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 1 0 4*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 117*0 20*1 113*0 1 2*0 20*1 
+113*0 1 3*0 20*1 111*0 3*1 0 22*1 
+110*0 27*1 108*0 29*1 107*0 30*1 106*0 31*1 
+105*0 32*1 105*0 19*1 0 12*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 15*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 1 0 4*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 6*1 
+130*0 8*1 127*0 10*1 126*0 11*1 124*0 13*1 
+123*0 14*1 121*0 16*1 120*0 17*1 118*0 19*1 
+117*0 20*1 115*0 22*1 113*0 23*1 113*0 17*1 
+0 6*1 111*0 26*1 110*0 27*1 108*0 29*1 
+107*0 30*1 105*0 32*1 105*0 32*1 105*0 25*1 
+0 6*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 1 0 4*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 17*1 0 6*1 111*0 26*1 
+110*0 27*1 108*0 29*1 107*0 30*1 105*0 32*1 
+104*0 33*1 105*0 32*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 1 0 4*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 131*0 7*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 29*1 107*0 30*1 105*0 32*1 
+104*0 33*1 105*0 31*1 107*0 28*1 110*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 1 0 4*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 29*1 107*0 30*1 105*0 31*1 
+105*0 31*1 107*0 29*1 109*0 28*1 110*0 25*1 
+112*0 24*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 125*0 12*1 123*0 14*1 122*0 15*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+108*0 29*1 107*0 30*1 105*0 32*1 104*0 33*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 13*1 0 1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+120*0 17*1 119*0 18*1 118*0 19*1 117*0 20*1 
+115*0 21*1 115*0 22*1 114*0 23*1 110*0 1 
+0 25*1 109*0 1 0 26*1 108*0 29*1 
+105*0 1 3*0 28*1 104*0 1 0 31*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 13*1 0 1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 8*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 10*1 
+126*0 11*1 124*0 13*1 123*0 14*1 121*0 16*1 
+121*0 16*1 119*0 18*1 118*0 19*1 116*0 21*1 
+114*0 1 0 20*1 113*0 1 0 22*1 
+113*0 24*1 112*0 25*1 109*0 2*1 0 25*1 
+110*0 27*1 105*0 1 2*0 29*1 104*0 1 
+0 31*1 105*0 32*1 106*0 30*1 108*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 13*1 
+0 1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+123*0 14*1 121*0 16*1 120*0 17*1 119*0 18*1 
+116*0 1 0 19*1 114*0 1 2*0 19*1 
+113*0 1 3*0 20*1 113*0 24*1 112*0 25*1 
+109*0 2*1 0 25*1 110*0 1 0 25*1 
+108*0 29*1 105*0 32*1 105*0 31*1 107*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 13*1 0 1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 5*1 0 2*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+124*0 13*1 123*0 14*1 123*0 14*1 121*0 16*1 
+120*0 17*1 119*0 18*1 118*0 19*1 117*0 19*1 
+115*0 22*1 114*0 23*1 112*0 25*1 111*0 26*1 
+110*0 27*1 110*0 27*1 105*0 26*1 0 4*1 
+108*0 29*1 107*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 13*1 0 1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 5*1 
+0 2*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 124*0 13*1 123*0 14*1 
+123*0 14*1 121*0 16*1 120*0 17*1 117*0 1 
+0 18*1 115*0 22*1 113*0 23*1 113*0 24*1 
+111*0 26*1 110*0 27*1 109*0 28*1 109*0 28*1 
+108*0 29*1 105*0 32*1 106*0 31*1 106*0 30*1 
+108*0 26*1 111*0 24*1 114*0 20*1 118*0 17*1 
+120*0 13*1 0 1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 5*1 0 2*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 27455*0 1 134*0 3*1 133*0 4*1 
+131*0 6*1 130*0 8*1 127*0 10*1 126*0 11*1 
+125*0 12*1 124*0 13*1 121*0 1 0 14*1 
+120*0 17*1 118*0 19*1 117*0 20*1 115*0 22*1 
+113*0 23*1 113*0 24*1 111*0 26*1 110*0 27*1 
+108*0 29*1 107*0 30*1 105*0 32*1 104*0 33*1 
+105*0 32*1 106*0 30*1 108*0 26*1 111*0 24*1 
+114*0 20*1 118*0 17*1 120*0 13*1 0 1 
+123*0 13*1 125*0 11*1 126*0 9*1 128*0 5*1 
+0 2*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 27455*0 1 
+134*0 3*1 133*0 4*1 131*0 6*1 130*0 8*1 
+127*0 10*1 126*0 11*1 125*0 12*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 24*1 111*0 26*1 
+110*0 27*1 108*0 29*1 107*0 30*1 105*0 32*1 
+104*0 32*1 106*0 30*1 108*0 28*1 110*0 26*1 
+111*0 24*1 114*0 20*1 118*0 17*1 120*0 13*1 
+0 1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 5*1 0 2*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+27455*0 1 134*0 3*1 133*0 4*1 131*0 5*1 
+131*0 4*1 131*0 4*1 2*0 3*1 127*0 3*1 
+0 7*1 124*0 4*1 0 8*1 123*0 14*1 
+121*0 16*1 120*0 17*1 118*0 19*1 117*0 20*1 
+115*0 22*1 113*0 23*1 113*0 6*1 0 17*1 
+111*0 26*1 110*0 27*1 108*0 29*1 107*0 30*1 
+105*0 31*1 105*0 31*1 107*0 30*1 108*0 27*1 
+111*0 24*1 113*0 23*1 115*0 20*1 118*0 17*1 
+120*0 13*1 0 1 123*0 13*1 125*0 8*1 
+0 2*1 126*0 9*1 128*0 5*1 0 2*1 
+130*0 6*1 131*0 6*1 132*0 4*1 133*0 3*1 
+134*0 2*1 136*0 1 27455*0 1 134*0 3*1 
+133*0 4*1 131*0 6*1 130*0 8*1 127*0 4*1 
+0 1 3*0 1 126*0 3*1 0 1 
+130*0 2*1 0 1 132*0 2*1 2*0 1 
+130*0 2*1 134*0 3*1 132*0 4*1 132*0 1 
+0 1 132*0 1 2*0 1 131*0 5*1 
+131*0 4*1 132*0 5*1 130*0 5*1 130*0 6*1 
+130*0 2*1 0 3*1 129*0 8*1 23*0 1 
+104*0 6*1 25*0 2*1 105*0 5*1 25*0 2*1 
+106*0 3*1 24*0 3*1 132*0 2*1 134*0 1 
+402*0 1 29227*0 2*1 134*0 4*1 132*0 5*1 
+130*0 7*1 129*0 8*1 127*0 10*1 126*0 10*1 
+126*0 10*1 125*0 10*1 126*0 10*1 126*0 10*1 
+126*0 10*1 126*0 9*1 7*0 1 118*0 10*1 
+7*0 2*1 117*0 9*1 8*0 3*1 116*0 9*1 
+8*0 4*1 110*0 1 3*0 10*1 8*0 5*1 
+110*0 1 0 11*1 8*0 6*1 108*0 2*1 
+2*0 10*1 8*0 7*1 107*0 13*1 10*0 7*1 
+106*0 13*1 10*0 7*1 109*0 10*1 10*0 5*1 
+111*0 12*1 6*0 6*1 114*0 20*1 118*0 17*1 
+120*0 15*1 123*0 13*1 125*0 8*1 0 2*1 
+126*0 9*1 128*0 5*1 0 2*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 28277*0 2*1 134*0 3*1 132*0 5*1 
+130*0 6*1 127*0 1 0 7*1 129*0 6*1 
+130*0 6*1 127*0 2*1 0 6*1 127*0 1 
+0 6*1 127*0 3*1 0 5*1 7*0 1 
+119*0 9*1 7*0 2*1 118*0 8*1 8*0 3*1 
+117*0 8*1 8*0 4*1 117*0 7*1 8*0 5*1 
+115*0 8*1 8*0 6*1 111*0 1 0 9*1 
+8*0 7*1 111*0 9*1 10*0 7*1 107*0 12*1 
+10*0 7*1 108*0 11*1 10*0 5*1 111*0 11*1 
+7*0 6*1 114*0 20*1 118*0 17*1 120*0 15*1 
+123*0 13*1 125*0 8*1 0 2*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 132*0 4*1 
+133*0 3*1 134*0 2*1 136*0 1 28276*0 3*1 
+132*0 5*1 131*0 6*1 128*0 8*1 128*0 8*1 
+129*0 6*1 130*0 6*1 130*0 6*1 130*0 5*1 
+129*0 1 0 5*1 7*0 1 119*0 1 
+2*0 6*1 7*0 2*1 117*0 2*1 0 6*1 
+8*0 3*1 116*0 9*1 8*0 4*1 114*0 10*1 
+8*0 5*1 107*0 1 5*0 10*1 8*0 6*1 
+105*0 1 5*0 11*1 8*0 7*1 110*0 10*1 
+10*0 7*1 107*0 12*1 10*0 7*1 108*0 11*1 
+10*0 5*1 111*0 11*1 7*0 6*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 6*1 
+132*0 4*1 133*0 3*1 134*0 2*1 136*0 1 
+28004*0 1 134*0 3*1 132*0 5*1 131*0 6*1 
+129*0 8*1 128*0 8*1 128*0 8*1 128*0 7*1 
+128*0 8*1 128*0 8*1 128*0 7*1 129*0 7*1 
+7*0 1 119*0 1 0 7*1 7*0 2*1 
+117*0 9*1 8*0 3*1 116*0 9*1 8*0 4*1 
+114*0 10*1 8*0 5*1 107*0 1 5*0 10*1 
+8*0 6*1 105*0 1 5*0 11*1 8*0 7*1 
+109*0 11*1 10*0 7*1 107*0 12*1 10*0 7*1 
+108*0 11*1 10*0 5*1 111*0 11*1 7*0 6*1 
+114*0 20*1 118*0 17*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 28004*0 1 134*0 3*1 132*0 5*1 
+131*0 6*1 129*0 8*1 128*0 8*1 128*0 8*1 
+128*0 7*1 128*0 8*1 128*0 8*1 128*0 7*1 
+129*0 7*1 7*0 1 121*0 7*1 7*0 2*1 
+119*0 1 0 5*1 8*0 3*1 117*0 8*1 
+8*0 4*1 116*0 8*1 8*0 5*1 114*0 9*1 
+8*0 6*1 112*0 10*1 8*0 7*1 109*0 11*1 
+10*0 7*1 108*0 11*1 10*0 7*1 108*0 11*1 
+10*0 5*1 111*0 11*1 7*0 6*1 114*0 20*1 
+118*0 17*1 120*0 15*1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 3*1 0 2*1 
+131*0 6*1 132*0 4*1 133*0 3*1 134*0 2*1 
+136*0 1 28139*0 1 0 1 133*0 4*1 
+132*0 5*1 132*0 5*1 130*0 6*1 130*0 6*1 
+130*0 5*1 130*0 6*1 130*0 6*1 129*0 6*1 
+130*0 6*1 7*0 1 123*0 5*1 7*0 2*1 
+121*0 5*1 8*0 3*1 120*0 5*1 8*0 4*1 
+118*0 6*1 8*0 1 0 3*1 117*0 6*1 
+8*0 6*1 115*0 7*1 8*0 7*1 112*0 6*1 
+0 1 10*0 7*1 110*0 9*1 10*0 7*1 
+108*0 11*1 10*0 5*1 111*0 11*1 7*0 6*1 
+114*0 20*1 118*0 17*1 120*0 15*1 123*0 13*1 
+125*0 11*1 126*0 9*1 128*0 8*1 130*0 6*1 
+131*0 6*1 133*0 3*1 133*0 3*1 134*0 2*1 
+136*0 1 28004*0 1 134*0 2*1 134*0 4*1 
+132*0 5*1 132*0 5*1 131*0 5*1 132*0 4*1 
+132*0 3*1 131*0 5*1 131*0 5*1 131*0 4*1 
+132*0 1 0 2*1 7*0 1 124*0 4*1 
+7*0 2*1 123*0 3*1 8*0 3*1 122*0 3*1 
+8*0 4*1 120*0 1 0 2*1 8*0 1 
+0 3*1 119*0 1 0 2*1 8*0 6*1 
+118*0 1 0 1 9*0 7*1 119*0 1 
+10*0 7*1 118*0 1 10*0 7*1 115*0 4*1 
+10*0 5*1 116*0 6*1 7*0 6*1 117*0 17*1 
+119*0 16*1 120*0 15*1 123*0 13*1 125*0 11*1 
+126*0 9*1 128*0 8*1 130*0 6*1 131*0 6*1 
+133*0 3*1 133*0 3*1 134*0 2*1 136*0 1 
+28004*0 1 135*0 1 135*0 3*1 133*0 4*1 
+132*0 5*1 131*0 5*1 132*0 4*1 132*0 3*1 
+131*0 5*1 131*0 5*1 131*0 4*1 132*0 1 
+0 2*1 7*0 1 124*0 4*1 7*0 2*1 
+123*0 3*1 8*0 3*1 122*0 3*1 8*0 4*1 
+120*0 1 0 2*1 8*0 1 0 3*1 
+119*0 1 0 2*1 8*0 6*1 118*0 1 
+0 1 9*0 7*1 119*0 1 10*0 6*1 
+119*0 1 10*0 6*1 116*0 4*1 10*0 5*1 
+118*0 4*1 7*0 6*1 117*0 17*1 119*0 16*1 
+120*0 15*1 123*0 13*1 125*0 11*1 126*0 9*1 
+128*0 8*1 130*0 6*1 131*0 6*1 133*0 3*1 
+133*0 3*1 134*0 2*1 136*0 1 21981*0 
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Resumo das validações desta consolidação
+
+Revalidei todos os regex/funções críticos, incluindo os casos reais do seu log (REG_48 ↔ 6-JUB-48A-ESS, REG_62 ↔ 7-JUB-62DA-ESS) — as 7 asserções passaram.
+
+A ideia é alinhar somente a cabeça do poço com a região específica. Acredito que a posição do poço é a correta, é preciso trazer o a região para próximo do poço.
+
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+
+OK. Faça:
+1) Com base nas ultimas tarefas realizadas. Descreva com detalhes qual era o problema e qual foi a solução
+2) Proponha uma Plano ( mas não execute) se é possível:
+2.1) Desacoplar o html, css e js do python. talvez criar 3 arquivos:
+2.1.1) html_template.html (um template em html) => um Vizualizado de dados
+2.1.2) css_template.css (um template em css) => para o html
+2.1.3) js_template.js (um template em js => para o html
+2.2) Somente um template_geral.py que faria:
+2.2.1) ETL (extrair, transformar e carregar) dos dados dos arquivos em db.json ou db.parquer com o schema/estrutura necessária para ser carregado pelo html. Esse arquivo (db.json, db.parquet) será um base dados/banco de dados para preencher os elementos do html_template.html 
+2.2.2) O html_template.html deve carregar o arquivo (db.json ou db.parquet) e mostras as informações e series temporais
+
+Ok. faça as correções:
+1) os traces devem ter a numeração em 3 digitos:
+0 => 000
+1 => 001
+10 => 010
+
+etc
+2) No Plot Box & Histogram, Modo de Análise, trace especifico:
+2.1) não é necessário uma data, mas é necessário o numero do trace.
+2.2) A ideia é fazer o histograma ou box plot de todos os valores das series temporais daquele trace, daquelas propriedades (em gráficos diferentes). A propriedade pode ser multi-seleção.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+1) Diagnóstico e Solução — Resumo Técnico Detalhado
+1.1 Problema raiz: arquitetura acoplada causando regressões em cascata
+O template_10.py (2424 linhas originais) misturava 3 responsabilidades na mesma string Python gigante:
+
+
+Toda edição em qualquer parte arriscava corromper outra. E foi exatamente o que aconteceu:
+
+Bug	Causa	Efeito
+SyntaxError: '}'	applyChartRegionMode() não fechava com } antes do bloco de export no js_extras — as funções de export ficaram dentro do corpo de applyChartRegionMode	Browser ignorava todo o bloco <script> — switchMainTab, toggleSidebar, etc. indisponíveis
+switchMainTab is not defined	_generate_advanced_js_t10() era chamado depois de _generate_main_content_advanced() — scripts de Tabelas/Resumo carregavam antes do JS base	Clique em qualquer aba quebrava
+ImportError: _generate_advanced_js	_generate_advanced_js() (função base JS pura) havia sido deletada do template_9.py em edição anterior. _generate_advanced_js_t9 e _generate_advanced_js_t10 a chamavam → RecursionError	Impossível gerar qualquer HTML
+pctColorForTrace ausente	Função removida do script de Tabelas em edição anterior	Cores P10/P50/P90 na aba Tabelas não funcionavam
+formatSummaryDate is not defined	Função removida do script de Resumo em edição anterior	Aba Resumo não renderizava a tabela
+Aba Boxplot sumiu	_generate_boxplot_tab() + _generate_main_content_t10() (com 4 abas) perdidas após refatoração; generate_template_10 foi atualizado para usar _generate_main_content_advanced do template_9, que só tem 3 abas	Botão "Plot Box & Histogram" desapareceu do HTML
+Boxplot com JS duplicado	_plotbox_raw.html extraído do HTML de referência continha o <script> embutido; a função Python adicionava outro script com placeholder	8 funções JS duplicadas
+Todas as falhas têm a mesma causa raiz: código HTML/CSS/JS embutido em strings Python longas, sem separação de responsabilidades, tornando cada edição um campo minado.
+
+Execute:
+2) Proposta de Plano: Desacoplamento HTML/CSS/JS/Python
+2.1 Visão geral da nova arquitetura
+
+O HTML carrega seus assets locais e o db.json gerado pelo Python.
+
+2.2 Descrição de cada arquivo
+template_dashboard.html
+Template HTML puro — nenhum dado hardcoded. Usa placeholders mínimos para injeção do db.json:
+
+dashboard.css
+CSS puro — variáveis :root, responsividade, temas, sem string Python.
+
+dashboard.js
+JS puro — todas as funções atuais:
+
+initDashboard(db) — função principal que recebe o db e monta tudo
+buildTabs(), buildGraficosTab(), buildTabelasTab(), buildResumoTab(), buildBoxplotTab()
+switchMainTab(), toggleSidebar(), buildAllAccordions()
+exportSingleCurve(), exportAllCurves()
+initBoxplotTab(), buildBoxplots()
+etc.
+template_builder.py — ETL + gerador do db.json
+
+O Python faz apenas o ETL:
+
+Extrai: lê arquivos .data/.dat (já existente em data_loader.py)
+Transforma: calcula percentis, delta, filtra datas
+Carrega: serializa para db.json (ou db.parquet para dados grandes)
+
+2.3 Fluxo completo
+
+Duas opções de entrega:
+
+Opção A — HTML self-contained (atual, sem servidor):
+
+Opção B — Pasta com assets separados (melhor para debug):
+
+
+2.4 Estimativa de esforço e riscos
+Etapa	Esforço estimado	Risco
+Extrair CSS para dashboard.css	1h	Baixo
+Extrair _generate_advanced_js para dashboard.js	2h	Médio — requer teste completo
+Definir schema db.json e adaptar template_builder.py	4h	Alto — mudança de interface
+Reescrever initDashboard(db) em JS puro	6–8h	Alto — toda lógica de renderização
+Adaptar _generate_chart_tables / _generate_summary_tab / _generate_boxplot_tab para JS puro	4–6h	Médio
+Adaptar PS1 / CLI para nova saída	1h	Baixo
+Testes de regressão	2h	Médio
+Total	~20–24h	
+2.5 Recomendação
+✅ Plano viável e recomendado — a separação resolverá definitivamente os problemas recorrentes de regressão.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Sequência sugerida de implementação:
+
+Ok. Execute o plano de Desacoplamento com a Opção B. faça:
+1) união do template_9.py e do template_10.py para criar o template_builder.py
+OBS1: Verifique a lista de tarefas pedidas. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Leia e entenda:
+
+L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat\ARQUIVOS_GERADOS_2026_08_27.md
+L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat\HISTORICO_2026_08_27.md
+L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat\HISTORICO_SESSAO_2026_08_26.md
+L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat\PLANO_MAPA2D_2026_08_27.md
+L:\res\campos\jubarte\er\er03\Projeto_Atenas\central_explotacao\chat\PLANO_TAREFAS_PROXIMAS_SESSOES.md
+
+Faça:
+OBS1: Verifique a lista de tarefas pedidas/abaixo. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas corrija) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 10, 15, 20, 40, 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+Faça: 
+1) Reveja a disposição do elementos. 
+=> O sidebar meu left deve está fora das tabs. Deve ser divido em sessões de configuração, as sessões devem está dentro de accordions (para colapsar e expandir na vertical)
+=> Corrija o acesso entre as tabs no html.  
+=> Corrija a disposição dos elementos (enquadre dentro da janela). 
+=> Crie um sidebar menu left ao lado das tabs (irá virar ChartArea). 
+=> As tabs devem ficar dentro da ChartArea.
+=> reduza os tamanhos do botoes e letras. 
+=> Organize em grid NxM e preencha todo os espaço as celulas.
+
+2)Use o pyodide para ler o parquet.
+
+3) Corrija com solução robusta e faça teste fora do servidor:
+
+Access to fetch at 'file:///L:/res/campos/jubarte/er/er03/JUB_PRB_MCBCOQ/2025/00_PE2630_Ciclo2/06.P50_Proj_Atenas/html_kh/view/static/db/db.json' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: brave, chrome, chrome-extension, chrome-untrusted, data, http, https, isolated-app.
+db/db.json:1  Failed to load resource: net::ERR_FAILED
+html_template.html:376 initApp error: ReferenceError: data is not defined
+    at setStatus (html_template.html:376:21)
+    at html_template.html:549:9
+setStatus @ html_template.html:376
+html_template.html:380 Uncaught (in promise) ReferenceError: prop is not defined
+    at setStatus (html_template.html:380:21)
+    at html_template.html:549:9
+3html_template.html:376 initApp error: ReferenceError: data is not defined
+    at setStatus (html_template.html:376:21)
+    at applyData (html_template.html:424:5)
+    at reader.onload (html_template.html:465:9)
+setStatus @ html_template.html:376
+html_template.html:693  Access to XMLHttpRequest at 'file:///L:/res/campos/jubarte/er/er03/JUB_PRB_MCBCOQ/2025/00_PE2630_Ciclo2/06.P50_Proj_Atenas/html_kh/view/static/db/db.json' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome-extension, chrome-untrusted, data, edge, http, https, isolated-app.
+db/db.json:1   Failed to load resource: net::ERR_FAILED
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+ok. Vamos melhorar a extração:
+=> vamos criar db(json e parquet) por propriedade ou propriedade derivada
+=> crie fluxo de extração para db_kh, db_kh_mi, db_permi, db_permj, db_permik, db_so, db_sw ,db_sg, etc
+=> foque na velocidade usando os multi-process ou multi-threading e algoritmos de locação de processos pelo Sistema operacional.
+=> verifique a possibilidade de criar um db_total = uniao dos outros db's (item anterior)
+=> Vamos manter o Html como um web app de carrega os db's
+
+OLhando para o projeto como um todo faça um plano que contemple: (mas não execute)
+1) Organização
+2) Generalização, Modularização e Refatoração
+3) Reuso e aproveitamento
+
+OBS: Objetivo é manter todas as funcionalidades integras e funcionando corretamento. Reduzir código desnecessario, duplicado e extra, mas mantendo as soluções robustas.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Remova os arquivos antigos:
+
+01) Que são desnecessárias
+02) Que foram movidos e estão repetidos.
+03) Que foram unidos em um único arquivo.
+
+OBS: faça em 50 + tarefas menores, para não se perder.
+
+#####################################################################################################################################
+#####################################################################################################################################
+#####################################################################################################################################
+
+Vamos focar na estrutura do Python:
+
+1) Melhore o Python para fazer processamento em lotes/batchs (20, 50, 100, ou mais arquivos),  multiprocessing, multithreading (64+ threads) e algoritmos de escalonamento de processos
+
+=> Siga as Orientações abaixo e adapta para o Python:
+
+2) Busque implementar os requisitos abaixo (para aumentar a velocidade de extração dos dados:
+
+2.1) Detecção de hardware (novo painel "Hardware & paralelismo"):
+=> CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). 
+=> Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. 
+=> Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+2.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+2.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+3) Implemente a possibilidade de:
+3.1) Trabalhar com o processamento em lista (FILO)
+3.2) Usar algoritmos de escalonamento de processos:
+3.3) Os principais algoritmos de escalonamento de processos:
+3.3.1) SJF (Shortest Job First)
+3.3.2) SRTF (Shortest Remaining Time First)
+3.3.3) Round-Robin (RR)
+3.3.4) Por Prioridade
+3.3.5) Múltiplas Filas (Multilevel Queue - MLQ)
+3.3.6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+3.3.7) HRRN (Highest Response Ratio Next)
+3.3.8) Fair-Share
+
+4) Foque em otimização e ganhos de velocidade.
+5) Foque em Design( UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+6) Generalize, Modularize e Refatore.
+7) Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+8) Use o melhor do DSA.
+9) Conjunto de regras rígidas:
+9.1) Pense antes de codar: 
+=> Declare suas premissas, 
+=> Exponha incertezas,
+=> Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+9.2) Simplicidade primeiro: 
+=> Combater o excesso de engenharia (overengineering),
+=> Buscar sempre o código mínimo necessário para resolver o problema.
+9.3) Mudanças cirúrgicas:
+=> Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+=> Execução orientada por metas e testes, 
+=> Definir critérios de sucesso claros e verificáveis por meio de automação.
+10) Faça um plano/planejamento detalhado antes da execução. Divida em 50+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo.
+
+OBS1: Verifique a lista de tarefas pedidas. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em 100 ou + tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores.
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+Vamos focar na estrutura do Python:
+PROJETO: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\app_gera_ensemble_html
+
+1) Melhore o Python para fazer processamento em lotes/batchs (20, 50, 100, ou mais arquivos),  multiprocessing, multithreading (64+ threads) e algoritmos de escalonamento de processos
+
+=> Siga as Orientações abaixo e adapta para o Python:
+
+2) Busque implementar os requisitos abaixo (para aumentar a velocidade de extração dos dados:
+
+2.1) Detecção de hardware (novo painel "Hardware & paralelismo"):
+=> CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). 
+=> Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. 
+=> Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+2.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+2.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+3) Implemente a possibilidade de:
+3.1) Trabalhar com o processamento em lista (FILO)
+3.2) Usar algoritmos de escalonamento de processos:
+3.3) Os principais algoritmos de escalonamento de processos:
+3.3.1) SJF (Shortest Job First)
+3.3.2) SRTF (Shortest Remaining Time First)
+3.3.3) Round-Robin (RR)
+3.3.4) Por Prioridade
+3.3.5) Múltiplas Filas (Multilevel Queue - MLQ)
+3.3.6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+3.3.7) HRRN (Highest Response Ratio Next)
+3.3.8) Fair-Share
+
+4) Foque em otimização e ganhos de velocidade.
+5) Foque em Design( UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+6) Generalize, Modularize e Refatore.
+7) Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+8) Use o melhor do DSA.
+9) Conjunto de regras rígidas:
+9.1) Pense antes de codar: 
+9.1.1) Declare suas premissas, 
+9.1.2) Exponha incertezas,
+9.1.3) Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+9.2) Simplicidade primeiro: 
+9.2.1) Combater o excesso de engenharia (overengineering),
+9.2.2) Buscar sempre o código mínimo necessário para resolver o problema.
+9.3) Mudanças cirúrgicas:
+9.3.1) Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+9.3.2) Execução orientada por metas e testes, 
+9.3.3) Definir critérios de sucesso claros e verificáveis por meio de automação.
+10) Faça um plano/planejamento detalhado antes da execução. Divida em 50+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo. Replaneje se necessário.
+
+11) Verifique a lista de tarefas pedidas. 
+11.1) Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+11.2) Verifique o que falta fazer (então faça)
+11.3) Divida o ToDo ou lista de tarefas em 80 ou mais passos. 
+11.4) Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+11.5) Divida em 100 ou + tarefas que podem ser feitas em 2 ou 3 steps.
+11.6) Evite criar tarefas muito grandes (com um escopo de grande contexto)
+11.7) Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores.
+
+12) Vá para a implementação do Python. Veja a necessidade de criar o executável .exe.
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\app_gera_ensemble_html
+=> Faça correções e adaptações no GUI e no .bat
+=> Reorganize a estrutura do projeto. Remova arquivos desnecessários
+13) Teste a extração com Python
+Pasta alvo: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5
+Pasta destino: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html_v3
+=> Teste inicial com apenas 3 SR3s para validar.
+=> Se ocorrer erros, corrija.
+
+########################################################################################################################################################
+########################################################################################################################################################
+########################################################################################################################################################
+
+Vamos focar na estrutura do C/C++:
+
+1) Melhore o C/C++ para fazer processamento em lotes/batchs (20, 50, 100, ou mais arquivos),  multiprocessing, multithreading (64+ threads) e algoritmos de escalonamento de processos
+
+=> Siga as Orientações abaixo e adapta para o C/C++:
+
+2) Busque implementar os requisitos abaixo (para aumentar a velocidade de extração dos dados:
+
+2.1) Detecção de hardware (novo painel "Hardware & paralelismo"):
+=> CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado). 
+=> Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir. 
+=> Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload. 
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU. 
+=> Faça a detecção de GPU existe para informar o usuário
+
+2.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+2.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker <arquivo> ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+3) Implemente a possibilidade de:
+3.1) Trabalhar com o processamento em lista (FILO)
+3.2) Usar algoritmos de escalonamento de processos:
+3.3) Os principais algoritmos de escalonamento de processos:
+3.3.1) SJF (Shortest Job First)
+3.3.2) SRTF (Shortest Remaining Time First)
+3.3.3) Round-Robin (RR)
+3.3.4) Por Prioridade
+3.3.5) Múltiplas Filas (Multilevel Queue - MLQ)
+3.3.6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+3.3.7) HRRN (Highest Response Ratio Next)
+3.3.8) Fair-Share
+
+4) Foque em otimização e ganhos de velocidade.
+5) Foque em Design( UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+6) Generalize, Modularize e Refatore.
+7) Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+8) Use o melhor do DSA.
+9) Conjunto de regras rígidas:
+9.1) Pense antes de codar: 
+=> Declare suas premissas, 
+=> Exponha incertezas,
+=> Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+9.2) Simplicidade primeiro: 
+=> Combater o excesso de engenharia (overengineering),
+=> Buscar sempre o código mínimo necessário para resolver o problema.
+9.3) Mudanças cirúrgicas:
+=> Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+=> Execução orientada por metas e testes, 
+=> Definir critérios de sucesso claros e verificáveis por meio de automação.
+10) Faça um plano/planejamento detalhado antes da execução. Divida em 50+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo.
+
+OBS1: Verifique a lista de tarefas pedidas. 
+=> Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção) 
+=> Verifique o que falta fazer (então faça)
+OBS2: Divida o ToDo ou lista de tarefas em 80 ou mais passos. 
+=> Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+=> Divida em 100 ou + tarefas que podem ser feitas em 2 ou 3 steps.
+OBS3: Evite criar tarefas muito grandes (com um escopo de grande contexto)
+OBS4: Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores.
+
+1) Vá para a implementação do C/C++. Veja a necessidade de criar o executável .exe.
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\app_gera_ensemble_html\sr3_etl_c
+2) Teste a extração com C/C++
+Pasta alvo: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5
+Pasta destino: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html_v3
+=> Teste inicial com apenas 3 SR3s para validar.
+=> Se ocorrer erros, corrija.
+
+######################################################################################################################################################
+######################################################################################################################################################
+######################################################################################################################################################
+
+Ok. leia e entenda o guia:
+L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\kh_extractor_rs\docs\GUIA_INSTALACAO.md
+
+Faça:
+1) A criação do executa em RUST para ser utilizado na extração
+2) Teste a extração com RUST
+Pasta alvo: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5
+Pasta destino: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html_v2
+=> Teste inicial com apenas 3 SR3s para validar.
+=> Se ocorrer erros, corrija.
+
+
+leia e entenda a estrutura do SR3:
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\RMSv15_er03_brkwtq8_out07_AMPICSPB_002.sr3"
+Escreva a estrutura (todas as tabelas possíveis) e criar uma guia de estrutura um arquivo (em docs/ESTRUTURA_SR3.md)
+
+######################################################################################################################################################
+######################################################################################################################################################
+######################################################################################################################################################
+
+Ok. leia e entenda o guia:
+L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\html_kh\kh_extractor_rs\docs\GUIA_INSTALACAO.md
+
+Faça:
+Aplique no projeto: 
+L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\app_gera_ensemble_html
+
+1) Vá para a implementação do ETL em RUST. Veja a necessidade de criar o executável .exe.
+=> L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2025\00_PE2630_Ciclo2\06.P50_Proj_Atenas\app_gera_ensemble_html\sr3_ensemble_etl_rs\sr3_rust_wrapper.py
+2) Teste a extração com RUST
+Pasta alvo: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5
+Pasta destino: L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html
+=> Teste inicial com apenas 3 SR3s para validar.
+=> Se ocorrer erros, corrija.
+
+######################################################################################################################################################
+######################################################################################################################################################
+######################################################################################################################################################
+
+Implemente a solução que passa por gerar a pasta slim e json.gz em vários arquivos. Segue referencia:
+
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html\slim\qo_grp_groups.json.gz"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html\slim\qo_sec_groups.json.gz"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html\slim\qw_groups.json.gz"
+"L:\res\campos\jubarte\er\er03\JUB_PRB_MCBCOQ\2026\08_ICSPB_AMPF2_JUB\Simu\Ensemble\aPID4_ICSPB5\dash_html\slim\qo_groups.json.gz"
+
+01) Foque em otimização e ganhos de velocidade.
+02) Foque em Design (UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+03) Generalize, Modularize e Refatore.
+04) Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+05) Use o melhor do DSA.
+06) Conjunto de regras rígidas:
+06.1) Pense antes de codar: 
+=> Declare suas premissas, 
+=> Exponha incertezas,
+=> Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+06.2) Simplicidade primeiro: 
+=> Combater o excesso de engenharia (overengineering),
+=> Buscar sempre o código mínimo necessário para resolver o problema.
+06.3) Mudanças cirúrgicas:
+=> Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+=> Execução orientada por metas e testes, 
+=> Definir critérios de sucesso claros e verificáveis por meio de automação.
+07) Faça um plano/planejamento detalhado antes da execução. Divida em 50+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo.

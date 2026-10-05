@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/totalenergies_1q26-results-press-release_2026.pdf",
+  "sha256": "eb476f097d6722cc743c96ae5c8fc89ce770e0e61c5ea2d84f1b05306451d1e1",
+  "size": 952582,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:15:00Z",
+  "meta": {
+    "pages_detected": 43,
+    "text_sample_chars": 51878,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

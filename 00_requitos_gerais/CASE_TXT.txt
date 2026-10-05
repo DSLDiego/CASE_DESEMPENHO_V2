@@ -1,0 +1,102 @@
+Case: Produto analítico trimestral de benchmarking financeiro
+
+1. Contexto
+
+A área de Desempenho Empresarial acompanha periodicamente o desempenho da Petrobras e de empresas relevantes do setor de energia. As informações necessárias estão disponíveis publicamente, principalmente nos sites de Relações com Investidores, mas são divulgadas por diferentes empresas em formatos e níveis de detalhamento próprios.
+Esse acompanhamento deve gerar informações confiáveis, atualizáveis e úteis para discussões executivas sobre desempenho, posicionamento relativo, tendências, oportunidades e pontos de atenção.
+
+2. Desafio
+
+Desenvolva uma Prova de Conceito funcional de um produto trimestral de benchmarking, que:
+compare o desempenho financeiro da Petrobras com empresas pares selecionadas, usando exclusivamente informações públicas, e transforme os dados coletados em um painel e em uma análise executiva.
+
+Você será responsável por:
+1.	definir e justificar as empresas que integrarão a PoC;
+2.	escolher os indicadores que considera mais relevantes;
+3.	localizar os materiais públicos necessários;
+4.	estruturar a coleta e o histórico;
+5.	implementar controles de qualidade e rastreabilidade;
+6.	construir e demonstrar um painel próprio;
+7.	explicar como a solução seria atualizada a cada novo trimestre;
+8.	demonstrar como o produto poderia escalar para o universo completo de empresas e indicadores.
+
+
+
+3. Universo de referência
+O universo de referência é composto por:
+•	Petrobras;
+•	BP;
+•	Chevron;
+•	Equinor;
+•	ExxonMobil;
+•	Shell;
+•	TotalEnergies.
+Para limitar o esforço, a PoC deverá conter:
+•	Petrobras e pelo menos três pares, escolhidos e justificados pelo candidato;
+•	quatro a seis indicadores, escolhidos e definidos pelo candidato;
+•	pelo menos três trimestres, incluindo o trimestre mais recente disponível na data de execução;
+•	demonstração de como a solução poderia ser ampliada para as demais empresas e indicadores.
+O candidato poderá utilizar outro recorte, desde que apresente justificativa técnica e assegure profundidade equivalente.
+
+4. Fontes
+Devem ser utilizadas exclusivamente fontes públicas, com prioridade para:
+1.	sites oficiais de Relações com Investidores;
+2.	releases de resultados;
+3.	demonstrações financeiras e documentos regulatórios;
+4.	apresentações, databooks e suplementos oficiais;
+5.	demais fontes públicas que o candidato considere justificáveis.
+
+A PoC deverá permitir identificar a origem dos dados utilizados.
+
+5. Requisitos obrigatórios da PoC
+
+5.1 Coleta
+•	buscar os documentos diretamente nas fontes públicas;
+•	caso não seja viável poderá ser apresentado utilizando arquivos na máquina do candidato
+
+5.2 Persistência e transformação
+•	armazenar dados históricos;
+•	adotar modelo que comporte múltiplas empresas, períodos, indicadores e fontes;
+•	produzir dados comparáveis para uso no painel;
+•	permitir a inclusão de um novo trimestre sem reconstrução manual do produto.
+
+5.3 Qualidade e rastreabilidade
+
+A solução deverá apresentar algum mecanismo para:
+•	avaliar qualidade ou confiabilidade dos dados;
+•	identificar registros incompletos ou que necessitem de análise;
+•	apresentar mecanismos de controle e alerta em caso de desvios históricos ou de mudança de dados no tempo;
+
+5.4 Painel
+
+O painel deverá ser desenvolvido pelo candidato e permitir, no mínimo:
+•	visão executiva do trimestre;
+•	comparação entre empresas;
+•	evolução histórica;
+•	leitura dos indicadores selecionados;
+•	navegação ou filtragem por período, empresa ou indicador;
+
+Não será suficiente apresentar apenas slides ou uma proposta conceitual.
+
+6. Tecnologia
+
+A escolha tecnológica é livre. Podem ser utilizados Power BI, Power Apps, Power Automate, Fabric, linguagens de programação, bancos de dados ou outros componentes adequados.
+
+Não será atribuída vantagem pelo simples uso de mais ferramentas.
+
+Serão avaliadas a coerência da arquitetura, a manutenção, a repetibilidade, o custo operacional, a garantia da qualidade dos dados e a justificativa das escolhas. 
+
+Escolha o indicador total de efetivo como indicador financeiro. 
+Todos os itens do tópico 5 têm o mesmo peso e serão avaliados separadamente. 
+
+7. Entregáveis enviados antes da apresentação
+1.	arquivo do painel;
+2.	catálogo das fontes utilizadas;
+3.	instruções para execução ou atualização;
+4.	evidências dos controles de qualidade;
+5.	relação de premissas, decisões e limitações.
+1.	Tecnológicas;
+2.	Financeiras.
+6.	apresentação de como todo esse processo de construção foi realizado que será utilizado na entrevista (15 minutos);
+7.	Deverá ser enviado até terça (06/11) às 10:00.
+

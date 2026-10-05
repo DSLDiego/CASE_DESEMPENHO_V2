@@ -1,0 +1,3517 @@
+From: https://chatgpt.com/c/6ac04104-fbe4-83e8-9d9a-9574f17abcae
+
+
+
+you asked
+
+message time: 2026-10-02 20:40:52
+
+Case: Produto analítico trimestral de benchmarking financeiro
+
+Contexto
+A área de Desempenho Empresarial acompanha periodicamente o desempenho da Petrobras e de empresas relevantes do setor de energia. As informações necessárias estão disponíveis publicamente, principalmente nos sites de Relações com Investidores, mas são divulgadas por diferentes empresas em formatos e níveis de detalhamento próprios.
+Esse acompanhamento deve gerar informações confiáveis, atualizáveis e úteis para discussões executivas sobre desempenho, posicionamento relativo, tendências, oportunidades e pontos de atenção.
+
+
+Desafio
+Desenvolva uma Prova de Conceito funcional de um produto trimestral de benchmarking, que:
+compare o desempenho financeiro da Petrobras com empresas pares selecionadas, usando exclusivamente informações públicas, e transforme os dados coletados em um painel e em uma análise executiva.
+Você será responsável por:
+
+
+   definir e justificar as empresas que integrarão a PoC;
+
+
+   escolher os indicadores que considera mais relevantes;
+
+
+   localizar os materiais públicos necessários;
+
+
+   estruturar a coleta e o histórico;
+
+
+   implementar controles de qualidade e rastreabilidade;
+
+
+   construir e demonstrar um painel próprio;
+
+
+   explicar como a solução seria atualizada a cada novo trimestre;
+
+
+   demonstrar como o produto poderia escalar para o universo completo de empresas e indicadores.
+
+
+Universo de referência
+O universo de referência é composto por:
+•	Petrobras;
+•	BP;
+•	Chevron;
+•	Equinor;
+•	ExxonMobil;
+•	Shell;
+•	TotalEnergies.
+Para limitar o esforço, a PoC deverá conter:
+•	Petrobras e pelo menos três pares, escolhidos e justificados pelo candidato;
+•	quatro a seis indicadores, escolhidos e definidos pelo candidato;
+•	pelo menos três trimestres, incluindo o trimestre mais recente disponível na data de execução;
+•	demonstração de como a solução poderia ser ampliada para as demais empresas e indicadores.
+O candidato poderá utilizar outro recorte, desde que apresente justificativa técnica e assegure profundidade equivalente.
+
+
+Fontes
+Devem ser utilizadas exclusivamente fontes públicas, com prioridade para:
+
+
+   sites oficiais de Relações com Investidores;
+
+
+   releases de resultados;
+
+
+   demonstrações financeiras e documentos regulatórios;
+
+
+   apresentações, databooks e suplementos oficiais;
+
+
+   demais fontes públicas que o candidato considere justificáveis.
+A PoC deverá permitir identificar a origem dos dados utilizados.
+
+
+Requisitos obrigatórios da PoC
+5.1 Coleta
+•	buscar os documentos diretamente nas fontes públicas;
+•	caso não seja viável poderá ser apresentado utilizando arquivos na máquina do candidato
+5.2 Persistência e transformação
+•	armazenar dados históricos;
+•	adotar modelo que comporte múltiplas empresas, períodos, indicadores e fontes;
+•	produzir dados comparáveis para uso no painel;
+•	permitir a inclusão de um novo trimestre sem reconstrução manual do produto.
+5.3 Qualidade e rastreabilidade
+A solução deverá apresentar algum mecanismo para:
+•	avaliar qualidade ou confiabilidade dos dados;
+•	identificar registros incompletos ou que necessitem de análise;
+•	apresentar mecanismos de controle e alerta em caso de desvios históricos ou de mudança de dados no tempo;
+5.4 Painel
+O painel deverá ser desenvolvido pelo candidato e permitir, no mínimo:
+•	visão executiva do trimestre;
+•	comparação entre empresas;
+•	evolução histórica;
+•	leitura dos indicadores selecionados;
+•	navegação ou filtragem por período, empresa ou indicador;
+Não será suficiente apresentar apenas slides ou uma proposta conceitual.
+
+
+Tecnologia
+A escolha tecnológica é livre. Podem ser utilizados Power BI, Power Apps, Power Automate, Fabric, linguagens de programação, bancos de dados ou outros componentes adequados.
+Não será atribuída vantagem pelo simples uso de mais ferramentas. Serão avaliadas a coerência da arquitetura, a manutenção, a repetibilidade, o custo operacional, a garantia da qualidade dos dados e a justificativa das escolhas. 
+Escolha o indicador total de efetivo como indicador financeiro 
+Todos os itens do tópico 5 têm o mesmo peso e serão avaliados separadamente. 
+
+
+Entregáveis enviados antes da apresentação
+
+
+   arquivo do painel;
+
+
+   catálogo das fontes utilizadas;
+
+
+   instruções para execução ou atualização;
+
+
+   evidências dos controles de qualidade;
+
+
+   relação de premissas, decisões e limitações.
+
+
+   Tecnológicas;
+
+
+   Financeiras.
+
+
+   apresentação de como todo esse processo de construção foi realizado que será utilizado na entrevista (15 minutos);
+
+
+   Deverá ser enviado até terça (06/11) às 10:00.
+
+
+chatgpt response
+
+Para esse case, o principal desafio não é construir um dashboard, mas demonstrar uma arquitetura analítica corporativa repetível, capaz de ser executada trimestralmente com governança, rastreabilidade e escalabilidade.
+
+Há um detalhe importante na sua instrução:
+
+"Escolha o indicador total de efetivo como indicador financeiro"
+
+
+
+Tecnicamente, Total de Efetivo não é um indicador financeiro, mas um indicador operacional/de capital humano. Como o enunciado permite ao candidato escolher os indicadores, eu recomendaria utilizá-lo como um dos indicadores do benchmarking, mas não como único indicador.
+
+
+Estratégia Recomendada
+
+Empresas da PoC
+
+Selecionar:
+
+Petrobras
+Equinor
+Shell
+TotalEnergies
+
+Justificativa
+
+Essas empresas possuem características mais comparáveis:
+
+Empresa Similaridade
+Petrobras Empresa alvo
+Equinor Forte participação estatal
+Shell Supermajor integrada
+TotalEnergies Forte atuação em upstream e transição energética
+
+Evitaria BP e Exxon na PoC para reduzir complexidade.
+
+Na apresentação, mostrar que a inclusão das demais empresas ocorre apenas por parametrização.
+
+
+Indicadores Selecionados
+
+Sugestão de 5 indicadores:
+
+Indicador Tipo Justificativa
+Receita (Revenue) Financeiro Escala operacional
+EBITDA Ajustado Financeiro Eficiência operacional
+Lucro Líquido Financeiro Resultado final
+ROCE Financeiro Retorno sobre capital empregado
+Total de Efetivo Operacional Eficiência organizacional
+
+
+Períodos
+
+Utilizar:
+
+Trimestre
+T1 2026
+T2 2026
+T3 2026 (mais recente)
+
+Caso a data de execução não permita T3/2026 consolidado:
+
+Trimestre
+T4 2025
+T1 2026
+T2 2026
+
+
+Arquitetura Recomendada
+
+RI Petrobras
+RI Shell
+RI Equinor
+RI Total
+
+        ↓
+
+Coleta Automatizada
+
+        ↓
+
+Raw Layer
+
+        ↓
+
+Validação
+
+        ↓
+
+Camada Curada
+
+        ↓
+
+Banco Histórico
+
+        ↓
+
+Dashboard Power BI
+
+        ↓
+
+Análise Executiva
+
+
+Fontes
+
+Petrobras
+
+Result Release
+Formulário de Resultados
+ITR
+DFP
+
+Site RI oficial:
+
+
+Shell
+
+
+Equinor
+
+
+TotalEnergies
+
+
+Modelo de Dados
+
+DimEmpresa
+
+Campo
+EmpresaID
+Nome
+País
+Moeda
+
+
+DimPeriodo
+
+Campo
+PeriodoID
+Ano
+Trimestre
+
+
+DimIndicador
+
+Campo
+IndicadorID
+Nome
+Unidade
+
+
+FatoIndicadores
+
+Campo
+EmpresaID
+PeriodoID
+IndicadorID
+Valor
+FonteID
+
+
+Fonte
+
+Campo
+FonteID
+Empresa
+Documento
+URL
+DataDownload
+Versão
+
+
+Qualidade e Rastreabilidade
+
+Este item possui peso individual.
+
+Muitos candidatos ignoram isso.
+
+
+Controle 1 – Completude
+
+Verifica:
+
+Empresa
++
+Período
++
+Indicador
+
+não nulo.
+
+Exemplo:
+
+Empresa Indicador Status
+Shell EBITDA OK
+Shell ROCE Faltante
+
+
+Controle 2 – Faixa Esperada
+
+Exemplo:
+
+ROCE < -50%
+ROCE > 100%
+
+gera alerta.
+
+
+Controle 3 – Variação Anômala
+
+Comparação QoQ:
+
+(T atual - T anterior)
+/
+T anterior
+
+Exemplo:
+
+Receita caiu 70%
+
+gera alerta.
+
+
+Controle 4 – Conciliação
+
+Conferir:
+
+Release
+
+vs
+
+Demonstração Financeira
+
+
+Controle 5 – Auditoria
+
+Registrar:
+
+Data Download
+Fonte
+Versão
+Usuário
+
+
+Atualização Trimestral
+
+Fluxo:
+
+Novo trimestre divulgado
+
+↓
+
+Download documentos
+
+↓
+
+Extração
+
+↓
+
+Validação
+
+↓
+
+Carga incremental
+
+↓
+
+Atualização Dashboard
+
+Sem reconstrução.
+
+Apenas acrescenta:
+
+2026-T4
+
+na tabela de fatos.
+
+
+Dashboard (Power BI)
+
+Página 1 – Executive Summary
+
+KPIs:
+
+Receita
+EBITDA
+Lucro
+ROCE
+Efetivo
+
+Cards comparativos.
+
+
+Página 2 – Benchmarking
+
+Gráfico:
+
+Empresa x Indicador
+
+Filtro:
+
+Trimestre
+Empresa
+
+
+Página 3 – Evolução Histórica
+
+Linhas temporais:
+
+Receita
+EBITDA
+Lucro
+
+
+Página 4 – Eficiência
+
+Indicadores derivados:
+
+Receita por empregado
+
+Receita / Efetivo
+
+EBITDA por empregado
+
+EBITDA / Efetivo
+
+Esses indicadores costumam gerar discussões executivas muito interessantes.
+
+
+Análise Executiva (Exemplo)
+
+O produto deve gerar uma narrativa executiva, não apenas gráficos.
+
+Exemplo:
+
+No trimestre analisado, a Petrobras apresentou EBITDA superior à média dos pares selecionados, mantendo elevada geração operacional mesmo em cenário de volatilidade dos preços do petróleo. A Equinor apresentou maior estabilidade no ROCE ao longo dos três trimestres analisados, enquanto a Shell registrou crescimento mais acelerado da receita. Em termos de estrutura organizacional, a Petrobras apresentou maior receita por empregado quando comparada à média do grupo, sugerindo elevada produtividade relativa do efetivo.
+
+
+
+
+Escalabilidade
+
+Demonstrar claramente que a solução suporta:
+
+Empresas
+
+4 → 7 → N
+
+sem alteração estrutural.
+
+
+Indicadores
+
+5 → 20 → 100
+
+por parametrização.
+
+
+Trimestres
+
+Histórico ilimitado.
+
+
+O que eu apresentaria na entrevista (15 min)
+
+Minuto 1-2
+
+Objetivo do produto.
+
+
+Minuto 3-5
+
+Arquitetura e fluxo de dados.
+
+
+Minuto 6-8
+
+Modelo de dados.
+
+
+Minuto 9-11
+
+Dashboard ao vivo.
+
+
+Minuto 12-13
+
+Controles de qualidade.
+
+
+Minuto 14
+
+Escalabilidade.
+
+
+Minuto 15
+
+Benefícios para a tomada de decisão executiva.
+
+Essa abordagem cobre integralmente os requisitos dos itens 5.1, 5.2, 5.3 e 5.4, que têm pesos independentes na avaliação, e se aproxima bastante do padrão esperado para uma área corporativa de Desempenho Empresarial em uma grande empresa de energia.
+
+
+you asked
+
+message time: 2026-10-02 20:44:51
+
+ok. Melhore.
+
+Desenhe melhor a arquitetura
+Pense em uma aplicação em Python com SQLITE
+Pense em ETL com arquitetura em MVC e princípios de SOLID
+
+
+chatgpt response
+
+Vou reestruturar a PoC como uma aplicação desktop/CLI em Python, com SQLite como camada persistente, ETL desacoplado da interface e MVC apenas na camada de apresentação.
+
+
+you asked
+
+message time: 2026-10-02 20:51:10
+
+ok. Como programador master em python e em sql, crie um app completo com o que foi definido.
+
+
+chatgpt response
+
+Vou entregar a PoC como um projeto executável, não apenas como arquitetura: banco SQLite, ETL incremental, adaptadores por empresa, regras de qualidade, auditoria e dashboard PySide6 com filtros e exportação. Também vou deixar uma carga demonstrativa para o aplicativo funcionar mesmo sem rede, sem mascarar essa carga como dado oficial.
+
+Ajustei um ponto importante do desenho: vou separar Raw → Staging → Curated, registrar o documento e hash, e impedir que uma alteração de dado substitua silenciosamente o histórico. Isso fortalece muito a demonstração de qualidade/rastreabilidade.
+
+A base funcional já está montada. Agora estou fechando duas partes que fazem diferença na banca: a atualização incremental sem apagar versões anteriores e a tela de qualidade com alertas reais, não apenas um rótulo conceitual.
+
+Sim. Estruturei a PoC como uma aplicação Python completa com SQLite, ETL desacoplado, MVC na interface, SOLID, rastreabilidade, controles de qualidade e atualização incremental.
+
+Entrega principal
+
+Baixar projeto completo — Benchmarking Financeiro Python + SQLite
+
+Também deixei separado:
+
+README técnico
+Diagrama da arquitetura
+
+O que já está implementado
+
+FONTES PÚBLICAS
+      │
+      ▼
+┌─────────────────────┐
+│ Collectors          │
+│ Web / Arquivo       │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ RAW                 │
+│ documento + hash    │
+│ + versão da fonte   │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ PARSERS             │
+│ PDF / XLSX / HTML   │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ STAGING             │
+│ dado bruto parseado │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ TRANSFORM           │
+│ normalização        │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ QUALITY             │
+│ completude          │
+│ variação            │
+│ mudança de fonte    │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────┐
+│ CURATED / SQLite    │
+│ histórico auditável │
+└─────────┬───────────┘
+          ▼
+┌─────────────────────────────┐
+│ Python MVC / PySide6        │
+│                             │
+│ Visão Executiva             │
+│ Benchmark                   │
+│ Evolução Histórica          │
+│ Produtividade               │
+│ Dados                       │
+│ Qualidade                   │
+│ Fontes                      │
+└─────────────────────────────┘
+
+A aplicação contém:
+
+Python + PySide6
+SQLite
+ETL com Collector → Parser → Extractor → Transformer → Validator → Repository
+MVC para a interface
+Repository Pattern para isolamento do SQL
+contratos/protocolos para inversão de dependências
+carga incremental
+versionamento das fontes
+SHA-256 dos documentos coletados
+detecção de mudança material dos dados
+controle de completude
+alerta de variação histórica
+importação CSV
+coleta direta por URL pública
+parsing de PDF, XLSX e HTML
+exportação CSV
+painel executivo
+filtros por empresa/período/indicador
+histórico
+indicadores derivados por empregado
+testes automatizados
+
+Empresas e indicadores
+
+A PoC está configurada para:
+
+Empresas
+
+Petrobras
+Equinor
+Shell
+TotalEnergies
+
+E já deixei BP, Chevron e ExxonMobil cadastradas para demonstrar a expansão do modelo.
+
+Indicadores
+
+Indicador Categoria
+Receita Financeiro
+Lucro Líquido Ajustado Financeiro
+Lucro Líquido Financeiro
+Fluxo de Caixa Operacional Financeiro
+Total de Efetivo Capital Humano
+
+O Total de Efetivo foi mantido explicitamente como indicador do produto porque é requisito do case. Tecnicamente, ele é operacional/capital humano, não financeiro.
+
+Períodos
+
+A base demonstrativa contém:
+
+4T2025
+1T2026
+2T2026
+
+Na verificação realizada em 2 de outubro de 2026, as páginas oficiais consultadas apresentam o 2T2026 como último resultado trimestral disponível para os quatro nomes selecionados. Petrobras publicou o resultado do 2T26 em 6 de agosto; Equinor disponibiliza Q2 2026; Shell publicou Q2 2026 em 30 de julho; e TotalEnergies lista Q2 2026 em sua página de resultados. (Agência)
+
+Shell, por exemplo, disponibiliza também o databook trimestral e o relatório financeiro do Q2 2026; o relatório informa, entre outros dados, US$ 10,821 bilhões de lucro atribuível e US$ 20,710 bilhões de Adjusted EBITDA no trimestre. (Shell)
+
+A Petrobras informou para o 2T26 lucro líquido de US$ 10,4 bilhões e EBITDA ajustado de US$ 18,6 bilhões; a Equinor informou lucro líquido de US$ 4,84 bilhões e lucro líquido ajustado de US$ 3,22 bilhões; a TotalEnergies informou lucro líquido ajustado de US$ 6,0 bilhões. (Agência)
+
+Importante sobre os dados demonstrativos
+
+O arquivo:
+
+data/demo_metrics.csv
+
+é deliberadamente marcado com is_demo=1.
+
+Ele existe para que a banca possa abrir a aplicação imediatamente e verificar toda a solução. Não deve ser apresentado como base oficial.
+
+Para produção/entrevista, a alimentação pode ser feita pelo:
+
+data/import_template.csv
+
+ou pela coleta Web:
+
+python scripts/collect_web.py EQUINOR 2T2026 "URL" "Título do documento"
+
+Controle de qualidade
+
+Incluí inclusive um cenário de teste de alteração histórica:
+
+10,0
+ ↓
+20,0
+
+gera:
+
+SOURCE_CHANGE
+WARNING
+Valor anterior 10 substituído por 20
+(100,0%)
+Revisar documento/origem
+
+O teste automatizado correspondente está implementado.
+
+Resultado atual:
+
+3 passed
+
+Estrutura principal
+
+benchmarking_poc/
+│
+├── app.py
+├── requirements.txt
+├── run_app.bat
+├── run_app.sh
+│
+├── config/
+│   └── sources.json
+│
+├── database/
+│   ├── schema.sql
+│   └── benchmarking.sqlite
+│
+├── data/
+│   ├── demo_metrics.csv
+│   └── import_template.csv
+│
+├── docs/
+│   ├── architecture_overview.png
+│   ├── catalogo_fontes.md
+│   ├── controles_qualidade.md
+│   ├── atualizacao_trimestral.md
+│   ├── premissas_decisoes_limitacoes.md
+│   └── roteiro_15_min.md
+│
+├── scripts/
+│   ├── bootstrap.py
+│   ├── collect_web.py
+│   ├── import_csv.py
+│   └── demo_quality.py
+│
+├── src/
+│   ├── models/
+│   ├── views/
+│   ├── controllers/
+│   ├── services/
+│   ├── repositories/
+│   ├── etl/
+│   └── utils/
+│
+└── tests/
+    ├── test_core.py
+    └── test_quality.py
+
+A única limitação da validação aqui foi ambiental: o código foi compilado e os testes de núcleo/ETL passaram, mas o ambiente de execução não possuía PySide6 e não conseguiu baixar dependências do PyPI por falta de conectividade externa. Portanto, a interface gráfica não foi aberta neste ambiente; ela está pronta para execução após pip install -r requirements.txt.
+
+Para a entrevista, essa estrutura permite demonstrar uma tese técnica forte: SQLite resolve a PoC, enquanto o Repository/ETL desacoplado permite migrar posteriormente para SQL Server/PostgreSQL sem reescrever o domínio e o dashboard.
+
+
+you asked
+
+message time: 2026-10-03 08:37:03
+
+Vamos focar na estrutura do Python:
+
+=> O processo mais importante a se automatizado primeiro é a coleta de dados
+=> Os dados são publicos e estão geralmente nos formatos PDF, Planilha (xls, xlsx, xlsm, csv) e Doc ou TXT
+=> Foque em criar um ETL (Extract, Trasform e Load) para todos esses formatos
+=> Deve se buscar os dados na internet, principalmente nos site de RI (Relacionamento com o Investidor)
+=> Deve-se focar em velocidade de busca e extração de dados. Crie rotinas para buscar os dados e salva-los localmente.
+=> Após salvar localmente, faça as extrações dos dados para coloca-los em uma estrutura ou forma ou formato adequado para o sistema que estamos criando
+
+Melhore o Python para fazer processamento em lotes/batchs (20, 50, 100, ou mais arquivos),  multiprocessing, multithreading (64+ threads) e algoritmos de escalonamento de processos
+
+=> Siga as Orientações abaixo e adapta para o Python:
+
+Busque implementar os requisitos abaixo (para aumentar a velocidade de extração dos dados:
+
+2.1) Detecção de hardware (novo painel "Hardware & paralelismo"):
+=> CPUs lógicos/físicos (via psutil se disponível, com fallback para os.cpu_count()), RAM total, e GPU NVIDIA (via nvidia-smi, com fallback para torch.cuda se instalado).
+=> Tudo com fallback silencioso — nada quebra se a lib/ferramenta não existir.
+=> Botão "↻ Atualizar" para redetectar.
+
+=> Verificar se GPU ajuda nesse workload.
+=> Use O parse é regex/parsing de texto em PowerShell puro — verifique se há operação vetorizável/tensorial para offload em GPU.
+=> Faça a detecção de GPU existe para informar o usuário
+
+2.2) Lote configurável (5/10/15 ou Auto): Combobox na seção de hardware. "Auto" sugere min(CPUs lógicos, 15).
+
+2.3) Os 3 mecanismos para implementar, com recomendação clara:
+
+Multiprocessing (ProcessPoolExecutor, padrão/recomendado) — o parsing é CPU-bound (regex puro em Python segura o GIL), então processos separados são a única forma de paralelismo real, escalando com núcleos.
+Multithreading (ThreadPoolExecutor) — mais leve para iniciar, mas o parsing em si não ganha paralelismo real (GIL); só ajuda a parte de I/O (leitura/escrita, que o pyarrow libera em C).
+Subprocess isolado — dispara python parsePyGUI.py --worker  ... como processo totalmente separado por arquivo. Mais lento (overhead de start do interpretador — medi ~0.6s/arquivo só de startup nos testes), mas isolamento total: um crash não derruba a GUI nem os outros workers.
+
+Arquitetura: dentro de cada grupo (avulsos, depois cada pasta — a ordem serial entre pastas continua igual a antes), os arquivos agora sobem em lotes de até N em voo simultaneamente, via concurrent.futures.wait(..., FIRST_COMPLETED). A fila de tarefas (Treeview) e o log continuam mostrando status/tempo por arquivo em tempo real, mesmo com várias tarefas "processando..." ao mesmo tempo.
+
+Validação: teste os 3 modos ponta a ponta (headless, Xvfb) com lotes de 5 e 10 — todos devem produzir as mesmas saídas corretas nos 3 formatos. Também adicione um fechamento gracioso da janela (cancela threads/processos em andamento se o usuário fechar no meio do processamento).
+
+Implemente a possibilidade de:
+3.1) Trabalhar com o processamento em lista (FILO)
+3.2) Usar algoritmos de escalonamento de processos:
+3.3) Os principais algoritmos de escalonamento de processos:
+3.3.1) SJF (Shortest Job First)
+3.3.2) SRTF (Shortest Remaining Time First)
+3.3.3) Round-Robin (RR)
+3.3.4) Por Prioridade
+3.3.5) Múltiplas Filas (Multilevel Queue - MLQ)
+3.3.6) Múltiplas Filas com Realimentação (Multilevel Feedback Queue - MLFQ)
+3.3.7) HRRN (Highest Response Ratio Next)
+3.3.8) Fair-Share
+
+
+Foque em otimização e ganhos de velocidade.
+
+
+Foque em Design( UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+
+
+Generalize, Modularize e Refatore.
+
+
+Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+
+
+Use o melhor do DSA.
+
+
+Conjunto de regras rígidas:
+9.1) Pense antes de codar:
+9.1.1) Declare suas premissas,
+9.1.2) Exponha incertezas,
+9.1.3) Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+9.2) Simplicidade primeiro:
+9.2.1) Combater o excesso de engenharia (overengineering),
+9.2.2) Buscar sempre o código mínimo necessário para resolver o problema.
+9.3) Mudanças cirúrgicas:
+9.3.1) Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+9.3.2) Execução orientada por metas e testes,
+9.3.3) Definir critérios de sucesso claros e verificáveis por meio de automação.
+
+
+Faça um plano/planejamento detalhado antes da execução. Divida em 50+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo. Replaneje se necessário.
+
+
+Verifique a lista de tarefas pedidas.
+11.1) Verifique o que já foi feito (não repita e não refaça, apenas verifique a necessidade de correção)
+11.2) Verifique o que falta fazer (então faça)
+11.3) Divida o ToDo ou lista de tarefas em 80 ou mais passos.
+11.4) Faça as modificações passo-a-passo, para o usuário indo vendo as alterações feitas.
+11.5) Divida em 100 ou + tarefas que podem ser feitas em 2 ou 3 steps.
+11.6) Evite criar tarefas muito grandes (com um escopo de grande contexto)
+11.7) Em tarefas grandes e/ou complexas, pare o processamento e descreva o problema encontrado e proponha o possível diagnostico e um plano de ação com a divisão em tarefas menores.
+
+
+chatgpt response
+
+Antes de alterar código, vou auditar o projeto atual, confrontá-lo com todos os requisitos e produzir um backlog de 100+ microtarefas com critérios de aceite. Depois executarei em pequenos blocos, validando cada bloco antes de seguir.
+
+O baseline passou nos 3 testes existentes. A auditoria mostra que a PoC atual cobre o ETL conceitual, mas ainda não cobre o núcleo de alta velocidade: batch concorrente, scheduler, descoberta web, todos os formatos, hardware e cancelamento.
+
+Primeiro bloco concluído: contratos de domínio, detecção de hardware e os schedulers foram isolados da aplicação. Corrigi um defeito encontrado imediatamente nos testes do escalonador; agora 7 testes passam.
+
+
+you asked
+
+message time: 2026-10-03 08:43:52
+
+continue e termine as tarefas pendentes.
+
+
+chatgpt response
+
+Vou fechar agora o ciclo completo, preservando o que já funciona e substituindo apenas os pontos que precisam de evolução. O foco do diff será o motor de coleta/batch/extração; o domínio SQLite existente permanece compatível.
+
+A coleta web e o motor batch estão prontos no núcleo. Estou finalizando a camada MVC/UX para tornar os mecanismos observáveis: fila, lote, scheduler, workers, tempo por arquivo, throughput e cancelamento.
+
+Os testes encontraram quatro problemas concretos, todos corrigíveis: compatibilidade do modelo SourceDocument, conversão de .doc, e nada estrutural no batch. Vou corrigir e rerodar a suíte completa antes de empacotar.
+
+Concluído. Fechei a evolução do projeto com foco no ETL de coleta/extração em alta velocidade, mantendo a estrutura MVC/SOLID e o SQLite já existente.
+
+Entrega
+
+Baixar projeto completo — Benchmarking Financeiro Python + SQLite v2
+
+Arquivos úteis também estão disponíveis individualmente:
+
+README técnico
+Plano com 200 microtarefas
+Arquitetura ETL
+Performance e paralelismo
+Matriz de testes
+Benchmark executado
+
+O que foi efetivamente implementado
+
+1. Coleta primeiro
+
+O pipeline agora é:
+
+RI / Internet
+   ↓
+Discovery concorrente
+   ↓
+Download concorrente
+   ↓
+data/raw/<empresa>/<período>
+   ↓
+SHA-256 + ETag + Last-Modified
+   ↓
+Batch ETL
+   ↓
+Parser
+   ↓
+Extractor
+   ↓
+Quality
+   ↓
+SQLite
+
+A regra é não extrair diretamente da Internet. Primeiro preserva-se a evidência local; depois o arquivo é processado.
+
+2. Formatos
+
+Cobertura implementada:
+
+PDF
+XLS
+XLSX
+XLSM
+CSV
+DOC
+DOCX
+TXT
+HTML
+
+Com fallback para .xls e .doc usando ferramentas disponíveis no host quando necessário.
+
+3. Paralelismo
+
+Três mecanismos completos:
+
+PROCESS
+ └─ ProcessPoolExecutor
+    → recomendado para parsing CPU-bound
+
+THREAD
+ └─ ThreadPoolExecutor
+    → recomendado principalmente para I/O
+
+SUBPROCESS
+ └─ python -m src.etl.subprocess_worker
+    → isolamento por arquivo
+
+O processamento é realmente em lotes limitados, não uma submissão ilimitada de futures:
+
+fila
+ ↓
+N tarefas em voo
+ ↓
+FIRST_COMPLETED
+ ↓
+libera uma vaga
+ ↓
+próxima tarefa
+
+Isso permite:
+
+5
+10
+15
+20
+50
+100
+Auto
+
+e workers de até 128.
+
+Para download web, o pool também suporta até 128 threads.
+
+4. Escalonamento
+
+Foram implementados:
+
+FIFO
+FILO
+SJF
+SRTF
+RR
+PRIORITY
+MLQ
+MLFQ
+HRRN
+FAIR-SHARE
+
+Foi tratada explicitamente a limitação física do ETL: não existe preempção segura no meio do parsing de um arquivo. Assim, SRTF/RR/MLFQ atuam sobre a fila de arquivos ainda não despachados.
+
+5. Hardware
+
+Painel Hardware & paralelismo com:
+
+CPUs lógicos
+CPUs físicos
+RAM
+NVIDIA GPU
+VRAM
+origem da detecção
+workers recomendados
+análise de adequação da GPU
+
+Fallbacks silenciosos:
+
+psutil → os.cpu_count()
+
+nvidia-smi → torch.cuda → nenhum
+
+A GPU é detectada, mas não é utilizada artificialmente. Para PDF/Office/TXT + parsing/regex Python, o gargalo é majoritariamente CPU/I/O; GPU passa a fazer sentido em uma evolução com OCR, ML ou processamento tensorial.
+
+6. Otimização importante
+
+O worker não lê o arquivo uma segunda vez apenas para gerar o hash.
+
+Ele faz:
+
+read
+ ↓
+SHA-256 sobre os mesmos bytes
+ ↓
+parse
+ ↓
+extract
+
+Além disso:
+
+HTTP streaming
+arquivos .part
+rename atômico
+ETag
+Last-Modified
+cache append-only JSONL
+
+evitam custos desnecessários.
+
+7. Rastreabilidade
+
+Cada documento mantém:
+
+URL
+URL final
+empresa
+período
+arquivo local
+SHA-256
+tamanho
+Content-Type
+ETag
+Last-Modified
+versão
+data de coleta
+origem da descoberta
+
+E o SQLite registra execução por arquivo e por indicador.
+
+8. Qualidade
+
+Foram mantidos/implementados controles para:
+
+completude
+valores inválidos
+valores negativos indevidos
+desvio histórico
+mudança de conteúdo/fonte
+dados DEMO
+auditoria da execução
+
+Mudanças materiais não são simplesmente sobrescritas silenciosamente.
+
+9. MVC + SOLID
+
+A estrutura ficou separada:
+
+View
+ └─ MainWindow
+
+Controller
+ ├─ DashboardController
+ └─ ETLJobManager
+
+Services
+ ├─ CollectionService
+ ├─ BatchETLService
+ ├─ DashboardService
+ └─ ...
+
+ETL
+ ├─ Collectors
+ ├─ Discovery
+ ├─ Parsers
+ ├─ Extractors
+ ├─ Quality
+ ├─ Scheduler
+ └─ Batch
+
+Repository
+ └─ SQLiteRepository
+
+SQLite
+
+A View não contém regra de negócio nem SQL.
+
+Validação
+
+A validação final ficou em:
+
+31 passed
+1 skipped
+
+O skip é exclusivamente o smoke test da GUI porque o ambiente desta execução não possui PySide6 instalado. O núcleo do sistema foi compilado e testado.
+
+Também foi validado o processamento batch dos formatos:
+
+PDF
+XLS
+XLSX
+XLSM
+CSV
+DOC
+DOCX
+TXT
+HTML
+
+nos três mecanismos:
+
+PROCESS
+THREAD
+SUBPROCESS
+
+com lote:
+
+5
+10
+
+Benchmark real da PoC
+
+Em 9 arquivos mistos de fixture, 5 workers:
+
+Modo Lote Tempo Arquivos/s
+PROCESS 5 3,760 s 2,394
+PROCESS 10 3,945 s 2,281
+THREAD 5 1,071 s 8,401
+THREAD 10 1,050 s 8,572
+SUBPROCESS 5 5,808 s 1,550
+SUBPROCESS 10 6,052 s 1,487
+
+Isso é importante para a entrevista: não há uma alegação simplista de que multiprocessing sempre é mais rápido. Em arquivos pequenos, o overhead de processos domina e threads podem ganhar. Para documentos maiores e parsing CPU-bound em Python, PROCESS continua sendo o caminho arquitetural recomendado.
+
+O SUBPROCESS ficou claramente como mecanismo de isolamento, e não de throughput.
+
+Situação final
+
+O backlog de 200 microtarefas foi executado e documentado. O projeto agora está em uma condição adequada para a próxima camada: conectar os extratores aos documentos reais de RI e substituir progressivamente as heurísticas por extratores específicos e auditáveis por empresa/documento.
+
+O ZIP entregue contém tudo isso em um único projeto executável.
+
+
+you asked
+
+message time: 2026-10-03 09:33:18
+
+Ok. Vamos evoluir o ETL: 
+
+Analise o caminho princinpal: buscar dados publicos -> download de arquivos -> etl para estrutura de dados do app
+Veja possíveis erros e inconsistencias possiveis nesse fluxo. proponha melhorias
+
+
+chatgpt response
+
+Vou revisar o pipeline atual de ponta a ponta, procurando falhas de dados, rede, formatos, concorrência, idempotência e rastreabilidade. Depois vou separar o que é risco real do que é apenas melhoria de arquitetura.
+
+Sim. Revisei o caminho principal da versão atual do projeto, especificamente Discovery → Download → armazenamento local → Parser → Extractor → Transform → Load. Há uma boa fundação, mas existem alguns pontos que, em produção, poderiam gerar dados errados sem necessariamente gerar erro técnico. Para este tipo de produto, esse é o risco mais importante.
+
+1. O fluxo correto que eu recomendo
+
+Eu evoluiria o pipeline para:
+
+                         ┌─────────────────────────────┐
+                         │  CONFIGURAÇÃO / DATA CATALOG │
+                         │  Empresas / RI / Indicadores │
+                         │  Regras / Prioridades        │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 1. DISCOVERY                                                     │
+│                                                                  │
+│ RI oficial → Sitemap → busca interna → páginas de resultados     │
+│ → links → candidatos a documentos                               │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 2. QUALIFICATION                                                 │
+│                                                                  │
+│ domínio oficial │ período │ tipo │ documento │ relevância        │
+│ duplicidade │ versão │ prioridade │ confiança                   │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 3. ACQUISITION / DOWNLOAD                                       │
+│                                                                  │
+│ HTTP concorrente → retry/backoff → cache → streaming             │
+│ → arquivo .part → hash → rename atômico                         │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 4. LANDING / RAW                                                 │
+│                                                                  │
+│ Documento original IMUTÁVEL                                      │
+│ + hash + URL + headers + timestamp + tamanho + versão            │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 5. PARSING                                                       │
+│                                                                  │
+│ PDF / XLS / XLSX / XLSM / CSV / DOC / DOCX / TXT / HTML          │
+│ → representação intermediária comum                              │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 6. EXTRACTION                                                    │
+│                                                                  │
+│ documento → indicador + valor + unidade + período + evidência    │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 7. STANDARDIZATION                                               │
+│                                                                  │
+│ moeda │ escala │ sinal │ período │ unidade │ definição            │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 8. QUALITY / RECONCILIATION                                      │
+│                                                                  │
+│ completude │ consistência │ histórico │ duplicidade              │
+│ fonte │ unidade │ reconciliação │ confiança                      │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 9. LOAD / VERSIONING                                             │
+│                                                                  │
+│ SQLite: documentos → observações → versões → qualidade           │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 10. CURATED / DATASET DO APP                                     │
+│                                                                  │
+│ dados canônicos prontos para dashboard e análise                 │
+└──────────────────────────────────────────────────────────────────┘
+
+A principal mudança conceitual é:
+
+Discovery não significa Download. Download não significa Extraction. Extraction não significa validação.
+
+
+
+Cada etapa deve ter contrato próprio.
+
+
+2. O maior risco atual: "o sistema funcionou, mas extraiu o dado errado"
+
+Hoje o pipeline é tecnicamente funcional, mas ainda tem características heurísticas demais.
+
+Por exemplo:
+
+r"(?:net income|lucro líquido)\D{0,80}..."
+
+Isso pode encontrar um número próximo da expressão, mas não necessariamente o número correto.
+
+Um relatório pode conter:
+
+Net income:
+2026 Q2       US$ 4.8 bn
+2025 Q2       US$ 3.9 bn
+6M 2026       US$ 9.4 bn
+6M 2025       US$ 7.8 bn
+
+Uma regex pode capturar o primeiro número encontrado sem entender:
+
+trimestre;
+acumulado;
+comparação;
+coluna;
+unidade;
+moeda;
+valor atribuído aos acionistas;
+valor consolidado;
+valor ajustado.
+
+Esse é o principal ponto que eu mudaria.
+
+
+3. Problemas e inconsistências encontrados
+
+P0 — crítico
+
+3.1 Período está sendo inferido de forma frágil
+
+Hoje existe lógica semelhante a:
+
+("4T2026", "3T2026", "2T2026", ...)
+
+Isso não escala.
+
+Ela falha para:
+
+Q1 2025
+1Q25
+2Q26
+FY2025
+2025 Q4
+Third Quarter 2026
+Second Quarter and First Half 2026
+
+Solução
+
+Criar um PeriodResolver:
+
+PeriodResolver
+ ├── PT-BR
+ ├── EN-US
+ ├── formatos Q/T
+ ├── abreviações
+ ├── datas
+ └── contexto do documento
+
+E produzir:
+
+PeriodContext(
+    year=2026,
+    quarter=2,
+    label="2T2026",
+    report_type="QUARTER",
+    is_ytd=False
+)
+
+Muito importante: distinguir:
+
+2T2026
+1S2026
+FY2026
+LTM
+
+
+P0 — crítico
+
+3.2 Fonte oficial não é realmente validada
+
+Hoje o documento acaba tratado como:
+
+is_official=True
+
+Isso é perigoso.
+
+O sistema deve provar:
+
+URL
+ ↓
+domínio
+ ↓
+empresa
+ ↓
+RI autorizado
+
+Exemplo:
+
+https://investor.exemplo.com/...
+
+não deve ser equivalente a:
+
+https://random-site.com/report.pdf
+
+Solução
+
+Criar:
+
+SourceAuthorityValidator
+
+com:
+
+company
+official_domains
+allowed_subdomains
+official_paths
+document_types
+
+Resultado:
+
+OFFICIAL
+OFFICIAL_SUBDOMAIN
+UNKNOWN
+UNTRUSTED
+
+
+4. Discovery precisa evoluir bastante
+
+Hoje o mecanismo essencialmente faz:
+
+seed page
+   ↓
+<a href="">
+   ↓
+documentos
+
+Isso é insuficiente para RI moderno.
+
+Sites de RI frequentemente usam:
+
+JavaScript;
+APIs;
+CMS;
+links dinâmicos;
+páginas paginadas;
+tabelas;
+iframes;
+arquivos com URL sem extensão;
+CDN;
+query strings.
+
+Recomendo várias estratégias de Discovery
+
+Discovery Engine
+│
+├── SeedPageDiscovery
+├── SitemapDiscovery
+├── InternalSearchDiscovery
+├── ResultsPageDiscovery
+├── HTMLLinkDiscovery
+├── DocumentPatternDiscovery
+└── OptionalSearchProvider
+
+A aplicação tenta:
+
+1. página oficial de resultados
+2. sitemap.xml
+3. busca interna
+4. páginas trimestrais
+5. links HTML
+6. APIs públicas encontradas
+7. busca externa opcional
+
+
+5. Criar um "Candidate Document"
+
+Hoje o sistema praticamente vai de:
+
+URL → documento
+
+Eu criaria uma etapa intermediária:
+
+DocumentCandidate
+
+Exemplo:
+
+DocumentCandidate(
+    company="SHELL",
+    url="...",
+    title="Q2 2026 Results",
+    source_page="...",
+    discovered_by="RESULTS_PAGE",
+    period="2T2026",
+    document_type="EARNINGS_RELEASE",
+    score=97,
+    authority_score=100,
+)
+
+Assim podemos decidir:
+
+baixar
+ignorar
+baixar depois
+pedir revisão
+
+
+6. O score atual precisa ficar mais sofisticado
+
+Hoje:
+
+keyword = +1
+período = +10
+
+Eu substituiria por:
+
+DocumentScore
+=
+AuthorityScore
++
+PeriodScore
++
+DocumentTypeScore
++
+TitleScore
++
+URLScore
++
+RecencyScore
++
+LanguageScore
+
+Exemplo:
+
+Critério Peso
+Domínio oficial 40
+Página RI 20
+Período correto 15
+Tipo de documento 15
+Título 5
+URL 5
+
+E então:
+
+90-100 → DOWNLOAD AUTOMÁTICO
+70-89  → DOWNLOAD
+50-69  → REVISÃO
+<50    → IGNORAR
+
+
+7. Download: o mecanismo atual precisa de resiliência
+
+Hoje já existe:
+
+streaming;
+.part;
+rename atômico;
+ETag;
+Last-Modified;
+cache.
+
+Isso é bom.
+
+Mas falta uma camada forte de rede.
+
+Problemas
+
+7.1 Sem retry inteligente
+
+Um:
+
+429
+500
+502
+503
+504
+
+pode falhar imediatamente.
+
+Deveria existir:
+
+RetryPolicy
+
+com:
+
+exponential backoff
+jitter
+Retry-After
+limite de tentativas
+
+Exemplo:
+
+tentativa 1 → 1 s
+tentativa 2 → 2 s
+tentativa 3 → 4 s
+tentativa 4 → 8 s
+
+
+8. Não usar 64+ threads indiscriminadamente
+
+Aqui eu faria uma mudança conceitual.
+
+"64 threads" deve ser um limite de capacidade, não um número obrigatório.
+
+Exemplo:
+
+64 threads globais
+
+mas:
+
+PETROBRAS → 8 simultâneas
+SHELL → 8
+EQUINOR → 8
+TOTAL → 8
+
+com o restante aguardando.
+
+Isso cria:
+
+GlobalConcurrencyLimiter
++
+PerHostConcurrencyLimiter
+
+É muito melhor para sites de RI.
+
+Além disso, diminui risco de:
+
+429
+403
+connection reset
+TLS failures
+
+
+9. Adicionar rate limiting adaptativo
+
+Algo como:
+
+normal
+ ↓
+429
+ ↓
+reduz concorrência
+ ↓
+aguarda
+ ↓
+retry
+ ↓
+normaliza
+
+Pode usar AIMD:
+
+Additive Increase
+Multiplicative Decrease
+
+É uma ótima aplicação de algoritmos de escalonamento aqui.
+
+
+10. Problema importante: "mesmo documento, URL diferente"
+
+Exemplo:
+
+https://site.com/q2/results.pdf
+https://cdn.site.com/files/12345.pdf
+
+Podem ser o mesmo conteúdo.
+
+O sistema deve deduplicar por:
+
+SHA-256
+
+e também manter:
+
+document identity
+
+Assim:
+
+Document 001
+ ├── URL A
+ ├── URL B
+ └── mesmo SHA256
+
+
+11. Criar uma identidade do documento
+
+Eu adicionaria:
+
+DocumentFingerprint
+
+com:
+
+sha256
+mime_type
+size
+normalized_title
+company
+period
+document_type
+
+E o conceito:
+
+SOURCE
+
+≠
+
+ARTIFACT
+
+Essa distinção melhora bastante o modelo.
+
+
+12. A tabela file_manifest atual perde histórico
+
+Hoje existe:
+
+UNIQUE(url)
+
+e ON CONFLICT(url) DO UPDATE.
+
+Isso significa que uma nova versão do documento pode sobrescrever metadados do manifesto.
+
+Para benchmarking histórico, eu prefiro:
+
+document
+document_version
+download_artifact
+
+Modelo
+
+document
+---------
+document_id
+company_id
+document_type
+canonical_title
+
+document_version
+----------------
+document_version_id
+document_id
+sha256
+retrieved_at
+version
+
+download_artifact
+-----------------
+artifact_id
+document_version_id
+url
+local_path
+http_status
+etag
+last_modified
+
+Isso cria verdadeira imutabilidade.
+
+
+13. Importante: o 304 Not Modified
+
+Há outro detalhe.
+
+Quando recebe:
+
+304 Not Modified
+
+o coletor retorna o arquivo local, mas a construção de CollectedDocument ainda depende parcialmente dos headers da resposta atual.
+
+Melhor:
+
+304
+ ↓
+usar metadata anterior
+ ↓
+manter:
+ETag
+Last-Modified
+Content-Type
+SHA
+Size
+Final URL
+
+
+14. Bug arquitetural importante no keep_content=False
+
+Esse é um ponto que eu corrigiria.
+
+O WebDocumentCollector pode retornar:
+
+content = b""
+
+quando:
+
+keep_content=False
+
+mas os parsers trabalham principalmente com:
+
+document.content
+
+Então temos:
+
+Download OK
+ ↓
+arquivo salvo
+ ↓
+content vazio
+ ↓
+parser recebe bytes vazios
+
+Isso pode gerar falha ou comportamento inconsistente.
+
+Solução
+
+Não fazer o objeto depender obrigatoriamente de bytes na memória.
+
+Criar:
+
+DocumentPayload
+
+com:
+
+local_path
+content
+
+e um método:
+
+open_stream()
+
+Assim o parser pode decidir:
+
+PDF → stream
+XLSX → stream
+TXT → stream
+
+sem carregar tudo na RAM.
+
+
+15. Esse é provavelmente o maior ganho de performance restante
+
+Hoje:
+
+content = path.read_bytes()
+
+Depois:
+
+parser
+ ↓
+BytesIO(content)
+
+Isso significa que um arquivo de:
+
+500 MB
+
+vira:
+
+500 MB RAM
+
+por worker.
+
+Com:
+
+15 workers
+
+pode chegar perto de:
+
+7,5 GB
+
+só nos buffers.
+
+Melhor arquitetura
+
+arquivo
+ ↓
+stream
+ ├── hash
+ ├── parser
+ └── extraction
+
+Quando possível.
+
+
+16. PDF precisa de classificação
+
+Um PDF pode ser:
+
+PDF textual
+PDF escaneado
+PDF híbrido
+PDF com tabelas
+PDF com imagem
+
+Hoje o parser assume:
+
+extract_text()
+
+Mas:
+
+scanned PDF
+
+pode retornar:
+
+""
+
+O sistema deveria produzir:
+
+PdfProfile(
+    pages=120,
+    text_pages=117,
+    image_pages=3,
+    text_density=...
+)
+
+E classificar:
+
+TEXT_PDF
+SCANNED_PDF
+HYBRID_PDF
+
+OCR então seria uma etapa opcional.
+
+
+17. OCR não deve entrar no caminho padrão
+
+Por performance:
+
+PDF textual
+ → parsing normal
+
+PDF escaneado
+ → OCR somente quando necessário
+
+Assim:
+
+95% → parser normal
+5% → OCR
+
+em vez de tentar OCR em tudo.
+
+
+18. Excel precisa de tratamento de semântica
+
+Os parsers funcionam, mas "ler planilha" não significa "entender planilha".
+
+Precisamos distinguir:
+
+sheet
+row
+column
+merged cell
+header
+subheader
+unit
+period
+value
+
+Por exemplo:
+
+             2Q26       1Q26       2Q25
+Revenue      87.2       81.4       90.1
+
+O extractor precisa saber que:
+
+Revenue
+
+e:
+
+2Q26
+
+formam uma chave semântica.
+
+
+19. Melhorar o Extractor drasticamente
+
+Eu dividiria:
+
+Parser
+   ↓
+CanonicalDocument
+   ↓
+SemanticExtractor
+
+O parser responde:
+
+"O que existe no documento?"
+
+
+
+O extractor responde:
+
+"Qual é o indicador que queremos?"
+
+
+
+
+20. Criar uma representação intermediária comum
+
+Essa é uma mudança que recomendo fortemente.
+
+Todos os formatos deveriam resultar em algo assim:
+
+CanonicalDocument(
+    document_id=...,
+    company="PETROBRAS",
+    period="2T2026",
+
+    pages=[
+        Page(...)
+    ],
+
+    sections=[
+        Section(...)
+    ],
+
+    tables=[
+        Table(...)
+    ],
+
+    paragraphs=[
+        Paragraph(...)
+    ]
+)
+
+Então:
+
+PDF ──┐
+XLS ──┤
+DOC ──┤
+CSV ──┼──→ CanonicalDocument
+HTML ─┤
+TXT ──┤
+DOCX ─┘
+
+Depois o extractor não precisa saber se veio de PDF ou Excel.
+
+
+21. Toda extração deve carregar evidência
+
+Hoje temos:
+
+indicator
+value
+unit
+method
+
+Eu adicionaria:
+
+page
+sheet
+row
+column
+cell
+section
+source_excerpt
+
+Exemplo:
+
+ExtractionEvidence(
+    page=17,
+    sheet=None,
+    row=None,
+    column=None,
+    cell=None,
+    excerpt="Adjusted EBITDA was US$ 20.7 billion..."
+)
+
+Isso muda completamente a qualidade da solução.
+
+O usuário pode clicar:
+
+EBITDA = 20.7
+
+e o sistema mostra:
+
+Fonte
+Página 17
+Trecho original
+SHA256
+URL
+
+
+22. Criar Confidence Score
+
+Cada extração deveria ter:
+
+confidence = 0..1
+
+Exemplo:
+
+1.00 → tabela oficial com célula identificada
+0.95 → linha textual estruturada
+0.80 → tabela PDF identificada
+0.60 → regex textual
+0.30 → heurística fraca
+
+E:
+
+confidence < 0.70
+
+vai automaticamente para:
+
+REVIEW_REQUIRED
+
+
+23. Regex deve ser o fallback, não o extrator principal
+
+Eu criaria esta hierarquia:
+
+1. Structured Table Extractor
+2. Document-specific Extractor
+3. Section/Anchor Extractor
+4. Semantic Text Extractor
+5. Regex fallback
+6. Manual review
+
+Hoje estamos muito próximos de:
+
+Regex
+ ↓
+valor
+
+Isso é rápido, mas arriscado.
+
+
+24. Criar extratores específicos por empresa + documento
+
+Em vez de somente:
+
+PATTERNS["PETROBRAS"]
+
+usar:
+
+Petrobras
+ ├── EarningsReleaseExtractor
+ ├── FinancialStatementsExtractor
+ └── DatabookExtractor
+
+Shell
+ ├── ResultsReleaseExtractor
+ └── DatabookExtractor
+
+E:
+
+ExtractorRegistry.resolve(
+    company="SHELL",
+    document_type="DATABOOK",
+    period="2T2026"
+)
+
+Essa arquitetura é muito mais escalável.
+
+
+25. Padronização financeira precisa ser uma etapa formal
+
+Hoje Transformer é muito simples.
+
+Ele precisa tratar:
+
+currency
+scale
+sign
+period_type
+consolidation
+adjusted
+reported
+restated
+
+Exemplo:
+
+NormalizedValue(
+    value=20710,
+    unit="USD_M",
+    currency="USD",
+    scale=1_000_000,
+    period_type="QUARTER",
+    adjusted=True,
+    consolidated=True
+)
+
+
+26. "USD bn" não deve ser gravado como verdade universal
+
+No momento, vários valores são classificados como:
+
+USD bn
+
+Isso pode ser perigoso.
+
+Cada valor deve possuir:
+
+currency
+unit
+scale
+
+separadamente.
+
+Por exemplo:
+
+currency = USD
+unit = CURRENCY
+scale = 1e9
+
+ou:
+
+currency = BRL
+scale = 1e6
+
+Depois o aplicativo decide como apresentar.
+
+
+27. Petrobras exige uma política explícita de moeda
+
+Para comparação:
+
+Petrobras → BRL
+Shell → USD
+Equinor → USD
+TotalEnergies → USD
+
+Precisamos definir no ETL:
+
+SOURCE_CURRENCY
+REPORTING_CURRENCY
+BENCHMARK_CURRENCY
+
+e uma política de conversão.
+
+Isso deve ficar em:
+
+FinancialNormalizationPolicy
+
+e não escondido numa fórmula do dashboard.
+
+
+28. Quarter ≠ YTD
+
+Esse ponto merece um controle específico.
+
+O documento pode apresentar:
+
+2Q26
+Six months ended June 30, 2026
+
+O extractor precisa rejeitar o segundo quando o indicador esperado é trimestral.
+
+Criar:
+
+PeriodType:
+    QUARTER
+    YTD
+    HALF_YEAR
+    FY
+    LTM
+
+
+29. "Adjusted" também precisa ser parte da identidade
+
+Não misturar:
+
+Net Income
+Adjusted Net Income
+Net Income attributable to shareholders
+
+como se fossem o mesmo indicador.
+
+A identidade deve considerar:
+
+metric
+variant
+scope
+period
+
+Exemplo:
+
+NET_INCOME
+variant=REPORTED
+scope=ATTRIBUTABLE_TO_SHAREHOLDERS
+
+
+30. Quality atual ainda é insuficiente
+
+A regra:
+
+HistoricalDeviationRule(threshold=0.5)
+
+é útil para PoC, mas não é suficientemente robusta.
+
+Um crescimento de:
+
+60%
+
+pode ser:
+
+erro
+
+ou:
+
+evento legítimo
+
+Precisamos de regras por indicador.
+
+Exemplo:
+
+Revenue         ±30%
+EBITDA          ±50%
+Net Income      ±100%
+Employees       ±15%
+
+E preferencialmente:
+
+YoY
+QoQ
+rolling median
+rolling MAD
+
+
+31. O controle de completude atual não encontra ausência de indicadores
+
+Hoje RequiredValueRule trabalha sobre registros existentes.
+
+Mas existe outro problema:
+
+PETROBRAS
+2T2026
+REVENUE        OK
+NET_INCOME     OK
+EMPLOYEES      OK
+OCF            ????
+
+Se OCF nunca foi extraído, não existe linha para validar.
+
+Portanto deve existir uma matriz esperada:
+
+ExpectedObservation
+
+4 empresas
+×
+4 trimestres
+×
+5 indicadores
+
+= 80 observações esperadas.
+
+Então podemos mostrar:
+
+76 / 80 = 95%
+
+
+32. Criar status de pipeline
+
+Em vez de apenas:
+
+SUCCESS / FAILED
+
+usar:
+
+DISCOVERED
+QUALIFIED
+DOWNLOADING
+DOWNLOADED
+HASHED
+PARSED
+EXTRACTED
+STANDARDIZED
+VALIDATED
+LOADED
+PUBLISHED
+
+E erros:
+
+DISCOVERY_FAILED
+DOWNLOAD_FAILED
+PARSER_FAILED
+EXTRACTION_FAILED
+VALIDATION_FAILED
+LOAD_FAILED
+REVIEW_REQUIRED
+
+Isso facilita muito diagnóstico.
+
+
+33. Criar "dead letter queue"
+
+Um arquivo problemático não deve parar o lote.
+
+Exemplo:
+
+100 arquivos
+ ↓
+96 OK
+3 extraction review
+1 parser error
+
+O arquivo problemático vai para:
+
+dead_letter/
+
+com:
+
+job
+error
+stack
+source
+parser
+timestamp
+
+
+34. Reprocessamento seletivo
+
+Este é um recurso que eu considero essencial.
+
+Não queremos:
+
+1000 documentos
+ ↓
+alterou uma regex
+ ↓
+processar tudo novamente
+
+Queremos:
+
+somente documentos:
+- parser_failed
+- extraction_failed
+- changed
+- review_required
+
+
+35. O hash deve controlar o processamento
+
+Fluxo:
+
+URL
+ ↓
+HTTP GET
+ ↓
+SHA256
+ ↓
+já existe?
+
+Se:
+
+SIM
+
+e a versão é idêntica:
+
+SKIP PARSE
+
+Se:
+
+NÃO
+
+então:
+
+PARSE
+
+Isso pode economizar enorme quantidade de CPU.
+
+
+36. Introduzir Content Addressable Storage
+
+Uma evolução muito boa:
+
+data/raw/
+   sha256/
+      ab/
+        abcd1234....pdf
+
+O documento deixa de depender do nome da URL.
+
+Assim:
+
+URL1
+URL2
+URL3
+
+podem apontar para o mesmo arquivo físico.
+
+
+37. Cache precisa de dois níveis
+
+Cache HTTP
+
+URL
+ETag
+Last-Modified
+
+Cache ETL
+
+SHA256
+ ↓
+parser_version
+ ↓
+extractor_version
+ ↓
+resultado
+
+Assim, se o documento não mudou:
+
+não reprocessa
+
+E se mudou somente o extractor:
+
+reprocessa
+
+sem baixar novamente.
+
+
+38. Versionar o código do extractor
+
+Esse ponto é muito importante.
+
+Adicionar:
+
+parser_version
+extractor_version
+normalizer_version
+
+Exemplo:
+
+parser=pdf:v3
+extractor=shell_results:v7
+normalizer:v2
+
+Então conseguimos responder:
+
+"Como esse número foi produzido?"
+
+
+
+
+39. SQLite: manter WAL, mas controlar escrita
+
+SQLite + WAL é adequado para a PoC.
+
+Mas não colocaria múltiplos workers gravando diretamente.
+
+Arquitetura:
+
+workers
+  ↓
+ExtractionResult
+  ↓
+QUEUE
+  ↓
+1 Load Coordinator
+  ↓
+SQLite transaction
+
+Isso reduz:
+
+database locked
+
+e mantém consistência.
+
+
+40. O Load deve ser idempotente
+
+Rodar duas vezes:
+
+ETL run #101
+ETL run #102
+
+não deve criar dois resultados iguais.
+
+A chave lógica deveria ser algo como:
+
+company
+period
+indicator
+source_version
+
+e não somente:
+
+source_id
+
+
+41. Revisar metric_current
+
+A tabela:
+
+metric_current
+
+é útil, mas a regra de escolha do "current" hoje é basicamente:
+
+ORDER BY created_at DESC
+
+Isso pode escolher uma fonte menos adequada.
+
+O sistema precisa de:
+
+source_priority
+extraction_confidence
+quality_status
+document_type_priority
+
+Por exemplo:
+
+DFP > Results Release > Databook > Presentation
+
+dependendo do indicador.
+
+Então:
+
+BestObservationSelector
+
+decide qual observação publicar.
+
+
+42. Criar "reconciliation engine"
+
+Exemplo:
+
+Release
+Revenue = 82.4
+
+Demonstração financeira
+Revenue = 82.4
+
+→ MATCH
+
+Mas:
+
+Release = 82.4
+Databook = 81.7
+
+→
+
+RECONCILIATION_WARNING
+
+Isso é extremamente relevante para o case.
+
+
+43. Criar hierarquia de fonte
+
+Por indicador:
+
+REVENUE
+→ Financial Statements
+
+EBITDA Adjusted
+→ Results Release / Databook
+
+TOTAL_EMPLOYEES
+→ Annual/Quarterly reporting / Sustainability / workforce table
+
+Assim a escolha da fonte deixa de ser arbitrária.
+
+
+44. Melhorar estimativa do scheduler
+
+Hoje o SJF usa algo relacionado ao tamanho do arquivo.
+
+Isso é bom para uma primeira aproximação, mas:
+
+10 MB PDF
+
+não necessariamente custa menos que:
+
+30 MB XLSX
+
+Melhor:
+
+EstimatedCost =
+file_size
+× format_factor
+× historical_factor
+× company_factor
+
+Exemplo:
+
+PDF = 1.0
+XLSX = 1.5
+XLS = 2.0
+DOC = 2.5
+OCR = 10.0
+
+E depois usar EWMA dos tempos reais:
+
+estimated_time = 70% histórico + 30% heurística
+
+
+45. SRTF/RR/MLFQ precisam ser usados com cuidado
+
+Para parsing de arquivo, não conseguimos normalmente interromper:
+
+parse PDF
+
+no meio com segurança.
+
+Então:
+
+preempção
+
+deve ser aplicada à fila de tarefas, não à execução interna do parser.
+
+Isso já foi considerado na arquitetura anterior e eu manteria.
+
+
+46. Novo conceito: pipeline backpressure
+
+Precisamos evitar:
+
+1000 downloads
+ ↓
+1000 arquivos prontos
+ ↓
+1000 parsers
+ ↓
+RAM cheia
+
+Usar:
+
+Discovery Queue
+      ↓
+Download Queue
+      ↓
+Parse Queue
+      ↓
+Extract Queue
+      ↓
+Load Queue
+
+com limites.
+
+Exemplo:
+
+download_queue = 100
+parse_queue = 30
+load_queue = 500
+
+Isso é backpressure.
+
+
+47. Melhor arquitetura de concorrência
+
+Eu faria:
+
+                    ┌──────────────┐
+                    │ Discovery    │
+                    │ 8-16 threads │
+                    └──────┬───────┘
+                           ▼
+                     CandidateQueue
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │ Download     │
+                    │ 16-64 threads│
+                    └──────┬───────┘
+                           ▼
+                      Raw Artifact
+                           │
+                           ▼
+                    Parse Queue
+                           │
+                 ┌─────────┴─────────┐
+                 ▼                   ▼
+          ProcessPool           Subprocess
+            5-15                  1-15
+                 │                   │
+                 └─────────┬─────────┘
+                           ▼
+                    Extracted Results
+                           │
+                           ▼
+                    Quality Queue
+                           │
+                           ▼
+                   SQLite Loader
+
+
+48. Não usar multiprocessing para todo o ETL
+
+Separar:
+
+I/O-bound
+
+HTTP
+filesystem
+download
+
+→ Threads / async
+
+CPU-bound
+
+regex
+PDF parsing
+semantic extraction
+normalization
+
+→ Processes
+
+Risky/unstable external converters
+
+LibreOffice
+Word COM
+OCR
+
+→ subprocess
+
+Essa é a divisão mais limpa.
+
+
+49. Introduzir "stage timing"
+
+Cada arquivo deveria produzir:
+
+discovery_ms
+download_ms
+hash_ms
+parse_ms
+extract_ms
+quality_ms
+load_ms
+
+Então descobrimos:
+
+DOWNLOAD = 72%
+PDF PARSE = 18%
+EXTRACT = 7%
+LOAD = 3%
+
+A otimização deixa de ser baseada em sensação.
+
+
+50. Monitorar throughput e bottleneck
+
+O app deveria mostrar:
+
+Files:
+1,284
+
+Downloaded:
+1,250
+
+Parsed:
+1,230
+
+Extracted:
+1,180
+
+Published:
+1,165
+
+Failed:
+15
+
+Review:
+50
+
+Além disso:
+
+files/sec
+MB/sec
+average parse ms
+P95 parse ms
+retry rate
+cache hit rate
+
+
+51. Métricas de cache
+
+Um KPI particularmente interessante:
+
+HTTP cache hit ratio
+
+e:
+
+ETL cache hit ratio
+
+Exemplo:
+
+HTTP cache: 82%
+ETL cache: 94%
+
+Isso demonstra maturidade de engenharia.
+
+
+52. Segurança dos documentos
+
+Como estamos baixando arquivos arbitrários da Internet, precisamos adicionar:
+
+maximum file size
+maximum decompression ratio
+MIME sniffing
+magic bytes
+extension consistency
+safe temporary directory
+
+E:
+
+XLSM
+
+nunca deve executar macro.
+
+
+53. DOC/LibreOffice/Word merece isolamento
+
+Especialmente:
+
+.doc
+.xls
+
+Eu colocaria converters em:
+
+subprocess worker
+
+e nunca deixaria um processo principal manipular COM diretamente.
+
+
+54. Processamento por documento, não apenas por arquivo
+
+Um arquivo pode conter:
+
+25 indicadores
+
+Logo:
+
+arquivo
+
+e:
+
+observação
+
+são objetos diferentes.
+
+Precisamos preservar a hierarquia:
+
+Artifact
+ ↓
+ParsedDocument
+ ↓
+ExtractionSet
+ ↓
+Observation[]
+
+
+55. O modelo de dados final que recomendo
+
+company
+period
+indicator
+source
+document
+document_version
+artifact
+etl_run
+etl_item
+parsed_document
+extraction
+observation
+quality_issue
+reconciliation
+
+Esse modelo já fica próximo de uma arquitetura de data platform.
+
+
+56. Melhor organização de diretórios
+
+Eu mudaria para:
+
+data/
+├── landing/
+│   └── <company>/
+│       └── <year>/<quarter>/
+│
+├── normalized/
+│
+├── parsed/
+│
+├── extracted/
+│
+├── quarantine/
+│
+└── cache/
+
+E logs:
+
+logs/
+├── etl/
+├── discovery/
+├── download/
+├── parser/
+└── quality/
+
+
+57. Idempotência deve ser princípio central
+
+Executar:
+
+python run_etl.py
+
+uma vez:
+
+100 arquivos
+
+Executar novamente:
+
+0 downloads novos
+0 parses desnecessários
+
+Executar depois de uma atualização:
+
+7 arquivos alterados
+
+→ somente 7 reprocessados.
+
+Esse deveria ser um dos critérios de sucesso da PoC.
+
+
+58. Eu criaria quatro tipos de "reprocessamento"
+
+FORCE
+FULL
+INCREMENTAL
+FAILED_ONLY
+CHANGED_ONLY
+
+Exemplo:
+
+python app.py etl --mode incremental
+
+e:
+
+python app.py etl --mode changed-only
+
+
+59. Novas regras de qualidade
+
+Eu estruturaria em categorias:
+
+Source Quality
+
+official domain
+HTTPS
+document type
+document period
+
+File Quality
+
+hash
+size
+MIME
+corrupted
+duplicate
+
+Parsing Quality
+
+pages
+tables
+text density
+encoding
+
+Extraction Quality
+
+confidence
+evidence
+unit
+period
+
+Financial Quality
+
+currency
+scale
+sign
+QoQ
+YoY
+
+Reconciliation
+
+release vs databook
+release vs financial statement
+
+
+60. Novo modelo de status
+
+Eu adotaria:
+
+                         ┌──────────────┐
+                         │ DISCOVERED   │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ QUALIFIED    │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ DOWNLOADED   │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ PARSED       │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ EXTRACTED    │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ VALIDATED    │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ RECONCILED   │
+                         └──────┬───────┘
+                                ▼
+                         ┌──────────────┐
+                         │ PUBLISHED    │
+                         └──────────────┘
+
+                    ┌──────────────────────┐
+                    │ REVIEW_REQUIRED     │
+                    │ QUARANTINED         │
+                    │ FAILED              │
+                    └──────────────────────┘
+
+
+61. O que eu priorizaria
+
+Não faria todas as melhorias simultaneamente. A ordem correta é:
+
+Fase 1 — confiabilidade da coleta
+
+1. DocumentCandidate
+2. PeriodResolver
+3. SourceAuthorityValidator
+4. retry/backoff
+5. per-host concurrency
+6. download idempotente
+7. immutable artifacts
+8. SHA256
+9. document fingerprint
+10. cache robusto
+
+Fase 2 — robustez do parsing
+
+11. streaming
+12. CanonicalDocument
+13. PDF profiling
+14. Excel semantic model
+15. encoding detection
+16. DOC converter isolation
+
+Fase 3 — extração confiável
+
+17. ExtractionEvidence
+18. Confidence Score
+19. Document-specific extractors
+20. PeriodResolver integrado
+21. UnitNormalizer
+22. CurrencyNormalizer
+23. Adjusted/Reported classification
+
+Fase 4 — qualidade
+
+24. expected observation matrix
+25. historical rules
+26. reconciliation engine
+27. duplicate detection
+28. source priority
+29. review queue
+30. quarantine
+
+Fase 5 — performance
+
+31. ETL cache
+32. parser cache
+33. EWMA scheduler
+34. backpressure
+35. adaptive concurrency
+36. metrics
+37. profiling
+
+
+62. Uma mudança que considero especialmente importante
+
+Eu mudaria o conceito atual:
+
+URL → arquivo → regex → SQLite
+
+para:
+
+URL
+ ↓
+DocumentCandidate
+ ↓
+DocumentIdentity
+ ↓
+Artifact
+ ↓
+CanonicalDocument
+ ↓
+ExtractionEvidence
+ ↓
+NormalizedObservation
+ ↓
+QualityAssessment
+ ↓
+PublishedObservation
+
+Essa mudança resolve simultaneamente:
+
+rastreabilidade;
+versionamento;
+múltiplos formatos;
+múltiplas fontes;
+revisão;
+reprocessamento;
+comparação entre fontes;
+escalabilidade;
+performance.
+
+
+63. Como eu estruturaria o próximo ETL
+
+A próxima versão do código deveria ficar aproximadamente assim:
+
+src/etl/
+
+├── discovery/
+│   ├── base.py
+│   ├── ri.py
+│   ├── sitemap.py
+│   ├── internal_search.py
+│   └── ranking.py
+│
+├── acquisition/
+│   ├── http.py
+│   ├── cache.py
+│   ├── retry.py
+│   ├── rate_limit.py
+│   └── fingerprint.py
+│
+├── documents/
+│   ├── identity.py
+│   ├── artifact.py
+│   └── catalog.py
+│
+├── parsing/
+│   ├── registry.py
+│   ├── pdf.py
+│   ├── excel.py
+│   ├── csv.py
+│   ├── doc.py
+│   ├── docx.py
+│   ├── html.py
+│   └── canonical.py
+│
+├── extraction/
+│   ├── registry.py
+│   ├── base.py
+│   ├── petrobras/
+│   ├── shell/
+│   ├── equinor/
+│   └── totalenergies/
+│
+├── normalization/
+│   ├── period.py
+│   ├── currency.py
+│   ├── units.py
+│   └── metrics.py
+│
+├── quality/
+│   ├── source.py
+│   ├── file.py
+│   ├── extraction.py
+│   ├── financial.py
+│   └── reconciliation.py
+│
+├── orchestration/
+│   ├── pipeline.py
+│   ├── queues.py
+│   ├── scheduler.py
+│   └── checkpoint.py
+│
+└── observability/
+    ├── metrics.py
+    ├── events.py
+    └── audit.py
+
+Isso ainda continua aderente a SOLID, mas sem transformar cada função simples em uma classe desnecessária.
+
+
+64. O ponto mais importante para a PoC
+
+Eu faria o produto perseguir quatro propriedades:
+
+CORRETO
+REPRODUTÍVEL
+AUDITÁVEL
+RÁPIDO
+
+Nesta ordem.
+
+Não adianta processar:
+
+1.000 documentos/minuto
+
+se o sistema extrai:
+
+2T2026
+
+como:
+
+6M2026
+
+ou:
+
+Adjusted EBITDA
+
+como:
+
+EBITDA
+
+A arquitetura deve otimizar velocidade sem comprometer semântica.
+
+
+Minha recomendação para a próxima evolução
+
+Eu não partiria ainda para mais paralelismo.
+
+O próximo incremento deve ser:
+
+DISCOVERY V2
+      ↓
+QUALIFICATION
+      ↓
+DOWNLOAD V2
+      ↓
+IMMUTABLE RAW
+      ↓
+CANONICAL DOCUMENT
+
+e somente depois:
+
+CANONICAL DOCUMENT
+      ↓
+DOCUMENT-SPECIFIC EXTRACTOR
+      ↓
+NORMALIZATION
+      ↓
+QUALITY
+
+Essa sequência corrige primeiro os riscos estruturais que encontrei e, ao mesmo tempo, cria a fundação para processar milhares de documentos trimestrais sem perder rastreabilidade.
+
+Há ainda um desenho particularmente interessante para este case: separar "coleta documental" de "coleta de indicador". Um único documento pode alimentar vários indicadores e vários indicadores podem ser confirmados por documentos independentes. Isso permite construir uma verdadeira matriz de evidências por empresa × período × indicador, que seria uma evolução significativa da PoC atual.
+
+
+you asked
+
+message time: 2026-10-03 09:52:32
+
+continue e termine as tarefas pendentes
+
+
+chatgpt response
+
+Vou implementar a evolução em quatro blocos pequenos: contratos semânticos, aquisição/discovery robustos, parsing/extração normalizados e persistência/qualidade. Cada bloco terá testes próprios para evitar regressões.
+
+Encontrei um erro real no novo caminho de autoridade: a lista global de hosts não estava sendo aplicada por empresa. Vou corrigir isso antes de validar a integração; é exatamente o tipo de bug silencioso que queremos evitar.
+
+A suíte funcional volta a passar (31 testes), mas o processo de teste não está encerrando de forma limpa após a execução. Isso é um problema de lifecycle de workers/recursos, então vou tratar antes do pacote final.
+
+Concluído o ciclo de evolução do ETL.
+
+Baixar a versão V3 completa — Benchmarking Financeiro Python + SQLite
+
+O que foi fechado nesta etapa
+
+O fluxo principal agora está estruturado como:
+
+DISCOVERY
+   ↓
+QUALIFICATION
+   ↓
+DOWNLOAD
+   ↓
+RAW / ARTIFACT IMUTÁVEL
+   ↓
+PARSING
+   ↓
+CANONICAL DOCUMENT
+   ↓
+EXTRACTION
+   ↓
+NORMALIZATION
+   ↓
+QUALITY
+   ↓
+RECONCILIATION
+   ↓
+LOAD
+   ↓
+DATASET DO APP
+
+Foram concluídos, entre outros:
+
+Frente Estado
+Busca em RI / sitemap ✅
+Qualificação de documentos ✅
+Validação de domínio oficial ✅
+Download concorrente ✅
+Streaming ✅
+Retry/backoff ✅
+ETag / Last-Modified ✅
+SHA-256 ✅
+Arquivo temporário + rename atômico ✅
+Batch ✅
+PROCESS ✅
+THREAD ✅
+SUBPROCESS ✅
+FIFO/FILO ✅
+SJF/SRTF ✅
+RR ✅
+Priority ✅
+MLQ/MLFQ ✅
+HRRN ✅
+Fair-Share ✅
+CPU/RAM/GPU detection ✅
+PDF ✅
+XLS ✅
+XLSX ✅
+XLSM ✅
+CSV ✅
+DOC ✅
+DOCX ✅
+TXT ✅
+HTML ✅
+Period Resolver ✅
+Canonical Document ✅
+Normalização de moeda/escala ✅
+Confidence Score ✅
+Extraction Evidence ✅
+Cache de extração ✅
+Versionamento parser/extractor/normalizer ✅
+Quarentena ✅
+Reconciliação entre fontes ✅
+Auditoria de etapas ✅
+Histórico documental ✅
+Reprocessamento incremental ✅
+
+Ponto especialmente importante
+
+O sistema agora consegue identificar situações como:
+
+Fonte A
+EBITDA = 20.7
+
+Fonte B
+EBITDA = 20.7
+
+→ RECONCILED
+
+ou:
+
+Fonte A
+EBITDA = 20.7
+
+Fonte B
+EBITDA = 18.9
+
+→ RECONCILIATION_WARNING
+→ REVIEW_REQUIRED
+
+Em vez de simplesmente escolher um número e sobrescrever o outro.
+
+Quarentena
+
+Um arquivo problemático não interrompe o lote:
+
+100 arquivos
+ ├── 94 carregados
+ ├── 4 exigem revisão
+ └── 2 foram para quarentena
+
+Depois é possível reprocessar apenas os problemáticos.
+
+Validação final
+
+A suíte automatizada terminou com:
+
+41 passed
+1 skipped
+
+O único skip é o smoke test da interface gráfica, porque PySide6 não está instalado no ambiente de validação utilizado. O núcleo ETL foi validado.
+
+Também atualizei o plano e a documentação para refletir esse estado real.
+
+Changelog V3
+
+README técnico atualizado
+
+O que deliberadamente ficou como V4
+
+Para evitar overengineering nesta etapa, não introduzi ainda no núcleo:
+
+OCR automático
+extratores específicos altamente especializados por documento
+adaptive concurrency/AIMD completo
+EWMA sofisticado de custo do scheduler
+content-addressable storage físico completo
+evidência precisa célula/linha para todos os formatos
+
+Esses itens são extensões naturais, mas não são necessários para considerar o ETL V3 robusto e funcional.
+
+O pacote V3 já representa uma base adequada para a próxima fase: conectar os extratores aos documentos reais de RI de Petrobras, Shell, Equinor e TotalEnergies e construir a matriz empresa × trimestre × indicador × fonte × evidência.

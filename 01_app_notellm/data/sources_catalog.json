@@ -1,0 +1,22 @@
+[
+  {
+    "id_fonte": 1,
+    "nome_empresa": "PETROBRAS",
+    "cik": null,
+    "url_fonte": "http://x/x.csv",
+    "tipo_arquivo": "CSV",
+    "caminho_local": "C:\\Users\\diego\\AppData\\Local\\Temp\\pytest-of-diego\\pytest-111\\test_api_etl_painel_de_gestao0\\x.csv",
+    "hash_arquivo": "aafc207ea97770ba06b2df80b10d2fb9ae7d7499f1666ce1bfdc281b51ca7c43",
+    "data_download": "2026-10-05 09:54:25",
+    "status_processamento": "PROCESSADO",
+    "nome_documento": "x.csv",
+    "extensao": ".csv",
+    "pasta_sistema": "C:\\Users\\diego\\AppData\\Local\\Temp\\pytest-of-diego\\pytest-111\\test_api_etl_painel_de_gestao0",
+    "api_json": null,
+    "origem": "CONTAINER",
+    "data_processamento": "2026-10-05 12:54:26",
+    "duracao_ms": 243,
+    "erro": null,
+    "n_extracoes": 2
+  }
+]

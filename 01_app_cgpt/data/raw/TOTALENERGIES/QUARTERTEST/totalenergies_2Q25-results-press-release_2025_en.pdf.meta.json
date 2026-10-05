@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/totalenergies_2Q25-results-press-release_2025_en.pdf",
+  "sha256": "edd0180ccb52533dee4fa09e4ecb65c59bb0bd860b8cc19342e7ba09cb9fea4f",
+  "size": 1957503,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:57Z",
+  "meta": {
+    "pages_detected": 94,
+    "text_sample_chars": 90180,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

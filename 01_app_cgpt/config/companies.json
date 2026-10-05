@@ -1,0 +1,14 @@
+{
+  "poc_companies": ["PETROBRAS", "EQUINOR", "SHELL", "TOTALENERGIES"],
+  "expansion_companies": ["BP", "CHEVRON", "EXXONMOBIL"],
+  "companies": {
+    "PETROBRAS": {"name": "Petrobras", "country": "Brasil", "currency": "BRL", "in_poc": true},
+    "EQUINOR": {"name": "Equinor", "country": "Noruega", "currency": "USD", "in_poc": true},
+    "SHELL": {"name": "Shell", "country": "Reino Unido", "currency": "USD", "in_poc": true},
+    "TOTALENERGIES": {"name": "TotalEnergies", "country": "Franca", "currency": "USD", "in_poc": true},
+    "BP": {"name": "BP", "country": "Reino Unido", "currency": "USD", "in_poc": false},
+    "CHEVRON": {"name": "Chevron", "country": "EUA", "currency": "USD", "in_poc": false},
+    "EXXONMOBIL": {"name": "ExxonMobil", "country": "EUA", "currency": "USD", "in_poc": false}
+  },
+  "justificativa_poc": "Equinor (estatal comparavel), Shell (supermajor integrada), TotalEnergies (upstream + transicao energetica). BP/Chevron/Exxon entram por parametrizacao sem mudanca estrutural."
+}

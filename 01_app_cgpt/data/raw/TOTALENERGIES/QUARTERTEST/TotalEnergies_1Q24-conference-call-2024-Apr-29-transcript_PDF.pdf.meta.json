@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/sites/g/files/nytnzq121/files/documents/2024-05/TotalEnergies_1Q24-conference-call-2024-Apr-29-transcript_PDF.pdf",
+  "sha256": "955b6614ecbbcc7c452b95130ffd2fa05f338ebfed08314c66fa04ea7a51de85",
+  "size": 393304,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:49Z",
+  "meta": {
+    "pages_detected": 22,
+    "text_sample_chars": 14680,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

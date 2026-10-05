@@ -1,0 +1,2 @@
+company,period,indicator,value,currency,unit,source_doc,source_url,confidence,evidence
+PETROBRAS,2T2026,REVENUE,25200,USD,USD_M,Release 2T26,https://ri.petrobras.com.br/,0.95,pagina 3 do release

@@ -1,0 +1,2 @@
+id_fonte,nome_empresa,cik,url_fonte,tipo_arquivo,caminho_local,hash_arquivo,data_download,status_processamento,nome_documento,extensao,pasta_sistema,api_json,origem,data_processamento,duracao_ms,erro,n_extracoes
+1,PETROBRAS,,http://x/x.csv,CSV,C:\Users\diego\AppData\Local\Temp\pytest-of-diego\pytest-111\test_api_etl_painel_de_gestao0\x.csv,aafc207ea97770ba06b2df80b10d2fb9ae7d7499f1666ce1bfdc281b51ca7c43,2026-10-05 09:54:25,PROCESSADO,x.csv,.csv,C:\Users\diego\AppData\Local\Temp\pytest-of-diego\pytest-111\test_api_etl_painel_de_gestao0,,CONTAINER,2026-10-05 12:54:26,243,,2

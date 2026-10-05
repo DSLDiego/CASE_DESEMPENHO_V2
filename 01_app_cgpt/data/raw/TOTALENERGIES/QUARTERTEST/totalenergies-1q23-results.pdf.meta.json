@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/2023-04/totalenergies-1q23-results.pdf",
+  "sha256": "6c724747cc09b9abcdf4f6133fdd4476ca9c28ab5e9ede5e3383aec5cff530b7",
+  "size": 1065913,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:48Z",
+  "meta": {
+    "pages_detected": 37,
+    "text_sample_chars": 27291,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

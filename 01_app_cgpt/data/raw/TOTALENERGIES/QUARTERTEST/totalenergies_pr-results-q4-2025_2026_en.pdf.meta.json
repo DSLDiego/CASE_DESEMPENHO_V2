@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/totalenergies_pr-results-q4-2025_2026_en.pdf",
+  "sha256": "e339b5d433a3a525de66b7465354a918f914bbd254fcbb0e0450937fc88473a7",
+  "size": 1160660,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:59Z",
+  "meta": {
+    "pages_detected": 98,
+    "text_sample_chars": 85109,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

@@ -1,0 +1,23 @@
+# Núcleo (obrigatório)
+pandas>=2.0
+openpyxl>=3.1
+requests>=2.31
+plotly>=5.20
+
+# ETL de PDFs / documentos
+pymupdf>=1.23
+pdfplumber>=0.10
+python-docx>=1.1
+
+# GUI desktop
+PySide6>=6.5
+pyqtgraph>=0.13
+
+# Testes
+pytest>=8.0
+
+# PDF oficial (slide deck)
+reportlab>=5.0
+
+# Envio de e-mail com o gráfico anexado em PNG (fallback: HTML + CSV)
+kaleido>=1.0

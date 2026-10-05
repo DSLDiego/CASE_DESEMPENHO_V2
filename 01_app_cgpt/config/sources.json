@@ -1,0 +1,10 @@
+{
+  "ri_official": {
+    "PETROBRAS": {"domains": ["ri.petrobras.com.br", "petrobras.com.br"], "results_page": "https://ri.petrobras.com.br/resultados/", "doc_types": ["EARNINGS_RELEASE", "FINANCIAL_STATEMENTS", "PRESENTATION"]},
+    "EQUINOR": {"domains": ["equinor.com"], "results_page": "https://www.equinor.com/investors/quarterly-results", "doc_types": ["EARNINGS_RELEASE", "FINANCIAL_STATEMENTS"]},
+    "SHELL": {"domains": ["shell.com"], "results_page": "https://www.shell.com/investors/results-and-reporting.html", "doc_types": ["EARNINGS_RELEASE", "DATABOOK", "FINANCIAL_REPORT"]},
+    "TOTALENERGIES": {"domains": ["totalenergies.com"], "results_page": "https://totalenergies.com/investors/results", "doc_types": ["EARNINGS_RELEASE", "FINANCIAL_STATEMENTS"]}
+  },
+  "periods_poc": ["4T2025", "1T2026", "2T2026"],
+  "note": "2T2026 e o trimestre mais recente disponivel na data de execucao (verificado em 02/10/2026 no historico v0)."
+}

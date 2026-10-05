@@ -1,0 +1,20 @@
+Lista de HABILIDADES para resolver as demandas/problemas:
+
+01) Foque em otimização e ganhos de velocidade.
+02) Foque em Design (UI e UX) e apresentação de dados: na forma de Tabela e/ou na forma de Gráficos.
+03) Generalize, Modularize e Refatore.
+04) Use massivamente classes (poo), dicionários, listas, tuplas, sets, mapas e boas estruturas de dados.
+05) Use o melhor do DSA.
+06) Conjunto de regras rígidas: (Faça 3 ciclos de cada item)
+06.1) Pense antes de codar: 
+=> Declare suas premissas, 
+=> Exponha incertezas,
+=> Liste possíveis caminhos e trade-offs em texto antes de escrever qualquer código funcional.
+06.2) Simplicidade primeiro: 
+=> Combater o excesso de engenharia (overengineering),
+=> Buscar sempre o código mínimo necessário para resolver o problema.
+06.3) Mudanças cirúrgicas:
+=> Alterar apenas as linhas estritamente necessárias, mantendo o diff limpo e legível.
+=> Execução orientada por metas e testes, 
+=> Definir critérios de sucesso claros e verificáveis por meio de automação.
+07) Faça um plano/planejamento detalhado antes da execução. Divida em 100+ tarefas menores. Após terminar o plano/planejamento, execute passo-a-passo.

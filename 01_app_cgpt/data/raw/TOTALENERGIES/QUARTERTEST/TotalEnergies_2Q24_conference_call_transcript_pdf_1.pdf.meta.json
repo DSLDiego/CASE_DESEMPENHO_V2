@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/sites/g/files/nytnzq121/files/documents/2024-07/TotalEnergies_2Q24_conference_call_transcript_pdf_1.pdf",
+  "sha256": "8a7fd76a0e3945833289538f6f88d6ada8fa6851211161e03d89f0dc59912812",
+  "size": 253870,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:49Z",
+  "meta": {
+    "pages_detected": 20,
+    "text_sample_chars": 11603,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

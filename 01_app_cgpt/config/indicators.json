@@ -1,0 +1,11 @@
+{
+  "indicators": {
+    "REVENUE": {"name": "Receita", "category": "Financeiro", "unit": "USD_M", "definition": "Receita operacional liquida do trimestre."},
+    "EBITDA_ADJ": {"name": "EBITDA Ajustado", "category": "Financeiro", "unit": "USD_M", "definition": "EBITDA ajustado divulgado no release."},
+    "NET_INCOME": {"name": "Lucro Liquido", "category": "Financeiro", "unit": "USD_M", "definition": "Lucro liquido atribuido aos acionistas."},
+    "NET_INCOME_ADJ": {"name": "Lucro Liquido Ajustado", "category": "Financeiro", "unit": "USD_M", "definition": "Lucro liquido ajustado (recorrente)."},
+    "OCF": {"name": "Fluxo de Caixa Operacional", "category": "Financeiro", "unit": "USD_M", "definition": "Caixa gerado pelas operacoes."},
+    "EMPLOYEES": {"name": "Total de Efetivo", "category": "Capital Humano", "unit": "HEADCOUNT", "definition": "Total de empregados proprios (indicador operacional exigido no case)."}
+  },
+  "nota": "Total de Efetivo e operacional/capital humano, mantido como indicador do produto por exigencia do case."
+}

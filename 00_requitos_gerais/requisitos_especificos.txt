@@ -1,0 +1,222 @@
+OK. Requisito que tenho em mente é:
+
+A) Sobre o app:
+
+1) Desenhe melhor a arquitetura
+2) Pense em uma aplicação em Python com SQLITE
+3) Pense em ETL com arquitetura em MVC e princípios de SOLID
+4) Como programador master em python e em sql, crie um app completo com o que foi definido.
+
+B) Sobre os requisitos do ETL:
+
+1) sobre a coleta dos dados: criar scripts em python para ir nos sites (relacionamento com o cliente ou outras fontes) para baixar dados publicos: pdfs, planilhas, docs, txt, cv
+2) Isso fará parte de ETL: use arquitetura MVC com principios de SOLID
+3) crie uma rotina para verificar se novos documentos publicos foram fornecidos.
+4) faça o download de tudo que for possivel e indique as fontes de cada arquido baixado.
+5) Analise o caminho princinpal: buscar dados publicos -> download de arquivos -> etl para estrutura de dados do app
+6) Veja possíveis erros e inconsistencias possiveis nesse fluxo. proponha melhorias
+Ok. Crie um sub-sistema ou funcionalidades extra para o ETL:
+
+7) Crie um sub-sistema dentro projeto princinpal que seja um sistema de gestão das fontes publicas de dados.
+8) CRIE um CRUD, que indique a fonte de download dos documentos (pdf, panilha ou txt). Mapei em .json ou .csv
+9.1) indique o o datetime do download. Mapei em .json ou .csv
+9.2) A idáia é ter um controle dos documentos e do que já foi baixado. Para não repetir o processo de download novamente.
+
+10) montar a arquitetura completa e o plano de execução da PoC;
+11) escrever o código (coleta, banco, controles de qualidade, painel);
+12) redigir os entregáveis (catálogo de fontes, premissas e limitações, roteiro da apresentação de 15 minutos);
+
+1) Desenhe melhor a arquitetura
+2) Pense em uma aplicação em Python com SQLITE
+3) Pense em ETL com arquitetura em MVC e princípios de SOLID
+4) Como programador master em python e em sql, crie um app completo com o que foi definido.
+5) Coloque o código no framework/arquitetura/estrutura MVC-W: para o MVC(Model-View-Controller) e o W de Workers( com algoritmos de processamento pesado)
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
+6) Adicione a possibilidade de coletar os dados de desempenho financeiros das empresa via api json SEC EDGAR com CIKs.
+=> Segue as Orientações para SEC EDGAR:
+Aqui estão os números CIK (Central Index Key) necessários para consultar as grandes empresas de petróleo na API Pública Gratuita do SEC EDGAR:
+Lista de CIKs
+Empresa	CIK (10 dígitos)	Formato Curto
+Petrobras	0001119639	1119639
+Shell	0001306965	1306965
+BP	0000313801	313801
+Chevron	0000093410	93410
+TotalEnergies	0000879764	879764
+ExxonMobil	0000034088	34088
+Equinor	0001140625	1140625
+Como utilizar na API do SEC EDGAR 🛠️
+A API pública da SEC não exige chaves de acesso (token/API Key), mas você deve obrigatoriamente preencher o cabeçalho User-Agent com o seu nome e e-mail de contato corporativo ou pessoal. Caso contrário, a requisição retornará um erro 403 Forbidden.
+Exemplos de Endpoints (Substitua {CIK} pelo número com 10 dígitos):
+1. Metadados e Histórico de Arquivamentos:
+https://sec.gov{CIK}.json
+Exemplo Petrobras: https://sec.gov
+2. Fatos Financeiros da Empresa (Dados XBRL estruturados):
+https://sec.gov{CIK}.json
+Exemplo em Python (Requests)
+python
+import requests
+
+url = "https://sec.gov"
+headers = {
+    # Altere com as suas informações válidas exigidas pela SEC
+    "User-Agent": "Nome Sobrenome seuemail@exemplo.com" 
+}
+
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    data = response.json()
+    print(f"Nome Oficial: {data['name']}")
+Use o código com cuidado.
+Você pretende utilizar esses dados para extrair relatórios anuais específicos (como o Form 20-F ou 10-K) ou para coletar métricas financeiras padronizadas (receita, lucro líquido) via XBRL? Se preferir, posso criar um script completo em Python para baixar esses dados automaticamente.
+
+7) Adicione a possibilidade de coletar os dados de desempenho financeiros das empresa sites:
+
+Investidor10:
+
+https://investidor10.com.br/stocks/cvx/
+https://investidor10.com.br/stocks/eqnr/
+https://investidor10.com.br/stocks/xom/
+https://investidor10.com.br/stocks/pbr/
+https://investidor10.com.br/stocks/bp/
+https://investidor10.com.br/stocks/tte/
+https://investidor10.com.br/stocks/shel/
+
+
+RI:
+
+https://www.equinor.com/investors/quarterly-results#2025
+https://www.investidorpetrobras.com.br/resultados-e-comunicados/central-de-resultados/
+https://www.shell.com/investors/results-and-reporting/quarterly-results.html
+https://totalenergies.com/investors/results
+https://www.bp.com/investors/results-reporting-and-presentations/archive-of-results-reports-and-presentations/2026
+https://investor.exxonmobil.com/earnings/financial-results
+https://investor.exxonmobil.com/
+https://www.chevron.com/investors/ 
+
+OBS: Mostre a possibilidade de entender de qual fonte é a informação
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
+Faça:
+1) Converter esta arquitetura e relatório em um slide deck de apresentação para a sua reunião ou exportar a documentação em PDF para entrega oficial.
+Faça:
+2) Converter esta arquitetura e relatório e exportar a documentação em MARKDOWN (.md) para entrega oficial.
+
+#########################################################################################################################
+#########################################################################################################################
+#########################################################################################################################
+
+Sobre a Visualização dos dados:
+1) Crie uma interface web para apresentar os dados. Use o plotly
+2) Crie uma interface GUI Pyqt\Side6 com pyGraph para apresentar os dados.
+
+=> Para ambos os visualizadores (web e gui)
+
+OBS: O GUI em python (pyqt/side6) e o html_template.html devem:
+1) Ter um SideBar Menu lef 25% da janela e um WorkArea Right com 75% da janela (com Tabs).
+2) no Interno do SideBar Menu left, sessões de configuração em accordion (colapsar e expandir => na vertical)
+3) no Interno do SideBar Menu left, com barra de scroll vertical e horizontal
+4) no externo do SideBar Menu left, botão para colapsar e expandir(na horizontal) o sidebar
+4) Reveja a disposição do elementos. 
+=> O sidebar meu left deve está fora das tabs. Deve ser divido em sessões de configuração, as sessões devem está dentro de accordions (para colapsar e expandir na vertical)
+=> Corrija o acesso entre as tabs no html.  
+=> Corrija a disposição dos elementos (enquadre dentro da janela). 
+=> Crie um sidebar menu left ao lado das tabs (irá virar ChartArea). 
+=> As tabs devem ficar dentro da ChartArea.
+=> reduza os tamanhos do botoes e letras. 
+=> Organize em grid NxM e preencha todo os espaço as celulas.
+=> Crie os temas light e dark
+
+#########################################################################################################################
+#########################################################################################################################
+#########################################################################################################################
+
+=> Para ambos os visualizadores (web e gui)
+1) Criar um painel de gestão de fontes de dados utilizados para apresentação.
+1.1) informar site; nome do documento; extenção do documento (.pdf,.xls,.xlsm,.csv, .docx, etc) , pasta do sistema onde o arquivo foi baixado e data do download.
+1.2) Verificar se o site tem uma api ou serviço web publicaos, para consumo de dados via json.
+
+#########################################################################################################################
+#########################################################################################################################
+#########################################################################################################################
+
+crie um main_vis.bat com uma main:
+1) opcao 1: executar o visualizador web
+2) opcao 2: executar o visualizador gui
+
+#########################################################################################################################
+#########################################################################################################################
+#########################################################################################################################
+
+Ok. Vamos evoluir no ETL:
+1) Mapear na internet todas as fontes de informações possíveis
+2) Busque e liste os sites e documentos possiveis de download.
+3) sobre a coleta dos dados: criar scripts em python para ir nos sites (relacionamento com o cliente ou outras fontes) para baixar dados publicos:
+3.1) pdfs => sub-sistema completo para tratar pdfs
+3.2) planilhas => sub-sistema completo para tratar pdfs
+3.3) docs => sub-sistema completo para tratar pdfs
+3.4) txt => sub-sistema completo para tratar pdfs
+
+Foque em melhorar isso.
+
+4) faça testes de download e extração de dados de pdfs: pegue os trimestres de 4 anos: 2023, 2024, 2025 e 2026
+
+Ok. para o ETL:
+1) Vamos contruir motores de parse:
+1.2) parse_pdf: pdf para base de dados do app (use PyMuPDF e/ou pdfplumber)
+1.3) parse_tab: planilha(csv,xls,xlsm,xlsx) para base de dados do app
+1.4) parse_txt: doc/docx/txt para base de dados do app
+
+#########################################################################################################################
+#########################################################################################################################
+#########################################################################################################################
+
+Para esse CHAT, faça:
+1) releia e entenda todo o historico da conversa
+2) crie uma plano organizado, ordenado, sequenciado e detalhado para o desenvolvimento de um app em python com sql (solução completa)
+3) Lembre-se que a arquitetura será MVC-W(Model, View, Controll e Workers) + ETL( extract, Transform e Load). Se for o caso proponha uma arquitetura melhor. Lembrando que o coletar os dados poderá ser feito via etl de arquivos (em pdf, excel ou txt) ou via api json SEC EDGAR via CIK (Central Index Key) 
+4) Divida o desenvolvimento em:
+4.1) Estrutura do banco de dados/base de dados do app
+4.2) ETL e DexPara=> De:Estrutura das fontes de dados(Rubricas), Para:Estrutura da base de dados, DexPara entre as rubricas contabeis e financieras
+4.3) Viewers/Visualizadores: App Web (Plotly) e App GUI(PyQt/Pyside6 com PyGraph)
+4.4) Gráficos de comparação entre as empresas e definição do benchmarket com base nos dados.
+OBS: Divida o planejamento em grupos com tarefas ou Grupos com atividades e atividades com tarefas. Divida em 2000 ou + tarefas, caso necessário. Crie casos de testes também.
+
+Faça:
+1) continue e termine as tarefas pendente. E adicione:
+2) para a Matriz Comparativa Resultante, defina mais 5 indicadores 
+3) Atualizar o código com os novos indicadores
+4) Simular a extração de dados da SEC
+5) Executar o visualizador web
+
+Faça:
+Adicione automatização para:
+1) estruturar a coleta e o histórico;
+2) implementar controles de qualidade e rastreabilidade;
+3) explicar como a solução seria atualizada a cada novo trimestre;
+4) demonstrar como o produto poderia escalar para o universo completo de empresas e indicadores.
+
+Para web app e gui app:
+1) Utilize paginação para tabelas grandes.
+2) Verifique se o tema claro ou escuro está sendo aplicado para todos os elementos, inclusive os gráficos. defina o tema claro como padrao
+3) continue e termine as atividades pendentes
+4) Renderize os gráficos par o tamanho de tela disponivel, de a opção de definir o grid layout nxm. Aumente o tamanho dos gráficos quando tiver mais espaço. 
+5) Crie uma funcionalidade de enviar o gráfico por email.
+
+
+Leia e Releia todos os documentos abaixo:
+
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_notellm\chat_history\Exportação do Gemini_ 4 de outubro de 2026 às 16_56_51 BRT.md"
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_notellm\chat_history\NotebookLM-Conversation.md"
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_cgpt\chat_history\Benchmarking-financeiro-trimestral.md"
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_cpetro\chat_history\Case-Produto-analitico-trimestral-de-benchmarking-financeiro-1-Contexto-A-area-de-Desempenho-Empresarial-acompanh.md"
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_deeps\chat_history\Benchmarking-trimestral.md"
+"C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_qwen\chat_history\Benchmarking-Financeiro-Trimestral.md"
+
+verifique o que pode ser utilizado para melhorar o projeto. Aplique as melhorias

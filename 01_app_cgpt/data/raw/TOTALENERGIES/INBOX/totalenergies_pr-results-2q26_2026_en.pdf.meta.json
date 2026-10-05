@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/totalenergies_pr-results-2q26_2026_en.pdf",
+  "sha256": "05cad9780fd9fb98d6f8cfd5801bde73ceca3bea76acda548be709be0c7213b1",
+  "size": 989621,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:07:56Z",
+  "meta": {
+    "pages_detected": 48,
+    "text_sample_chars": 63383,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}

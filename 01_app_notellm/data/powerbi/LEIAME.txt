@@ -1,0 +1,3 @@
+Importe os CSVs no Power BI (delimitador ';').
+Relacione fatos_financeiros[id_fonte] -> fontes[id_fonte].
+Ordene periodo como texto YYYYQn.

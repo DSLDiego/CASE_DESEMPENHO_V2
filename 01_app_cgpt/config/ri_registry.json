@@ -1,0 +1,103 @@
+{
+  "sources": [
+    {
+      "id": "PETROBRAS_RI",
+      "company": "PETROBRAS",
+      "name": "RI Petrobras — Resultados",
+      "results_page": "https://ri.petrobras.com.br/resultados/",
+      "domains": [
+        "ri.petrobras.com.br",
+        "petrobras.com.br"
+      ],
+      "doc_types": [
+        "EARNINGS_RELEASE",
+        "FINANCIAL_STATEMENTS",
+        "PRESENTATION"
+      ],
+      "active": true,
+      "added_at": "2026-10-03T00:00:00Z",
+      "updated_at": "2026-10-03T14:36:13Z",
+      "last_check_at": null,
+      "last_check_result": null,
+      "last_download_at": null,
+      "downloads_count": 0,
+      "api_url": "",
+      "api_status": "não verificada",
+      "api_checked_at": "",
+      "api_note": "sonda bloqueada por DNS no ambiente de build; rode Verificar APIs na GUI"
+    },
+    {
+      "id": "EQUINOR_RI",
+      "company": "EQUINOR",
+      "name": "Equinor — Quarterly results",
+      "results_page": "https://www.equinor.com/investors/quarterly-results",
+      "domains": [
+        "equinor.com"
+      ],
+      "doc_types": [
+        "EARNINGS_RELEASE",
+        "FINANCIAL_STATEMENTS"
+      ],
+      "active": true,
+      "added_at": "2026-10-03T00:00:00Z",
+      "updated_at": "2026-10-03T14:35:57Z",
+      "last_check_at": null,
+      "last_check_result": null,
+      "last_download_at": null,
+      "downloads_count": 0,
+      "api_url": "",
+      "api_status": "NONE",
+      "api_checked_at": "2026-10-03T14:35:48Z",
+      "api_note": ""
+    },
+    {
+      "id": "SHELL_RI",
+      "company": "SHELL",
+      "name": "Shell — Results and reporting",
+      "results_page": "https://www.shell.com/investors/results-and-reporting.html",
+      "domains": [
+        "shell.com"
+      ],
+      "doc_types": [
+        "EARNINGS_RELEASE",
+        "DATABOOK",
+        "FINANCIAL_REPORT"
+      ],
+      "active": true,
+      "added_at": "2026-10-03T00:00:00Z",
+      "updated_at": "2026-10-03T14:35:59Z",
+      "last_check_at": "2026-10-03T14:20:16Z",
+      "last_check_result": "OK: 2 novos de 2 links",
+      "last_download_at": null,
+      "downloads_count": 0,
+      "api_url": "https://www.shell.com/.shelli18n.json",
+      "api_status": "OK",
+      "api_checked_at": "2026-10-03T14:35:57Z",
+      "api_note": "Amidala: Go to: {0}, Amidala: Sorted ascending - {0}, Amidala: Previous slide, Amidala: Advertising and Social Media Cookies, Amidala: No offers available at the moment, Amidala: Get it on {0}, Amidal"
+    },
+    {
+      "id": "TOTAL_RI",
+      "company": "TOTALENERGIES",
+      "name": "TotalEnergies — Investors results",
+      "results_page": "https://totalenergies.com/investors/results",
+      "domains": [
+        "totalenergies.com"
+      ],
+      "doc_types": [
+        "EARNINGS_RELEASE",
+        "FINANCIAL_STATEMENTS"
+      ],
+      "active": true,
+      "added_at": "2026-10-03T00:00:00Z",
+      "updated_at": "2026-10-03T14:36:06Z",
+      "last_check_at": null,
+      "last_check_result": null,
+      "last_download_at": null,
+      "downloads_count": 0,
+      "api_url": "",
+      "api_status": "NONE",
+      "api_checked_at": "2026-10-03T14:35:59Z",
+      "api_note": ""
+    }
+  ]
+}

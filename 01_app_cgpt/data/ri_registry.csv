@@ -1,0 +1,5 @@
+id,company,name,results_page,active,added_at,last_check_at,last_download_at,downloads_count
+PETROBRAS_RI,PETROBRAS,RI Petrobras — Resultados,https://ri.petrobras.com.br/resultados/,True,2026-10-03T00:00:00Z,,,0
+EQUINOR_RI,EQUINOR,Equinor — Quarterly results,https://www.equinor.com/investors/quarterly-results,True,2026-10-03T00:00:00Z,,,0
+SHELL_RI,SHELL,Shell — Results and reporting,https://www.shell.com/investors/results-and-reporting.html,True,2026-10-03T00:00:00Z,,,0
+TOTAL_RI,TOTALENERGIES,TotalEnergies — Investors results,https://totalenergies.com/investors/results,True,2026-10-03T00:00:00Z,,,0

@@ -1,0 +1,16 @@
+{
+  "url": "https://totalenergies.com/system/files/documents/totalenergies_pr-results-3q25_2025_en.pdf",
+  "sha256": "860e2301433404835d8ea5689eb9413a1b2fa19e2304fe81d1aba9dba02ff837",
+  "size": 1040635,
+  "ext": ".pdf",
+  "collected_at": "2026-10-03T15:14:58Z",
+  "meta": {
+    "pages_detected": 48,
+    "text_sample_chars": 49045,
+    "profile": "TEXT_PDF",
+    "handler_warnings": [],
+    "content_type": "application/pdf",
+    "cached": false
+  },
+  "warnings": []
+}
