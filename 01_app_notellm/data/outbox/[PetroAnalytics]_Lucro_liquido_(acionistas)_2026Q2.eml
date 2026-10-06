@@ -1,11 +1,11 @@
 Subject: [PetroAnalytics] Lucro liquido (acionistas) 2026Q2
 From: petroanalytics@exemplo.com
 To: a@b.com
-Date: Tue, 06 Oct 2026 11:23:00 -0300
+Date: Tue, 06 Oct 2026 19:56:34 -0300
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============5393647447395794979=="
+Content-Type: multipart/mixed; boundary="===============5088853128160013890=="
 
---===============5393647447395794979==
+--===============5088853128160013890==
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
@@ -17,7 +17,7 @@ Fonte: base comparativa (1 empresas). Ver painel e catálogo.
 
 Em anexo: benchmark.html (gráfico interativo), PNG e CSV.
 
---===============5393647447395794979==
+--===============5088853128160013890==
 Content-Type: text/html
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.html"
@@ -28,26 +28,27 @@ PHRpdGxlPlBldHJvQW5hbHl0aWNzIEx1Y3JvIGxpcXVpZG8gKGFjaW9uaXN0YXMpIDIwMjZRMjwv
 dGl0bGU+CjxzY3JpcHQgc3JjPSJodHRwczovL2Nkbi5wbG90Lmx5L3Bsb3RseS0yLjM1LjIubWlu
 LmpzIj48L3NjcmlwdD4KPHN0eWxlPmJvZHl7Zm9udC1mYW1pbHk6U2Vnb2UgVUksQXJpYWwsc2Fu
 cy1zZXJpZjtmb250LXNpemU6MTNweDtjb2xvcjojMGYxNzJhO21hcmdpbjoxNnB4fQpoMXtmb250
-LXNpemU6MTZweH10YWJsZXtib3JkZXItY29sbGFwc2U6Y29sbGFwc2U7bWFyZ2luLXRvcDoxMnB4
-fQp0ZCx0aHtib3JkZXI6MXB4IHNvbGlkICNlMmU4ZjA7cGFkZGluZzo0cHggOHB4fTwvc3R5bGU+
-CjxoMT5QZXRyb0FuYWx5dGljcyDigJQgTHVjcm8gbGlxdWlkbyAoYWNpb25pc3RhcykgZW0gMjAy
-NlEyIChVU0QgYmkpPC9oMT4KPGRpdiBpZD0iZyIgc3R5bGU9IndpZHRoOjY0MHB4O2hlaWdodDoz
-NDBweCI+PC9kaXY+Cjx0YWJsZT48dHI+PHRoPkVtcHJlc2E8L3RoPjx0aD5VU0QgYmk8L3RoPjwv
-dHI+PHRyPjx0ZD5QRVRST0JSQVM8L3RkPjx0ZCBhbGlnbj0ncmlnaHQnPjEwLjQzPC90ZD48L3Ry
-PjwvdGFibGU+CjxwPjxzbWFsbD5Gb250ZTogYmFzZSBjb21wYXJhdGl2YSBQZXRyb0FuYWx5dGlj
-cyAoUkkgKyBTRUMgRURHQVIpLiBDU1YgZW0gYW5leG8uPC9zbWFsbD48L3A+CjxzY3JpcHQ+CnZh
-ciBkPVtbJ1BFVFJPQlJBUycsIDEwLjQzXV0sIHI9WydQRVRST0JSQVMnXSwgYz1bJyMwMDcyQjIn
-XTsKUGxvdGx5Lm5ld1Bsb3QoJ2cnLFt7dHlwZTonYmFyJyx4OnIseTpkLm1hcChmdW5jdGlvbih2
-KXtyZXR1cm4gdlsxXTt9KSwKICB0ZXh0OmQubWFwKGZ1bmN0aW9uKHYpe3JldHVybiB2WzFdLnRv
-Rml4ZWQoMik7fSksdGV4dHBvc2l0aW9uOidvdXRzaWRlJywKICBtYXJrZXI6e2NvbG9yOmN9LGNs
-aXBvbmF4aXM6dHJ1ZSwKICBob3ZlcnRlbXBsYXRlOicle3h9OiAle3k6LC4yZn0gVVNEIGJpPGV4
-dHJhPjwvZXh0cmE+J31dLAoge3RpdGxlOidMdWNybyBsaXF1aWRvIChhY2lvbmlzdGFzKSAyMDI2
-UTInLG1hcmdpbjp7dDo1MCxiOjYwLGw6NTUscjoyMH0sCiAgIHlheGlzOntyYW5nZW1vZGU6J3Rv
-emVybycsYXV0b21hcmdpbjp0cnVlfSx4YXhpczp7YXV0b21hcmdpbjp0cnVlLHRpY2thbmdsZTot
-MjB9LAogICB0ZW1wbGF0ZToncGxvdGx5Jyx1bmlmb3JtdGV4dDp7bWluc2l6ZTo5fSxzaG93bGVn
-ZW5kOmZhbHNlfSx7cmVzcG9uc2l2ZTp0cnVlfSk7Cjwvc2NyaXB0PjwvaHRtbD4=
+LXNpemU6MTZweH1oMntmb250LXNpemU6MTRweDttYXJnaW4tdG9wOjE4cHh9CnRhYmxle2JvcmRl
+ci1jb2xsYXBzZTpjb2xsYXBzZTttYXJnaW4tdG9wOjEycHh9CnRkLHRoe2JvcmRlcjoxcHggc29s
+aWQgI2UyZThmMDtwYWRkaW5nOjRweCA4cHh9PC9zdHlsZT4KPGgxPlBldHJvQW5hbHl0aWNzIOKA
+lCBMdWNybyBsaXF1aWRvIChhY2lvbmlzdGFzKSBlbSAyMDI2UTIgKFVTRCBiaSk8L2gxPgo8ZGl2
+IGlkPSJnIiBzdHlsZT0id2lkdGg6NjQwcHg7aGVpZ2h0OjM0MHB4Ij48L2Rpdj4KPHRhYmxlPjx0
+cj48dGg+RW1wcmVzYTwvdGg+PHRoPlVTRCBiaTwvdGg+PC90cj48dHI+PHRkPlBFVFJPQlJBUzwv
+dGQ+PHRkIGFsaWduPSdyaWdodCc+MTAuNDM8L3RkPjwvdHI+PC90YWJsZT4KCjxwPjxzbWFsbD5G
+b250ZTogYmFzZSBjb21wYXJhdGl2YSBQZXRyb0FuYWx5dGljcyAoUkkgKyBTRUMgRURHQVIpLiBD
+U1YgZW0gYW5leG8uPC9zbWFsbD48L3A+CjxzY3JpcHQ+CnZhciBkPVtbJ1BFVFJPQlJBUycsIDEw
+LjQzXV0sIHI9WydQRVRST0JSQVMnXSwgYz1bJyMwMDcyQjInXTsgClBsb3RseS5uZXdQbG90KCdn
+Jyxbe3R5cGU6J2JhcicseDpyLHk6ZC5tYXAoZnVuY3Rpb24odil7cmV0dXJuIHZbMV07fSksCiAg
+dGV4dDpkLm1hcChmdW5jdGlvbih2KXtyZXR1cm4gdlsxXS50b0ZpeGVkKDIpO30pLHRleHRwb3Np
+dGlvbjonb3V0c2lkZScsCiAgbWFya2VyOntjb2xvcjpjfSxjbGlwb25heGlzOnRydWUsCiAgaG92
+ZXJ0ZW1wbGF0ZTonJXt4fTogJXt5OiwuMmZ9IFVTRCBiaTxleHRyYT5yZWFsPC9leHRyYT4nfV0s
+CiB7dGl0bGU6J0x1Y3JvIGxpcXVpZG8gKGFjaW9uaXN0YXMpIDIwMjZRMicsbWFyZ2luOnt0OjUw
+LGI6NjAsbDo1NSxyOjIwfSwKICAgeWF4aXM6e3JhbmdlbW9kZTondG96ZXJvJyxhdXRvbWFyZ2lu
+OnRydWV9LHhheGlzOnthdXRvbWFyZ2luOnRydWUsdGlja2FuZ2xlOi0yMH0sCiAgIHRlbXBsYXRl
+OidwbG90bHknLHVuaWZvcm10ZXh0OnttaW5zaXplOjl9LHNob3dsZWdlbmQ6ZmFsc2V9LAogIHty
+ZXNwb25zaXZlOnRydWV9KTsKPC9zY3JpcHQ+PC9odG1sPg==
 
---===============5393647447395794979==
+--===============5088853128160013890==
 Content-Type: image/png
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.png"
@@ -1150,7 +1151,7 @@ ECBAgACBxQQ0CBcjcYAAAQJVF1A/AQIECBAgQIAAAQIECBAgkL6AhAQIECBAYOgCGoRDt3MlAQIE
 CBAgQKBYAasRIECAAAECBAgQIECAAAEC6QtISKAAAQ3CApAtQYAAAQIECBAgQIAAgYEEnCNAgAAB
 AgQIECBAgAABAkUK/H8AAAD//zpwbTcAAAAGSURBVAMA3EZWNRSloswAAAAASUVORK5CYII=
 
---===============5393647447395794979==
+--===============5088853128160013890==
 Content-Type: text/csv
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.csv"
@@ -1159,4 +1160,4 @@ MIME-Version: 1.0
 77u/ZW1wcmVzYTtwZXJpb2RvO3J1YnJpY2E7dmFsb3JfdXNkX2JpO2ZvbnRlDQpQRVRST0JSQVM7
 MjAyNlEyO0xVQ1JPX0xJUVVJRE87MTAuNDI4MDsNCg==
 
---===============5393647447395794979==--
+--===============5088853128160013890==--

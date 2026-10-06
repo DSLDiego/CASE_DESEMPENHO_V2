@@ -576,7 +576,7 @@ def construir(destino: Path | None = None, n: dict[str, Any] | None = None) -> s
     _tabela(s, ["Dimensão", "Peso", "Média da base"], linhas,
             0.5, 1.4, 6.1, [3.0, 1.2, 1.8], 0.38, 11.5, destaque={5})
     _bullets(s, [
-        ("Classificação", True), f"CONFIÁVEL ≥ 80 · REVISAR 60–79 · NÃO CONFIÁVEL < 60",
+        ("Classificação", True), "CONFIÁVEL ≥ 80 · REVISAR 60–79 · NÃO CONFIÁVEL < 60",
         f"Hoje: {n['classe'].get('CONFIÁVEL', 0)} CONFIÁVEL · "
         f"{n['classe'].get('REVISAR', 0)} REVISAR · "
         f"{n['classe'].get('NÃO CONFIÁVEL', 0)} NÃO CONFIÁVEL",

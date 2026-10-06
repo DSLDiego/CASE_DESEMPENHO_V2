@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import Any
 
 from models.database import DatabaseManager
-from models.repositories import FatoRepository, ProjectionRepository
-from workers.forecast import HORIZONTE_MAX, MIN_PONTOS, projetar, projetar_serie
+from models.repositories import ProjectionRepository
+from workers.forecast import HORIZONTE_MAX, MIN_PONTOS, projetar_serie
 
 # Antes: lista fixa de 7 rubricas, que deixava FCL, DIVIDA_BRUTA e
 # DESPESA_OPERACIONAL sem projecao mesmo com serie suficiente. Agora o criterio e
@@ -53,14 +53,15 @@ def run_forecast(db: DatabaseManager | None = None, horizonte: int = HORIZONTE_M
                 "SELECT DISTINCT nome_empresa FROM tb_fato_financeiro ORDER BY nome_empresa").fetchall()]
     resumo = {"series": 0, "projecoes": 0, "ignoradas": 0, "metodos": {},
               "confianca_media": 0.0, "avisos": [], "rubricas": rubricas,
-              "cobertura": {}, "excluidas": dict(RUBRICAS_EXCLUIDAS)}
+              "cobertura": {}, "excluidas": dict(RUBRICAS_EXCLUIDAS),
+              "por_perfil": {}}
     confiancas: list[float] = []
     for empresa in empresas:
         for rubrica in rubricas:
             periodos, valores = series_do_banco(db, empresa, rubrica)
             if not periodos:
                 continue
-            resultado = projetar_serie(periodos, valores, horizonte)
+            resultado = projetar_serie(periodos, valores, horizonte, rubrica=rubrica)
             if not resultado.get("valores"):
                 resumo["ignoradas"] += 1
                 if len(periodos) < MIN_PONTOS:
@@ -73,6 +74,12 @@ def run_forecast(db: DatabaseManager | None = None, horizonte: int = HORIZONTE_M
             gravados = proj.salvar(empresa, rubrica, periodos[-1], horizonte, resultado)
             resumo["projecoes"] += gravados
             resumo["metodos"][resultado["metodo"]] = resumo["metodos"].get(resultado["metodo"], 0) + 1
+            perfil = resultado.get("perfil")
+            if perfil:
+                # quantas séries de estoque NÃO foram parar no sazonal (M10.7)
+                por_perfil = resumo.setdefault("por_perfil", {})
+                chave = f"{perfil}/{resultado['metodo']}"
+                por_perfil[chave] = por_perfil.get(chave, 0) + 1
             confiancas.append(resultado["confianca"])
     if confiancas:
         resumo["confianca_media"] = round(sum(confiancas) / len(confiancas), 2)

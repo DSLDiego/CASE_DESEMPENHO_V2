@@ -58,13 +58,13 @@ embutidos. Para versão interativa com dados ao vivo:
 | ETL completo / incremental | 135 s (3 processos) / 2–5 s |
 | Leitura de PDF (M8.12) | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
 | Apresentações | [`../APRESENTACAO_PETROBRAS.pptx`](../APRESENTACAO_PETROBRAS.pptx) — 23 slides de conteúdo · [`../APRESENTACAO_VISUAL.pptx`](../APRESENTACAO_VISUAL.pptx) — 13 slides visuais |
-| Testes | **117 passam**, 2 skips |
+| Testes | **131 passam**, 2 skips |
 | Erros de carga | 0 · contrato de dados: 393 fatos verificados, 0 violações |
 
 ## Como reproduzir tudo
 
 ```bat
-python -m pytest tests/ -q                        :: 117 passam
+python -m pytest tests/ -q                        :: 131 passam
 python app_main.py etl --jobs 4                    :: ETL completo (102s)
 python app_main.py etl --novos                     :: incremental (2-5s)
 python app_main.py fontes metrica                  :: mede páginas/tabelas do acervo
@@ -78,4 +78,7 @@ python app_main.py pdf --periodo 2026Q2            :: deck executivo em PDF
 python app_main.py pdf --pptx                      :: apresentação de conteúdo (23 slides)
 python app_main.py pdf --visual                    :: apresentação visual (13 slides)
 python workers\screenshots.py                      :: recaptura as telas do painel
+python app_main.py fontes urls                     :: URL quebrada x bloqueio (M1.14)
+python app_main.py fontes cache                    :: cache de texto de PDF (M8.11)
+python app_main.py qualidade limiar                :: limiar por empresa/rubrica (M7.22)
 ```

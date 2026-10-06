@@ -12,6 +12,7 @@ O resultado e gravado em `tb_fonte_dados.api_json`, alimentando o CRUD e o catal
 """
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
@@ -38,6 +39,80 @@ def _get_json(url: str, headers: dict[str, str] | None = None,
         return "OK", resp.json()
     except ValueError:
         return "SEM_JSON", None
+
+
+# ------------------------------------------------- alerta de URL quebrada (M1.14)
+# Chevron e BP devolvem 403 e Petrobras/Equinor usam página dinâmica: em ambos os
+# casos a URL não está "errada", está INACESSÍVEL para automação. O alerta precisa
+# distinguir as coisas, senão a recomendação ("corrigir o link") está errada.
+HTTP_NAO_OK = (400, 401, 403, 404, 410, 451)
+TENTATIVAS = 3
+ESPERA_ENTRE_TENTATIVAS = 1.5     # segundos; 403/429 não melhoram com insistência
+
+
+def _e_efemera(status: str) -> bool:
+    """403/429 são bloqueios de bot: repetir não muda nada."""
+    return status.startswith(("HTTP_403", "HTTP_429", "HTTP_401"))
+
+
+def checar_url(url: str, tentativas: int = TENTATIVAS) -> dict[str, Any]:
+    """Verifica se a URL da fonte ainda responde. Nunca levanta exceção de rede.
+
+    403/429 não são retentados de propósito: são bloqueios de automação, e três
+    requisições seguidas só transformam um bloqueio temporário em permanente.
+    """
+    if not (url or "").strip():
+        return {"url": url, "ok": False, "status": "SEM_URL", "tentativas": 0,
+                "diagnostico": "fonte sem URL de origem"}
+    headers = {"User-Agent": config.USER_AGENT}
+    ultima = {"status": "ERRO_REDE:desconhecido", "codigo": None, "tentativas": 0}
+    for tentativa in range(1, max(1, tentativas) + 1):
+        try:
+            resp = requests.head(url, headers=headers, timeout=12, allow_redirects=True)
+            codigo = resp.status_code
+        except requests.RequestException as exc:
+            ultima = {"status": f"ERRO_REDE:{type(exc).__name__}", "codigo": None,
+                      "tentativas": tentativa}
+        else:
+            ultima = {"status": f"HTTP_{codigo}", "codigo": codigo, "tentativas": tentativa}
+            if 200 <= codigo < 400:
+                return {"url": url, "ok": True, "status": f"HTTP_{codigo}",
+                        "codigo": codigo, "tentativas": tentativa,
+                        "diagnostico": "responde"}
+            if _e_efemera(ultima["status"]):
+                return {**ultima, "url": url, "ok": False,
+                        "diagnostico": ("bloqueio de automação (403/401/429): a URL pode "
+                                         "existir, mas não responde a robô — não é link quebrado")}
+        if tentativa < tentativas and not _e_efemera(ultima["status"]):
+            time.sleep(ESPERA_ENTRE_TENTATIVAS)
+    codigo = ultima["codigo"]
+    if codigo in HTTP_NAO_OK:
+        diag = (f"HTTP {codigo} — URL fora do ar ou inacessível"
+                + (" (404/410: removida)" if codigo in (404, 410) else ""))
+    else:
+        diag = f"{ultima['status']} após {ultima['tentativas']} tentativa(s)"
+    return {**ultima, "url": url, "ok": False, "diagnostico": diag}
+
+
+def checar_fontes(repo: FonteRepository, limite: int | None = None) -> dict[str, Any]:
+    """Varre o catálogo e devolve o que está quebrado, com o diagnóstico de cada."""
+    quebradas: list[dict[str, Any]] = []
+    checadas = 0
+    for fonte in repo.listar():
+        if limite and checadas >= limite:
+            break
+        url = fonte.get("url_fonte") or ""
+        if not url.strip():
+            continue
+        checadas += 1
+        r = checar_url(url)
+        if r["ok"]:
+            continue
+        quebradas.append({"id_fonte": fonte["id_fonte"], "nome_empresa": fonte["nome_empresa"],
+                          "url": url, "status": r["status"],
+                          "diagnostico": r["diagnostico"],
+                          "bloqueio": _e_efemera(r["status"])})
+    return {"checadas": checadas, "quebradas": quebradas, "ok": not quebradas}
 
 
 def probe_sec(cik: str) -> dict[str, Any]:

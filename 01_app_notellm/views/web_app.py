@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 from plotly.offline import plot as plot_div
 
 import config
-from config import INDICATORS
+from config import INDICATORS, PERIODS
 from controllers import AnalyticsController, SourceController
 
 CATEGORICAS = list(config.PALETA)
@@ -262,7 +262,9 @@ def build_dashboard(periodo: str = "2026Q2", destino=None) -> str:
     f" data-ext='{f.get('extensao') or ''}' data-org='{f.get('origem') or ''}'"
     f" data-api='{int(str(f.get('api_json') or '').startswith('http'))}'"
     f" data-doc='{_html_escape(f.get('nome_documento') or '')}'>"
-    f"<td>{f['id_fonte']}</td><td>{f['nome_empresa']}</td>"
+    f"<td>{f['id_fonte']}</td>"
+    f"<td><input type='checkbox' class='fchk' data-id='{f['id_fonte']}'"
+    f" data-st='{f['status_processamento']}'></td><td>{f['nome_empresa']}</td>"
     f"<td>{(f.get('nome_documento') or '')[:44]}</td>"
     f"<td>{f.get('extensao') or f['tipo_arquivo']}</td>"
     f"<td class='url'>{(f.get('pasta_sistema') or '')[:34]}</td>"
@@ -289,10 +291,8 @@ def build_dashboard(periodo: str = "2026Q2", destino=None) -> str:
     alertas = "".join(
         f"<tr><td>{a['tipo_alerta']}</td><td>{a['descricao'][:110]}</td><td>{a['severidade']}</td></tr>"
         for a in qualidade["alertas"][:100])
-    revisao = "".join(
-        f"<tr><td>{r['nome_empresa']}</td><td>{r['periodo']}</td><td>{r['rubrica']}</td>"
-        f"<td>{r['motivo'][:100]}</td><td>{r['status']}</td></tr>"
-        for r in qualidade["revisao"][:100])
+    # `revisao` deixou de ser montada aqui: a aba Auditoria tem a própria tabela
+    # (com os botões de triagem), e esta versão sem botões nunca foi exibida.
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -473,11 +473,18 @@ fonte naquele trimestre. <b>Lacunas</b> = períodos sem nenhuma fonte (a recolet
  <label><input type="checkbox" id="ff_api" onchange="fonteFiltro()"> só c/ API JSON</label>
  <label><input type="checkbox" id="ff_loc" onchange="fonteFiltro()"> só baixadas</label>
  <input id="f_busca" placeholder="🔎 texto (empresa, doc, URL, pasta)" oninput="fonteFiltro()" size="30">
- <button class="sm" onclick="fFonteLimpar()">✕ limpar filtros</button>
- <span class="note" id="ff_count"></span>
+<button class="sm" onclick="fFonteLimpar()">✕ limpar filtros</button>
+<span class="note" id="ff_count"></span>
 </div>
 <div class="crud">
- <input type="hidden" id="f_id">
+<input type="hidden" id="f_id">
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:4px 0;border-bottom:1px dashed var(--bord,#e2e8f0);margin-bottom:4px">
+<label class="ck"><input type="checkbox" id="f_todas_pend"> só PENDENTES</label>
+<button class="sm" onclick="fMarcarPendentes()">☑ marcar PENDENTES visíveis</button>
+<button class="sm" onclick="fAprovarSelecionadas()">✅ aprovar selecionadas</button>
+<button class="sm" onclick="fDesmarcar()">☐ desmarcar</button>
+<span class="note" id="f_lote_msg"></span>
+</div>
  <input id="f_emp" placeholder="empresa (ex.: PETROBRAS)" list="empreset">
  <datalist id="empreset">{"".join(f"<option value='{e}'>" for e in CATEGORICAS)}</datalist>
  <input id="f_doc" placeholder="nome do documento">
@@ -491,7 +498,7 @@ fonte naquele trimestre. <b>Lacunas</b> = períodos sem nenhuma fonte (a recolet
  <span class="note" id="f_msg">requer servidor: <b>python app_main.py web --serve</b></span>
 </div>
 <div class="twrap"><table class="paged" id="tab_fontes" data-per="25">
-<tr><th data-sort="0">ID</th><th data-sort="1" class="srt">Empresa</th><th data-sort="2" class="srt">Documento</th>
+<tr><th data-sort="0">ID</th><th>sel.</th><th data-sort="1" class="srt">Empresa</th><th data-sort="2" class="srt">Documento</th>
 <th data-sort="3" class="srt">Ext</th><th>Pasta do sistema</th><th data-sort="5" class="srt">API JSON</th>
 <th>URL de origem</th><th data-sort="7" class="srt">Download</th><th data-sort="8" class="srt">Status</th><th>Ações</th></tr>
 {linhas}</table></div></div>
@@ -604,7 +611,26 @@ com valor, e método com sazonalidade exige mais.</div>
 <div class="twrap" style="margin-top:10px"><table class="paged" id="pr_proj" data-per="25">
 <tr><th>Empresa</th><th>Rubrica</th><th>Base</th><th>Período projetado</th><th>h</th>
 <th>Valor (USD bi)</th><th>IC 95%</th><th>Método</th><th>Confiança</th><th>MAE</th><th>MAPE</th></tr>
-<tbody id="pr_tbody"></tbody></table></div></div>
+<tbody id="pr_tbody"></tbody></table></div>
+<h4 style="margin-top:10px">Cenários com Brent/FX — premissa de preço altera o valor e o IC <span class="tag">M3.13/M10.8</span></h4>
+<div class="note">A projeção base não mede petróleo: a receita é função de Brent e câmbio.
+O cenário aplica a sensibilidade β (estimada nos crescimentos históricos) à premissa e
+<b>abre o intervalo quando Brent e câmbio têm risco correlacionado</b> — o termo cruzado
+2·β<sub>b</sub>·β<sub>f</sub>·cov(ΔBrent,ΔPTAX) faz choques conjuntos não se cancelarem.
+Não é fato: é uma premissa declarada sobre o preço.</div>
+<div class="kpis" id="cen_kpis" style="margin:8px 0"></div>
+<div class="twrap"><table class="paged" data-per="15">
+<tr><th>Período</th><th>Método</th><th>Pessimista</th><th>Base</th><th>Otimista</th><th>Spread</th></tr>
+<tbody id="cen_tbody"></tbody></table></div>
+<h4 style="margin-top:10px">Avaliação honesta: erro real e rolling-origin <span class="tag">M3.14/M10.9</span></h4>
+<div class="note">Quando o trimestre projetado vira fato publicado, medimos a diferença de
+verdade — inclusive se o real caiu dentro do IC95. Rolling-origin: MAE/RMSE/MAPE de
+cada método em origens ao longo da história, na mesma base. É a forma de dizer "Holt
+bate sazonal nesta base" sem depender de um trimestre específico.</div>
+<div class="kpis" id="av_kpis" style="margin:8px 0"></div>
+<div class="twrap"><table class="paged" data-per="10">
+<tr><th>Método</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>n</th></tr>
+<tbody id="av_tbody"></tbody></table></div></div>
 <div class="page"><h4>Qualidade e Rastreabilidade — scorecard e alertas</h4>
 <div class="insight"><b>Como ler:</b> cada <b>empresa × trimestre</b> recebe um DQS 0–100 com cinco
 dimensões ponderadas — <b>Completude</b> (30%), <b>Plausibilidade</b> (25%),
@@ -647,6 +673,31 @@ verificados a cada execução do ETL. Violação aqui é número que entraria er
 </div>
 <div class="kpis" id="contrato_kpis" style="margin:8px 0"></div>
 <div id="contrato_box"></div>
+<h4 style="margin-top:10px">Cadeia de proveniência do dado <span class="tag">M7.27</span></h4>
+<div class="note">De onde veio cada número: <b>primário</b> (documento da própria empresa),
+<b>secundário</b> (cópia regulatória no SEC — mesmo documento, outro caminho) ou
+<b>derivado</b> (calculado por nós a partir de outros fatos, ex.: margem). Serve para
+saber quando o número pode ser usado direto e quando vale conferir no documento.
+O score não altera valor nenhum: ele só diz a distância até a fonte primária.</div>
+<div class="crud" style="margin:8px 0">
+<select id="prov_empresa" onchange="provRender()"><option value="">todas as empresas</option>
+{("".join(f"<option>{e}</option>" for e in CATEGORICAS))}
+</select>
+<select id="prov_periodo" onchange="provRender()">
+<option value="">qualquer trimestre</option>
+{("".join(f"<option>{p}</option>" for p in reversed(sorted(PERIODS))))}
+</select>
+<button class="sm" onclick="provAnotar()">⟳ reclassificar a base</button>
+<span class="note" id="prov_msg"></span></div>
+<div class="kpis" id="prov_kpis" style="margin:8px 0"></div>
+<div class="grid" style="--cols:2">
+<div class="cell"><h4>Distribuição por nível</h4><div id="prov_graf"></div></div>
+<div class="cell"><h4>Rubrica mais fraca primeiro</h4><div class="twrap">
+<table class="paged" data-per="12">
+<tr><th>Rubrica</th><th>Fatos</th><th>Profundidade</th><th>Score</th><th>Confiança</th></tr>
+<tbody id="prov_rub"></tbody></table></div></div>
+</div>
+<div class="twrap" id="prov_cadeia_box" style="margin-top:8px"></div>
 <h4 style="margin-top:10px">Regras ativas e limiares</h4>
 <div class="twrap"><table class="paged" data-per="25">
 <tr><th>Código</th><th>Limiar</th><th>Severidade</th><th>Descrição</th></tr>
@@ -683,6 +734,7 @@ por que CAPEX é positivo.</div>
 <span><button class="sm" onclick="fAjustar()">⤢ ajustar</button>
 <button class="sm" onclick="fSair()">✕ fechar (Esc)</button></span></div>
 <div id="fs-plot"></div></div></div>
+</div>
 <script>
 const QALL = {_json.dumps(quarters_all)};
 const SERIES = {_json.dumps(SERIES)};
@@ -715,6 +767,7 @@ function tab(i){{
   if(i===6) etlCarregar();   // aba "Gestao ETL" busca o status ao vivo
   if(i===8) projCarregar(); // aba "Projecoes" carrega cenarios + tabela
   if(i===9) qualCarregar(); // aba "Qualidade" carrega scorecard + fila
+  if(i===9) provCarregar(); // ... e a cadeia de proveniencia (M7.27)
 if(i===10) gloCarregar();  // aba "Glossario" carrega definicoes e formulas
   autoFit(); urlSync();
 }}
@@ -901,6 +954,43 @@ function fEditar(id){{
 function fExcluir(id){{
   if(!confirm('Excluir a fonte #'+id+'? Os fatos vinculados permanecem (id_fonte = NULL).')) return;
   fApi('DELETE',{{id_fonte:id}}) && setTimeout(()=>location.reload(),400);
+}}
+/* --- M1.15: aprovacao em lote das fontes PENDENTE -------------------------
+   Marcar 300 linhas uma a uma e era o unico jeito de aprovar. Agora o operador
+   marca as visiveis e aprova. O backend so troca o status: quem decide se o
+   documento tem numero continuam sendo os parsers do ETL. */
+function fChks(){{return [...document.querySelectorAll('#tab_fontes .fchk')];}}
+function fSel(){{return fChks().filter(c=>c.checked);}}
+function fMarcarPendentes(){{
+  const soP = document.getElementById('f_todas_pend').checked;
+  let n=0;
+  fChks().forEach(c=>{{ if(!soP || c.dataset.st==='PENDENTE'){{c.checked=true;n++;}} }});
+  fLoteMsg(n+' marcada(s) para aprovacao', true);
+}}
+function fDesmarcar(){{fChks().forEach(c=>c.checked=false); fLoteMsg('selecao limpa', true);}}
+function fLoteMsg(t, ok){{const e=document.getElementById('f_lote_msg');
+  if(e){{e.textContent=t; e.style.color = ok===false?'#b00020':'';}}}}
+function fAprovarSelecionadas(){{
+  const sel=fSel();
+  if(!sel.length){{fLoteMsg('marque ao menos uma fonte', false);return;}}
+  const ids=sel.map(c=>parseInt(c.dataset.id));
+  const nPend=sel.filter(c=>c.dataset.st==='PENDENTE').length;
+  const extra=sel.length-nPend;
+  const aviso = extra>0
+    ? ('\\n'+extra+' delas nao estao em PENDENTE e serao ignoradas (o backend nao mexe nelas).')
+    : '';
+  if(!confirm('Aprovar '+ids.length+' fonte(s) como PROCESSADO?'+aviso+
+              '\\n\\nIsso muda o catalogo, nao os numeros: os dados continuam vindo do ETL.')) return;
+  const r = fetch('/api/fontes/lote',{{method:'POST',headers:{{'Content-Type':'application/json'}},
+    body:JSON.stringify({{ids:ids,status:'PROCESSADO',apenas_pendentes:true}})}})
+    .then(r=>r.json()).then(d=>{{
+      if(d.erro){{fLoteMsg(d.erro,false);return;}}
+      const ig=(d.ignorados||[]).length;
+      fLoteMsg('aprovadas '+d.aprovados+' de '+d.solicitados+
+               (ig?' ('+ig+' ignoradas)':''), true);
+      setTimeout(()=>location.reload(),600);
+    }}).catch(()=>fLoteMsg('falha ao aprovar', false));
+  return r;
 }}
 function gridCols(id,n,btn){{const g=document.getElementById('grid-'+id);if(!g||!n)return;
   g.style.setProperty('--cols',n);
@@ -1283,6 +1373,58 @@ async function qualCarregar() {{
     qualRender();
   }} catch (e) {{ qMsg('API indisponível — rode com --serve', false); }}
 }}
+// --- M7.27: cadeia de proveniência ---------------------------------------------
+let _prov = null;
+async function provCarregar(reanotar) {{
+  const em = document.getElementById('prov_empresa').value;
+  const per = document.getElementById('prov_periodo').value;
+  let url = '/api/qualidade?proveniencia=1' + (reanotar ? '&reanotar=1' : '');
+  if (em && per) url += '&empresa=' + encodeURIComponent(em) + '&periodo=' + per;
+  try {{ _prov = await (await fetch(url)).json(); provRender(); }}
+  catch (e) {{ qMsg('API indisponível — rode com --serve', false); }}
+}}
+function provAnotar() {{ provCarregar(true); }}
+function corProv(p) {{
+  return p >= 3 ? '#7c3aed' : p === 2 ? '#b45309' : p === 1 ? '#046c4e' : '#dc2626';
+}}
+function provRender() {{
+  if (!_prov) return;
+  const r = _prov.resumo || {{}}, c = plotColors();
+  document.getElementById('prov_kpis').innerHTML = [
+    ['Score médio de proveniência', r.score_medio], ['Fatos classificados', r.total],
+    ['Primário (RI)', (r.por_nivel || []).find(n => n.profundidade === 1)?.fatos || 0],
+    ['Secundário (SEC)', (r.por_nivel || []).find(n => n.profundidade === 2)?.fatos || 0],
+    ['Derivado', (r.por_nivel || []).find(n => n.profundidade === 3)?.fatos || 0]
+  ].map(([t, v]) => `<div class='kpi'><div class='kpi-t'>${{t}}</div><div class='kpi-v' style='font-size:15px'>${{v}}</div></div>`).join('');
+  const niveis = r.por_nivel || [];
+  Plotly.react(document.getElementById('prov_graf'), [{{
+    type: 'bar', x: niveis.map(n => n.rotulo), y: niveis.map(n => n.fatos),
+    text: niveis.map(n => n.fatos + ' (' + n.pct + '%)'), textposition: 'outside',
+    marker: {{ color: niveis.map(n => corProv(n.profundidade)) }}, cliponaxis: true,
+    hovertemplate: '%{{x}}: %{{y}} fato(s)<br>score %{{customdata}}<extra>proveniência</extra>',
+    customdata: niveis.map(n => n.score)
+  }}], {{
+    title: 'Fatos por nível de proveniência', margin: {{ t: 50, b: 60, l: 55, r: 20 }},
+    yaxis: {{ rangemode: 'tozero', gridcolor: c.grid, automargin: true }},
+    xaxis: {{ automargin: true }}, template: 'plotly', showlegend: false,
+    paper_bgcolor: c.paper, plot_bgcolor: c.plot, font: {{ size: 11, color: c.font }}
+  }}, {{ responsive: true, displayModeBar: false }});
+  document.getElementById('prov_rub').innerHTML = (_prov.rubricas || []).map(r => `
+    <tr><td>${{r.rubrica}}</td><td>${{r.fatos}}</td>
+    <td style='color:${{corProv(Math.round(r.profundidade))}}'>${{r.profundidade}} · ${{r.rotulo}}</td>
+    <td>${{r.score}}</td><td>${{r.confianca}}</td></tr>`).join('');
+  const cad = _prov.cadeia || [];
+  document.getElementById('prov_cadeia_box').innerHTML = cad.length ? `
+    <div class="note">Cadeia de <b>${{_prov.empresa}} · ${{_prov.periodo}}</b> — cada item e de onde veio.
+    Escolha uma empresa e um trimestre acima para ver a trilha.</div>
+    <div class="twrap"><table class="paged" data-per="25">
+    <tr><th>Item</th><th>Valor</th><th>Unidade</th><th>Profundidade</th><th>Cadeia</th></tr>
+    ${{cad.map(i => `<tr><td>${{i.item}}</td><td>${{i.valor}}</td><td>${{i.moeda}}</td>
+      <td style='color:${{corProv(i.profundidade)}}'>${{i.profundidade}} · ${{i.rotulo}}</td>
+      <td>${{i.cadeia}}</td></tr>`).join('')}}</table></div>`
+    : `<div class="note">A trilha de um trimestre aparece aqui ao escolher empresa +
+    período acima (ex.: PETROBRAS 2026Q2).</div>`;
+}}
 // COR da classificacao do DQS. Funcao de topo (e nao arrow dentro de qualRender)
 // porque qualHistoricoRender tambem usa: quando o historico virou funcao propria,
 // a arrow local deixou de existir no escopo dela e a aba quebrava com
@@ -1494,8 +1636,31 @@ async function projCarregar() {{
   const rub = document.getElementById('pr_rub').value;
   try {{
     const j = await (await fetch('/api/projecao?empresa=' + emp + '&rubrica=' + rub +
-      '&cobertura=1')).json();
+      '&cobertura=1&cenarios=1&avaliar=1')).json();
     _prCen = (j.cenarios || {{}})[emp + '|' + rub] || null;
+    // M3.13/M10.8: cenarios Brent/FX
+    const cm = j.cenarios_macro || {{}};
+    const cen = cm.cenarios || [];
+    document.getElementById('cen_kpis').innerHTML = [
+      ['β Brent', (cm.sensibilidade || {{}}).beta_brent], ['β PTAX', (cm.sensibilidade || {{}}).beta_ptax],
+      ['cov(ΔBrent,ΔPTAX)', (cm.sensibilidade || {{}}).cov_brent_ptax], ['Pares', (cm.sensibilidade || {{}}).pares]
+    ].map(([t, v]) => `<div class='kpi'><div class='kpi-t'>${{t}}</div><div class='kpi-v' style='font-size:15px'>${{v ?? '—'}}</div></div>`).join('');
+    document.getElementById('cen_tbody').innerHTML = cen.map(c => `<tr><td>${{c.periodo}}</td><td>${{c.metodo}}</td>
+      <td>${{c.pessimista.valor}} [${{c.pessimista.inf}} … ${{c.pessimista.sup}}]</td>
+      <td>${{c.base.valor}} [${{c.base.inf}} … ${{c.base.sup}}]</td>
+      <td>${{c.otimista.valor}} [${{c.otimista.inf}} … ${{c.otimista.sup}}]</td>
+      <td>${{c.spread}}</td></tr>`).join('') || "<tr><td colspan='6'>sem cenário</td></tr>";
+    // M3.14/M10.9: erro real + rolling-origin
+    const av = j.avaliacao || {{}};
+    const er = av.erro_real || {{}};
+    const kpisAv = [
+      ['Projeções comparadas', er.total], ['Cobertura IC95', er.cobertura_geral],
+      ['MAE real', er.mae_geral], ['MAPE real', er.mape_geral]
+    ].map(([t, v]) => `<div class='kpi'><div class='kpi-t'>${{t}}</div><div class='kpi-v' style='font-size:15px'>${{v ?? '—'}}</div></div>`).join('');
+    document.getElementById('av_kpis').innerHTML = kpisAv;
+    document.getElementById('av_tbody').innerHTML = Object.entries(av.rolling_origin?.geral || {{}}).map(([m, g]) =>
+      `<tr><td>${{m}}</td><td>${{g.mae}}</td><td>${{g.rmse}}</td><td>${{g.mape}}%</td><td>${{g.n}}</td></tr>`).join('')
+      || "<tr><td colspan='5'>sem histórico suficiente</td></tr>";
     const kpis = [['Projecções', j.total], ['Séries', j.series], ['Empresas', j.empresas],
       ['Confiança média', j.confianca_media], ['Baixa confiança (&lt;0,5)', j.baixa_confianca],
       ['Períodos projetados', (j.periodos_projetados || []).join(' · ') || '—']];

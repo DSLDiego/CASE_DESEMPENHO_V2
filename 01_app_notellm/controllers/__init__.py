@@ -20,6 +20,31 @@ class ForecastController:
         from workers.forecast_run import run_forecast
         return run_forecast(self.db, horizonte=horizonte)
 
+    def avaliar(self, empresa: str | None = None, rubrica: str | None = None) -> dict:
+        """Avaliação honesta do que o pipeline projeta (M3.14/M10.9).
+
+        `erro_real`: cada projeção gravada cujo período projetado virou fato —
+        compara previsão x publicado, e mede a cobertura do IC95.
+        `rolling_origin`: MAE/RMSE/MAPE de cada método em origens ao longo da
+        história, na mesma base — a escolha de método deixa de ser fotografia
+        de um trimestre.
+        """
+        from workers.rolling_eval import erro_real_das_projecoes, rolling_method_eval
+        return {"erro_real": erro_real_das_projecoes(self.db),
+                "rolling_origin": rolling_method_eval(self.db, empresa, rubrica)}
+
+    def cenarios_macro(self, empresa: str = "PETROBRAS", rubrica: str = "RECEITA_LIQUIDA",
+                       horizonte: int = 3) -> dict:
+        """Cenários Brent/FX + intervalo sensível à covariância dos fatores (M10.8).
+
+        Não substitui a projeção base: ele aplica a premissa de preço do Brent e
+        de câmbio ao valor base (β estimado nos crescimentos históricos) e abre
+        o intervalo quando essas premissas têm risco correlacionado.
+        """
+        from workers.macro import carregar_base_macro, cenarios
+        carregar_base_macro(self.db)
+        return cenarios(self.db, empresa, rubrica, horizonte=horizonte)
+
     def projecoes(self, min_confianca: float = 0.0) -> list[dict]:
         from models.repositories import ProjectionRepository
         return ProjectionRepository(self.db).listar(min_confianca=min_confianca)
@@ -212,6 +237,41 @@ class SourceController:
         """KPIs de gestao da auditoria (severidade, aging, triagem)."""
         return QualityRepository(self.db).resumo_auditoria()
 
+    def aprovar_lote(self, ids: list[int], status: str = "PROCESSADO",
+                     apenas_pendentes: bool = True) -> dict:
+        """Aprovação em lote de fontes PENDENTE (M1.15).
+
+        `apenas_pendentes=True` é o padrão porque "aprovar 500 linhas" sobre um
+        catálogo onde 26 estão PENDENTE mudaria o estado de 474 sem querer. O que
+        muda é o status, não o dado: o ETL decide se o documento tem número.
+        """
+        VALIDOS = ("PENDENTE", "CATALOGADO", "PROCESSADO", "ERRO", "NAO_PROCESSADO",
+                   "NAO_BAIXADO", "SEM_PARSER")
+        if status not in VALIDOS:
+            raise ValueError(f"status invalido: {status}")
+        alvo = sorted({int(i) for i in ids})
+        if not alvo:
+            raise ValueError("nenhuma fonte selecionada")
+        mudados, ignorados = [], []
+        for id_fonte in alvo:
+            atual = self.repo.obter(id_fonte)
+            if atual is None:
+                ignorados.append({"id_fonte": id_fonte, "motivo": "inexistente"})
+                continue
+            if apenas_pendentes and atual["status_processamento"] != "PENDENTE":
+                ignorados.append({"id_fonte": id_fonte,
+                                  "motivo": f"status atual {atual['status_processamento']}"})
+                continue
+            if self.repo.atualizar(id_fonte, status_processamento=status):
+                mudados.append(id_fonte)
+            else:
+                ignorados.append({"id_fonte": id_fonte, "motivo": "nao atualizou"})
+        return {"solicitados": len(alvo), "aprovados": len(mudados), "ids": mudados,
+                "ignorados": ignorados, "status": status}
+
+    def fontes_pendentes(self) -> list[dict]:
+        return [f for f in self.repo.listar() if f["status_processamento"] == "PENDENTE"]
+
     def relatorio_auditoria(self, de: str | None = None, ate: str | None = None,
                             destino: str | None = None) -> dict:
         """Relatorio de auditoria em PDF com as decisoes do periodo (M2.10)."""
@@ -219,6 +279,39 @@ class SourceController:
         caminho = gerar_relatorio(Path(destino) if destino else None, de=de, ate=ate,
                                   db=self.db)
         return {"arquivo": caminho, "de": de, "ate": ate}
+
+    def limiar_regra(self, codigo: str, limiar: float | None = None,
+                     empresa: str | None = None, rubrica: str | None = None,
+                     ativo: int = 1) -> dict:
+        """Calibra o limiar de uma regra só para uma empresa e/ou rubrica (M7.22)."""
+        from workers.quality_score import REGRAS, gravar_limiar, limiar_efetivo, listar_limiares
+        if codigo not in REGRAS:
+            raise ValueError(f"regra inexistente: {codigo}")
+        if limiar is not None:
+            gravar_limiar(self.db, codigo, limiar, empresa, rubrica, ativo)
+        return {"codigo": codigo, "empresa": empresa or "", "rubrica": rubrica or "",
+                "limiar_padrao": REGRAS[codigo]["limiar"],
+                "limiar_efetivo": limiar_efetivo(self.db, codigo, empresa, rubrica),
+                "excecoes": listar_limiares(self.db, codigo)}
+
+    def proveniencia(self, empresa: str | None = None, periodo: str | None = None,
+                     reanotar: bool = False) -> dict:
+        """Cadeia de origem dos fatos (M7.27): primário -> SEC -> derivada.
+
+        `reanotar=True` reclassifica a base sem reprocessar documento nenhum —
+        a origem da fonte pode ser corrigida depois do download e o fato não
+        precisa ser refeito para o rótulo ficar certo.
+        """
+        from workers.provenance import anotar_fatos, cadeia_de, por_rubrica, resumo_cadeia
+        resultado: dict = {"resumo": resumo_cadeia(self.db), "rubricas": por_rubrica(self.db)}
+        if empresa and periodo:
+            resultado["cadeia"] = cadeia_de(self.db, empresa, periodo)
+            resultado["empresa"], resultado["periodo"] = empresa, periodo
+        if reanotar:
+            resultado["anotado"] = anotar_fatos(self.db)
+            resultado["resumo"] = resumo_cadeia(self.db)
+            resultado["rubricas"] = por_rubrica(self.db)
+        return resultado
 
     def historico_qualidade(self, empresa: str | None = None) -> dict:
         """Scorecard historico: DQS ao longo do tempo (M7.23)."""

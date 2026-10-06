@@ -16,9 +16,10 @@ echo 8. Ancoras anuais de efetivo
 echo 9. Coleta web RI + Investidor10 (descoberta + snapshot mercado)
 echo 10. Exportar slide deck em PDF
 echo 11. Enviar benchmark por e-mail (HTML + PNG + CSV)
-echo 12. Sair
+echo 12. Verificar/instalar ambiente (Python + bibliotecas)
+echo 13. Sair
 echo =======================================================================
-set /p op="Escolha uma opcao (1-12): "
+set /p op="Escolha uma opcao (1-13): "
 if "%op%"=="1" ( python "%~dp0app_main.py" full & pause & goto menu )
 if "%op%"=="2" ( python "%~dp0app_main.py" web --periodo 2026Q2 --serve & pause & goto menu )
 if "%op%"=="3" ( python "%~dp0app_main.py" etl --novos & pause & goto menu )
@@ -30,5 +31,21 @@ if "%op%"=="8" ( python "%~dp0app_main.py" efetivo & pause & goto menu )
 if "%op%"=="9" ( python "%~dp0app_main.py" coleta --site all --mercado & pause & goto menu )
 if "%op%"=="10" ( python "%~dp0app_main.py" pdf --periodo 2026Q2 & pause & goto menu )
 if "%op%"=="11" ( set /p dest="E-mail do destinatario: " & python "%~dp0app_main.py" email --para %dest% --abrir & pause & goto menu )
-if "%op%"=="12" exit
+if "%op%"=="12" ( call :checkenv & pause & goto menu )
+if "%op%"=="13" exit
 goto menu
+
+:checkenv
+echo Verificando ambiente (Python + bibliotecas)...
+python --version > nul 2>&1
+if errorlevel 1 (
+  echo Python nao encontrado. Tentando instalar via winget...
+  winget install --id Python.Python.3.12 -e --silent > nul 2>&1
+  python --version > nul 2>&1
+  if errorlevel 1 (
+    echo Nao foi possivel instalar automaticamente. Baixe em https://www.python.org/downloads/
+    goto :eof
+  )
+)
+python "%~dp0check_env.py" --instalar
+goto :eof

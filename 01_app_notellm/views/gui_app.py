@@ -64,9 +64,9 @@ class BenchmarkGUI:
         from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDateEdit,
                                        QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
                                        QHeaderView, QLabel, QLineEdit, QMainWindow,
-                                       QPushButton, QScrollArea, QSplitter, QTabWidget,
-                                       QTableWidget, QTableWidgetItem, QToolBox, QVBoxLayout,
-                                       QWidget)
+                                       QMessageBox, QPushButton, QScrollArea, QSplitter,
+                                       QTabWidget, QTableWidget, QTableWidgetItem, QToolBox,
+                                       QVBoxLayout, QWidget)
         import pyqtgraph as pg
         from controllers import AnalyticsController, SourceController
 
@@ -148,7 +148,6 @@ class BenchmarkGUI:
 
         def _polir_tabela(tbl, alternating: bool = True) -> None:
             """UX de tabela: somente leitura, selecao por linha, ordenacao, zebra."""
-            from PySide6.QtCore import Qt as _Qt
             from PySide6.QtWidgets import QAbstractItemView
             try:
                 tbl.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -315,7 +314,6 @@ class BenchmarkGUI:
                     widget.addItem(linha)
                 if not dados:
                     continue
-                x = list(range(len(dados)))
                 vals = [v for _, v in dados]
                 # X explicito: com auto-range desligado o padrao (-0.5..0.5) fazia
                 # as barras ocuparem a celula inteira em graficos de 2-3 empresas
@@ -452,26 +450,129 @@ class BenchmarkGUI:
         def _montar_tabela() -> None:
             dados = sources.catalogo()
             tabela.setRowCount(min(len(dados), 300))
-            tabela.setColumnCount(8)
-            tabela.setHorizontalHeaderLabels(["ID", "Empresa", "Documento", "Ext", "Pasta",
-                                              "API JSON", "Download", "Status"])
+            # coluna 0 = seleção (M1.15): o lote precisa de uma marca por linha
+            tabela.setColumnCount(9)
+            tabela.setHorizontalHeaderLabels(["sel.", "ID", "Empresa", "Documento", "Ext",
+                                              "Pasta", "API JSON", "Download", "Status"])
             for i, fnt in enumerate(dados[:300]):
-                celulas = (fnt.get("id_fonte"), fnt.get("nome_empresa"), fnt.get("nome_documento"),
+                item_id = QTableWidgetItem(str(fnt.get("id_fonte") or ""))
+                item_id.setData(Qt.UserRole, int(fnt["id_fonte"]))
+                item_id.setFlags(item_id.flags() & ~Qt.ItemIsEditable)
+                tabela.setItem(i, 1, item_id)
+                chk = QTableWidgetItem("")
+                chk.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                chk.setCheckState(Qt.Unchecked)
+                tabela.setItem(i, 0, chk)
+                celulas = (fnt.get("nome_empresa"), fnt.get("nome_documento"),
                            fnt.get("extensao"), fnt.get("pasta_sistema"), fnt.get("api_json"),
                            fnt.get("data_download"), fnt.get("status_processamento"))
                 for j, valor in enumerate(celulas):
                     item = QTableWidgetItem(str(valor or ""))
-                    if j == 0:
-                        item.setData(Qt.UserRole, int(fnt["id_fonte"]))
-                    tabela.setItem(i, j, item)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    tabela.setItem(i, j + 2, item)
+                # o status viaja na coluna para o filtro do lote saber o que é PENDENTE
+                tabela.item(i, 8).setData(Qt.UserRole + 1,
+                                          str(fnt.get("status_processamento") or ""))
             tabela.horizontalHeader().setStretchLastSection(True)
 
         def recarregar() -> None:
             _montar_tabela()
             rotulo_fontes.setText(f"Fontes catalogadas: {len(sources.catalogo())}")
 
+        # --- M1.15: aprovação em lote das fontes PENDENTE ---
+        def _selecionadas() -> list[int]:
+            """IDs marcados na página visível.
+
+            Só a página visível de propósito: a tabela mostra 300 linhas e a
+            paginação troca o conteúdo, então marcar "tudo" exigiria dizer quais
+            páginas — e é melhor pedir 26 IDs do que aprovar 500 por engano.
+            """
+            ids = []
+            for r in range(tabela.rowCount()):
+                item = tabela.item(r, 0)
+                if item is not None and item.checkState() == Qt.Checked:
+                    id_item = tabela.item(r, 1)
+                    if id_item is not None:
+                        ids.append(int(id_item.data(Qt.UserRole)))
+            return ids
+
+        def _marcar_pendentes() -> None:
+            """Marca as PENDENTE da página visível.
+
+            Com "só PENDENTES" desmarcado, marca todas — para o operador que
+            realmente quiser reprocessar um lote inteiro.
+            """
+            apenas = so_pend.isChecked()
+            n = 0
+            for r in range(tabela.rowCount()):
+                st = tabela.item(r, 8)
+                item = tabela.item(r, 0)
+                if st is None or item is None:
+                    continue
+                alvo = str(st.data(Qt.UserRole + 1) or "") == "PENDENTE"
+                if not apenas:
+                    alvo = True
+                item.setCheckState(Qt.Checked if alvo else Qt.Unchecked)
+                n += bool(alvo)
+            msg_lote.setText(f"{n} linha(s) marcada(s) na página visível"
+                             + (" (só PENDENTE)" if apenas else ""))
+
+        def _aprovar_selecionadas() -> None:
+            ids = _selecionadas()
+            if not ids:
+                msg_lote.setText("marque ao menos uma fonte (ou use 'marcar PENDENTES')")
+                return
+            pend = sum(1 for r in range(tabela.rowCount())
+                       if tabela.item(r, 0) is not None
+                       and tabela.item(r, 0).checkState() == Qt.Checked
+                       and str(tabela.item(r, 8).data(Qt.UserRole + 1)) == "PENDENTE")
+            extra = len(ids) - pend
+            pergunta = f"Aprovar {len(ids)} fonte(s) como PROCESSADO?"
+            if extra:
+                pergunta += (f"\n\n{extra} delas não estão em PENDENTE e serão "
+                             "ignoradas. O backend não mexe nelas.")
+            pergunta += "\n\nIsso muda o catálogo, não os números."
+            if QMessageBox.question(self, "Aprovar em lote", pergunta,
+                                    QMessageBox.Yes | QMessageBox.No) != QMessageBox.Yes:
+                return
+            try:
+                r = sources.aprovar_lote(ids, "PROCESSADO", apenas_pendentes=True)
+            except ValueError as exc:
+                msg_lote.setText(str(exc))
+                return
+            ig = len(r["ignorados"])
+            msg_lote.setText(f"aprovadas {r['aprovados']} de {r['solicitados']}"
+                             + (f" ({ig} ignoradas)" if ig else ""))
+            recarregar()
+
+        barra_lote = QHBoxLayout()
+        # label separado do msg do CRUD: um widget só pode estar num layout, e
+        # mexer no lote não pode apagar a mensagem do formulário
+        msg_lote = QLabel("lote: nada selecionado")
+        so_pend = QCheckBox("só PENDENTES")
+        so_pend.setChecked(True)   # o botão diz "marcar PENDENTES": o padrão
+        so_pend.setToolTip("marcado (padrão), 'marcar PENDENTES' limita a seleção às "
+                           "linhas em PENDENTE da página visível; desmarcado, marca tudo")
+        btn_marcar = QPushButton("☑ marcar PENDENTES")
+        btn_marcar.clicked.connect(_marcar_pendentes)
+        btn_aprovar = QPushButton("✅ aprovar selecionadas")
+        btn_aprovar.setToolTip("muda o status para PROCESSADO; não altera os dados")
+        btn_aprovar.clicked.connect(_aprovar_selecionadas)
+        btn_limpar = QPushButton("☐ desmarcar")
+        btn_limpar.clicked.connect(lambda: [tabela.item(r, 0).setCheckState(Qt.Unchecked)
+                                            for r in range(tabela.rowCount())
+                                            if tabela.item(r, 0) is not None])
+        so_pend.toggled.connect(lambda _v: _marcar_pendentes())
+        barra_lote.addWidget(so_pend)
+        barra_lote.addWidget(btn_marcar)
+        barra_lote.addWidget(btn_aprovar)
+        barra_lote.addWidget(btn_limpar)
+        barra_lote.addWidget(msg_lote)
+        barra_lote.addStretch()
+        tl.addLayout(barra_lote)
+
         tabela.cellDoubleClicked.connect(
-            lambda r, _c: _carregar(tabela.item(r, 0).data(Qt.UserRole)))
+            lambda r, _c: _carregar(tabela.item(r, 1).data(Qt.UserRole)))
         _montar_tabela()
         tl.addWidget(rotulo_fontes)
         tl.addWidget(tabela)
@@ -725,7 +826,6 @@ class BenchmarkGUI:
                     tab_cob.setItem(i, j, QTableWidgetItem(str(v)))
 
         def _recalcular_proj():
-            from controllers import ForecastController
             from workers.forecast_run import run_forecast
             try:
                 run_forecast(horizonte=int(cb_pr_h.currentText()))
@@ -857,6 +957,44 @@ class BenchmarkGUI:
         ql.addWidget(QLabel("Fila de análise priorizada (P1 urgente · P2 revisar · P3 completar)"))
         ql.addWidget(tab_fila_q)
         _paginar(ql, tab_fila_q)
+
+        # --- M7.27: proveniência do dado (de onde veio cada número) ---
+        from workers.provenance import resumo_cadeia as _resumo_prov, por_rubrica as _rubrica_prov
+        _pr = _resumo_prov()
+        ql.addWidget(QLabel(
+            "Proveniência do dado — de onde veio cada número: primário (documento da "
+            "própria empresa, 100) · secundário (cópia regulatória no SEC, 70) · derivado "
+            "(calculado por nós, 40). Serve para saber quando a base é sólida."))
+        _prov_kpis = QHBoxLayout()
+        _por_nivel = {n["profundidade"]: n for n in _pr["por_nivel"]}
+        for _rot, _val, _cor in (
+                ("Score médio", _pr["score_medio"], "#0f172a"),
+                ("Fatos", _pr["total"], "#0f172a"),
+                ("Primário", _por_nivel.get(1, {}).get("fatos", 0), "#046c4e"),
+                ("Secundário", _por_nivel.get(2, {}).get("fatos", 0), "#b45309"),
+                ("Derivado", _por_nivel.get(3, {}).get("fatos", 0), "#7c3aed")):
+            _c = QGroupBox(_rot)
+            _l = QVBoxLayout(_c)
+            _lb = QLabel(str(_val))
+            _lb.setStyleSheet(f"font-size:15px;font-weight:800;color:{_cor}")
+            _l.addWidget(_lb)
+            _prov_kpis.addWidget(_c)
+        ql.addLayout(_prov_kpis)
+        _tab_prov = QTableWidget()
+        _tab_prov.setColumnCount(5)
+        _tab_prov.setHorizontalHeaderLabels(["Rubrica", "Fatos", "Profundidade",
+                                             "Score", "Confiança"])
+        _rubrs = _rubrica_prov()[:30]
+        _tab_prov.setRowCount(len(_rubrs))
+        for _i, _r in enumerate(_rubrs):
+            for _j, _v in enumerate([_r["rubrica"], _r["fatos"],
+                                     f"{_r['profundidade']} · {_r['rotulo']}",
+                                     _r["score"], _r["confianca"]]):
+                _tab_prov.setItem(_i, _j, QTableWidgetItem(str(_v)))
+        _polir_tabela(_tab_prov)
+        ql.addWidget(QLabel("Rubrica mais fraca primeiro (score menor = cadeia mais longa)"))
+        ql.addWidget(_tab_prov)
+        _paginar(ql, _tab_prov)
         tabs.addTab(tab8, "Qualidade")
         tab7 = QWidget()          # --- Gestão e Controle do ETL ---
         et = QVBoxLayout(tab7)
@@ -1045,7 +1183,7 @@ class BenchmarkGUI:
         work_l.addWidget(tabs)
 
         # --- UX: foco em tela cheia (reparenta o plot e devolve ao fechar) ---
-        from PySide6.QtWidgets import QDialog, QInputDialog
+        from PySide6.QtWidgets import QDialog
 
         def _focar(w) -> None:
             lay_orig = w.parentWidget().layout()
@@ -1081,6 +1219,8 @@ class BenchmarkGUI:
         self._focar = _focar
 
         def _email() -> None:
+            from pathlib import Path
+
             from PySide6.QtWidgets import QInputDialog
             dest, ok = QInputDialog.getText(win, "Enviar benchmark por e-mail", "Destinatário:")
             if not ok or not dest.strip():

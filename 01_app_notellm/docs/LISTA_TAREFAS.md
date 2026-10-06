@@ -1,7 +1,7 @@
 # Lista de Tarefas — Melhorias M1 a M6
 
 Status: ✅ implementado e testado · 🔄 em andamento · ⬜ planejado
-Validação: `python -m pytest tests/ -q` (63 testes) · harness Node do painel (35 asserções)
+Validação: `python -m pytest tests/ -q` (151 testes: 149 passam, 2 skip) · harness Node do painel (35 asserções)
 
 ## M1 — Aba Fontes: Gestão e Controle de Fontes ✅
 
@@ -20,8 +20,8 @@ Validação: `python -m pytest tests/ -q` (63 testes) · harness Node do painel 
 | M1.11 | Export do catálogo em JSON + CSV + DAX para Power BI | `data/sources_catalog.*`, `docs/MEDIDAS_DAX.md` | ✅ |
 | M1.12 | Detecção de API/serviço JSON público por fonte (SEC companyfacts, Investidor10) | `workers/api_scan.py` | ✅ |
 | M1.13 | Fila de download com deduplicação por SHA-256 e prevention de re-download | `workers/ri_collector.py` | ✅ |
-| M1.14 | Alerta de URL quebrada (HTTP 404/403) com re-tentativa automática | backlog | ⬜ |
-| M1.15 | Aprovação em lote de fontes com status PENDENTE (seleção múltipla + botão) | backlog | ⬜ |
+| M1.14 | Alerta de URL quebrada (HTTP 404/403) com re-tentativa automática | `workers/api_scan.checar_url` + `fontes urls` | ✅ |
+| M1.15 | Aprovação em lote de fontes com status PENDENTE (seleção múltipla + botão) | `controllers.SourceController.aprovar_lote`, `POST /api/fontes/lote`, `fontes aprovar`, web + GUI | ✅ |
 
 ## M2 — Aba Auditoria: Gestão e Controle da Auditoria ✅
 
@@ -46,6 +46,14 @@ fila no encerramento. Gerado por `app_main.py auditoria relatorio --de --ate`,
 pelo botão da aba Auditoria (web e GUI) ou por `GET /api/auditoria?pdf=1`.
 Comentário com `<`/`&` é escapado — quebraria o XML do PDF.
 
+**Método por rubrica (M10.7, dados reais):** dívida líquida e CAPEX são **estoque** (saldo acumulado) — Sazonal-Naive pressupõe que o trimestre se repete ano a ano, o que descreve fluxo e não saldo. Antes o sazonal disputava com todo mundo e às vezes vencia por acaso, misturando dois regimes numa série só. Agora o backtesting só considera os métodos do perfil: fluxo (receita, EBITDA, lucro, FCO) disputa os três; estoque disputa nível e tendência. Na base real: 12 séries de estoque, nenhuma com método sazonal.
+
+**Limiar por empresa/rubrica (M7.22):** nova tabela `tb_regra_limiar` guarda a exceção de limiar por empresa e/ou rubrica; a resolução vai do mais específico ao global (empresa+rubrica → rubrica → empresa → padrão do código). Serve porque CAPEX tem outra variabilidade entre empresas que receita, e o outlier cross-sectional da Petrobras era ruído de extração. Exemplo: `python app_main.py qualidade limiar --codigo DRIFT_ZSCORE --limiar 3.0 --rubrica RECEITA_LIQUIDA`. O alerta sai marcado como `calibrado` quando o limiar em vigor não é o global.
+
+**URL quebrada x bloqueio (M1.14):** `fontes urls` varre o catálogo e **separa link morto de bloqueio de automação** — 404/410 é URL removida, 403/401/429 é bloqueio de robô, e a recomendação é outra. 403 não é retentado de propósito: três requisições seguidas só transformam um bloqueio temporário em permanente (é o caso de Chevron e BP no acervo).
+
+**Aprovação em lote (M1.15):** marcar 300 linhas uma a uma era o único jeito de aprovar. Agora a tabela de Fontes tem coluna de seleção (web com checkbox, GUI com célula marcável), botão **marcar PENDENTES** e **aprovar selecionadas**; também existe `fontes aprovar --ids 12,13` e `POST /api/fontes/lote`. O padrão é **só mexer no que está PENDENTE** — "aprovar tudo" sobre um catálogo com 26 pendentes entre 500 linhas mudaria o estado de 474 sem o operador pedir; o que é recusado volta na resposta com o motivo (`status atual PROCESSADO`), e só muda de status com pedido explícito (`--incluir-nao-pendentes` / `apenas_pendentes=false`). O lote muda o **catálogo**, não os números: quem decide se o documento tem dado continuam sendo os parsers do ETL.
+
 **Correção em M2.6 (taxa de resolução):** o denominador era `len(decisoes)`, que é
 o número de **tipos** distintos (`GROUP BY decisao`). Com ACEITO=2 e REABERTO=2 dava
 2/2 = **100%** enquanto **875** itens seguiam abertos. Agora divide pelo total de
@@ -67,9 +75,20 @@ decisões: a base real mostra **50%** (2 de 4). Regressão coberta por teste.
 | M3.10 | Aba Projeções no web: KPIs, cenário real×projetado com banda de IC, tabela completa | `views/web_app.py` | ✅ |
 | M3.11 | Aba Projeções na GUI (pyqtgraph com FillBetweenItem) | `views/gui_app.py` | ✅ |
 | M2.12 | API `GET/POST /api/projecao` + CLI `projecao --horizonte 3` | `views/web_server.py`, `app_main.py` | ✅ |
-| M3.13 | Cenários com premissa de preço do Brent / taxa de câmbio | backlog | ⬜ |
-| M3.14 | Comparar método x MSE em janela maior (rolling-origin) | backlog | ⬜ |
-| M3.15 | Publicar intervalo em `.eml` junto do gráfico | backlog | ⬜ |
+| M3.13 | Cenários com premissa de preço do Brent / taxa de câmbio | `workers/macro.py::cenarios`, CLI `projecao --cenarios`, web | ✅ |
+| M3.14 | Comparar método x MSE em janela maior (rolling-origin) | `workers/rolling_eval.py`, CLI `projecao --avaliar` | ✅ |
+| M3.15 | Publicar intervalo em `.eml` junto do gráfico | `workers/mailer.py` (texto + CSV + barra de erro `error_y` no HTML) | ✅ |
+
+**Intervalo no e-mail (M3.15):** o `.eml` publicava o número projetado sem o
+intervalo — quem recebia não tinha como saber o quanto ele pode variar, e é o
+intervalo que diz se ele serve para decidir. Agora o IC 95% vai nos três lugares:
+no **texto** (com método e confiança), no **CSV** (colunas `intervalo_inf` /
+`intervalo_sup`) e no **HTML**, como barra de erro `error_y` sobre o gráfico real
+com `customdata` no tooltip. O bloco repete "projeção não é fato publicado" para
+que a leitura fora do sistema não trate o número como número da Petrobras. Vale
+registrar o bug que isso expôs: a vírgula da lista de traces ficou fora do array e
+o HTML do e-mail — que é o entregável — abria com erro de sintaxe; agora há teste
+que roda `node --check` no JS dos dois caminhos (com e sem projeção).
 
 ## M4 — UX dos gráficos (sobreposição/vazamento) ✅
 
@@ -131,12 +150,12 @@ decisões: a base real mostra **50%** (2 de 4). Regressão coberta por teste.
 | M7.19 | Aba **Qualidade** na GUI (KPIs, pyqtgraph, scorecards, fila paginada) | `views/gui_app.py` | ✅ |
 | M7.20 | CLI `qualidade rodar\|resumo\|fila\|regras\|historico` + API `/api/qualidade` | `app_main.py`, `views/web_server.py` | ✅ |
 | M7.21 | Alertas por tipo e status da fila de revisão no painel | `painel_qualidade()` | ✅ |
-| M7.22 | Threshold configurável por empresa/indicador (não só global) | backlog | ⬜ |
+| M7.22 | Threshold configurável por empresa/indicador (não só global) | `tb_regra_limiar` + `qualidade limiar --codigo --limiar` | ✅ |
 | M7.23 | Scorecard histórico (DQS ao longo do tempo) para ver a evolução da qualidade | `historico_scorecard()` + `tb_qualidade_historico` | ✅ |
 | M7.24 | Regra de outlier **cross-sectional** (z-score vs. pares do mesmo trimestre) | `detectar_cross_sectional` em `workers/quality_score.py` | ✅ |
 | M7.25 | Alerta automático no e-mail/slack quando entra um P1 | `mailer.alertar_p1` + `email --alerta` | ✅ |
 | M7.26 | Contrato de dados (schema check: tipos, nulos, domínios, sinal) por execução | `workers/data_contract.py` | ✅ |
-| M7.27 | Score de proveniência (profundidade da cadeia: RI → SEC → derivada) | backlog | ⬜ |
+| M7.27 | Score de proveniência (profundidade da cadeia: RI → SEC → derivada) | `workers/provenance.py`, CLI `qualidade proveniencia`, web + GUI | ✅ |
 
 **Leitura atual da base (dados reais):** DQS médio **75,5** em 67 scorecards —
 Completude 40,6 · Plausibilidade 98,5 · Consistência 93,8 · Rastreabilidade 100 ·
@@ -174,11 +193,13 @@ depende do paralelismo (M6.6) e do cache de texto, não da troca de biblioteca.
 | M8.9 | Avaliar **FlaxPDF** (viewer multithread) como painel de conferência visual | pesquisa | ✅ |
 | M8.10 | Avaliar **Speeedy** (RSVP/ORP) e **QuickReaderPDF** (leitura biónica) para revisão de DFs | pesquisa | ✅ |
 | M8.14 | PDFOxide como **fallback** de texto quando o MuPDF falha (panic pyo3 tratado) | `page_texts_alternativo()` | ✅ |
-| M8.11 | Cache de texto por hash de PDF (evita re-parse em reprocessamento) | `workers/parse_pdf.py` | ⬜ |
+| M8.11 | Cache de texto por hash de PDF (evita re-parse em reprocessamento) | `parse_pdf.cache_ler/gravar` + `fontes cache` | ✅ |
 | M8.12 | Métrica de PDF no painel de ETL: páginas/seg por documento e tabelas detectadas | `parse_pdf.metricas()` + `n_paginas_lidas`/`n_tabelas` | ✅ |
 
 **Ganho medido do incremental (M8.6):** carga inicial 108 arquivos em **353s**;
 `etl --novos` com 1 arquivo novo em **4,3s** — e idempotente (rodar de novo processa 0).
+
+**Cache de texto (M8.11, medido):** o texto extraído do PDF é cacheado por SHA-256 em `data/cache_pdf`, com a profundidade no nome da chave. No DF da Petrobras: **0,488 s na primeira leitura e 0,029 s na segunda — 17× mais rápido, com texto idêntico**. O caso que justifica é o reprocessamento: um `etl` completo relê o acervo inteiro e o texto do arquivo não mudou. O cache nunca muda o resultado (há teste comparando com e sem), sobrevive a arquivo corrompido, respeita teto de 512 MB (sai o mais antigo) e pode ser desligado com `PETRO_CACHE_PDF=0`. `python app_main.py fontes cache` mostra o tamanho.
 
 **Métrica de leitura (M8.12, dados reais):** o parse grava por documento o tamanho
 (`n_paginas`), quanto percorreu (`n_paginas_lidas`) e quantas tabelas achou
@@ -246,8 +267,8 @@ descoberta responde *o que foi anunciado e ainda não está no acervo*.
 | M9.15 | **Glossário de indicadores**: definição, unidade, fórmula e sinal (Web + GUI) | `models/glossario.py` | ✅ |
 | M9.12 | Ler os **anexos** do arquivamento (`index.json`) e não só o documento principal | `anexos_sec()` | ✅ |
 | M9.15 | Incremental também processa o que foi **baixado e nunca processado** (fecha o ciclo) | `run_etl(only_new=True)` | ✅ |
-| M9.13 | RI com render de JS (playwright) para Chevron/BP/Petrobras | backlog | ⬜ |
-| M9.14 | Alerta automático ("3T26 publicado") no e-mail | backlog | ⬜ |
+| M9.13 | RI com render de JS (playwright) para Chevron/BP/Petrobras | `workers/jsrender.py` + CLI `fontes render`, `http-fallback` sem playwright | ✅ |
+| M9.14 | Alerta automático ("3T26 publicado") no e-mail | `workers/publicacao.py`, CLI `email --publicacao` | ✅ |
 
 **Medição real em 05/10/2026 (alvo 2026Q3):** 9 documentos SEC relevantes para a
 Petrobras e **nenhum frame `CY2026Q3`** em nenhuma das 7 empresas — ou seja, o 3T26
@@ -269,9 +290,9 @@ RIGHTS" e "IAN TYLER APPOINTED BP CHAIR".
 | M10.4 | Tabela de **cobertura** na aba Projeções (Web): rubrica × séries projetadas × fórmula, com aviso quando falta | `views/web_app.py` + `/api/projecao?cobertura=1` | ✅ |
 | M10.5 | Teste de que toda rubrica com fato tem projeção (impede voltar à lista fixa) | `tests/test_poc.py` | ✅ |
 | M10.6 | Aba Projeções na GUI mostrando a mesma cobertura | `views/gui_app.py` | ✅ |
-| M10.7 | Escolher o método por rubrica (ex.: dívida com nível, não com sazonalidade) | `workers/forecast.py` | ⬜ |
-| M10.8 | Cenários com Brent/FX e intervalo que responda à covariância dos fatores | backlog | ⬜ |
-| M10.9 | Rolling-origin: recalcular o histórico de projeções e medir erro real | backlog | ⬜ |
+| M10.7 | Escolher o método por rubrica (ex.: dívida com nível, não com sazonalidade) | `forecast.perfil_rubrica` | ✅ |
+| M10.8 | Cenários com Brent/FX e intervalo que responda à covariância dos fatores | `workers/macro.py::sensibilidade` (β + 2ββΣ_cov) | ✅ |
+| M10.9 | Rolling-origin: recalcular o histórico de projeções e medir erro real | `workers/rolling_eval.py::erro_real_das_projecoes` | ✅ |
 
 **Resultado medido:** antes 7 rubricas / 34 séries / 102 projeções; agora
 **10 rubricas / 49 séries / 147 projeções**, com `sem cobertura = 0`.
@@ -289,7 +310,7 @@ RIGHTS" e "IAN TYLER APPOINTED BP CHAIR".
 | M11.5 | Glossário consolidado nos guias de execução | `docs/INSTRUCOES_EXECUCAO.md` | ✅ |
 
 ## Ordem sugerida de execução (próximos)
-1. M1.14 URL quebrada com retry · M1.15 aprovação em lote
-2. M3.13 cenários com Brent/FX · M3.14 rolling-origin · M7.22 thresholds por indicador
+1. M1.15 aprovação em lote de fontes · M3.13 cenários com Brent/FX
+2. M3.14 rolling-origin · M10.9 erro real das projeções
 3. M7.27 score de proveniência · M9.13 RI com render de JS
-4. M8.7 teste do parser por classe · M8.11 cache de texto · M8.8 benchmark do PDFOxide
+4. M3.15 intervalo no .eml · M10.8 covariância dos fatores · M8.7 parser por classe

@@ -1,11 +1,11 @@
 Subject: [PetroAnalytics] Receita liquida 2026Q2
 From: petroanalytics@exemplo.com
 To: diego@exemplo.com
-Date: Tue, 06 Oct 2026 11:22:47 -0300
+Date: Tue, 06 Oct 2026 19:56:23 -0300
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============1262606738004061083=="
+Content-Type: multipart/mixed; boundary="===============7370388083639520206=="
 
---===============1262606738004061083==
+--===============7370388083639520206==
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
@@ -18,7 +18,7 @@ Fonte: base comparativa (2 empresas). Ver painel e catálogo.
 
 Em anexo: benchmark.html (gráfico interativo), PNG e CSV.
 
---===============1262606738004061083==
+--===============7370388083639520206==
 Content-Type: text/html
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.html"
@@ -29,27 +29,28 @@ PHRpdGxlPlBldHJvQW5hbHl0aWNzIFJlY2VpdGEgbGlxdWlkYSAyMDI2UTI8L3RpdGxlPgo8c2Ny
 aXB0IHNyYz0iaHR0cHM6Ly9jZG4ucGxvdC5seS9wbG90bHktMi4zNS4yLm1pbi5qcyI+PC9zY3Jp
 cHQ+CjxzdHlsZT5ib2R5e2ZvbnQtZmFtaWx5OlNlZ29lIFVJLEFyaWFsLHNhbnMtc2VyaWY7Zm9u
 dC1zaXplOjEzcHg7Y29sb3I6IzBmMTcyYTttYXJnaW46MTZweH0KaDF7Zm9udC1zaXplOjE2cHh9
-dGFibGV7Ym9yZGVyLWNvbGxhcHNlOmNvbGxhcHNlO21hcmdpbi10b3A6MTJweH0KdGQsdGh7Ym9y
-ZGVyOjFweCBzb2xpZCAjZTJlOGYwO3BhZGRpbmc6NHB4IDhweH08L3N0eWxlPgo8aDE+UGV0cm9B
-bmFseXRpY3Mg4oCUIFJlY2VpdGEgbGlxdWlkYSBlbSAyMDI2UTIgKFVTRCBiaSk8L2gxPgo8ZGl2
-IGlkPSJnIiBzdHlsZT0id2lkdGg6NjQwcHg7aGVpZ2h0OjM0MHB4Ij48L2Rpdj4KPHRhYmxlPjx0
-cj48dGg+RW1wcmVzYTwvdGg+PHRoPlVTRCBiaTwvdGg+PC90cj48dHI+PHRkPlNIRUxMPC90ZD48
-dGQgYWxpZ249J3JpZ2h0Jz42NC4wOTwvdGQ+PC90cj48dHI+PHRkPlBFVFJPQlJBUzwvdGQ+PHRk
-IGFsaWduPSdyaWdodCc+MzMuNjE8L3RkPjwvdHI+PC90YWJsZT4KPHA+PHNtYWxsPkZvbnRlOiBi
-YXNlIGNvbXBhcmF0aXZhIFBldHJvQW5hbHl0aWNzIChSSSArIFNFQyBFREdBUikuIENTViBlbSBh
-bmV4by48L3NtYWxsPjwvcD4KPHNjcmlwdD4KdmFyIGQ9W1snU0hFTEwnLCA2NC4wOV0sIFsnUEVU
-Uk9CUkFTJywgMzMuNjFdXSwgcj1bJ1NIRUxMJywgJ1BFVFJPQlJBUyddLCBjPVsnI0U2OUYwMCcs
-ICcjMDA3MkIyJ107ClBsb3RseS5uZXdQbG90KCdnJyxbe3R5cGU6J2JhcicseDpyLHk6ZC5tYXAo
-ZnVuY3Rpb24odil7cmV0dXJuIHZbMV07fSksCiAgdGV4dDpkLm1hcChmdW5jdGlvbih2KXtyZXR1
-cm4gdlsxXS50b0ZpeGVkKDIpO30pLHRleHRwb3NpdGlvbjonb3V0c2lkZScsCiAgbWFya2VyOntj
-b2xvcjpjfSxjbGlwb25heGlzOnRydWUsCiAgaG92ZXJ0ZW1wbGF0ZTonJXt4fTogJXt5OiwuMmZ9
-IFVTRCBiaTxleHRyYT48L2V4dHJhPid9XSwKIHt0aXRsZTonUmVjZWl0YSBsaXF1aWRhIDIwMjZR
-MicsbWFyZ2luOnt0OjUwLGI6NjAsbDo1NSxyOjIwfSwKICAgeWF4aXM6e3JhbmdlbW9kZTondG96
-ZXJvJyxhdXRvbWFyZ2luOnRydWV9LHhheGlzOnthdXRvbWFyZ2luOnRydWUsdGlja2FuZ2xlOi0y
-MH0sCiAgIHRlbXBsYXRlOidwbG90bHknLHVuaWZvcm10ZXh0OnttaW5zaXplOjl9LHNob3dsZWdl
-bmQ6ZmFsc2V9LHtyZXNwb25zaXZlOnRydWV9KTsKPC9zY3JpcHQ+PC9odG1sPg==
+aDJ7Zm9udC1zaXplOjE0cHg7bWFyZ2luLXRvcDoxOHB4fQp0YWJsZXtib3JkZXItY29sbGFwc2U6
+Y29sbGFwc2U7bWFyZ2luLXRvcDoxMnB4fQp0ZCx0aHtib3JkZXI6MXB4IHNvbGlkICNlMmU4ZjA7
+cGFkZGluZzo0cHggOHB4fTwvc3R5bGU+CjxoMT5QZXRyb0FuYWx5dGljcyDigJQgUmVjZWl0YSBs
+aXF1aWRhIGVtIDIwMjZRMiAoVVNEIGJpKTwvaDE+CjxkaXYgaWQ9ImciIHN0eWxlPSJ3aWR0aDo2
+NDBweDtoZWlnaHQ6MzQwcHgiPjwvZGl2Pgo8dGFibGU+PHRyPjx0aD5FbXByZXNhPC90aD48dGg+
+VVNEIGJpPC90aD48L3RyPjx0cj48dGQ+U0hFTEw8L3RkPjx0ZCBhbGlnbj0ncmlnaHQnPjY0LjA5
+PC90ZD48L3RyPjx0cj48dGQ+UEVUUk9CUkFTPC90ZD48dGQgYWxpZ249J3JpZ2h0Jz4zMy42MTwv
+dGQ+PC90cj48L3RhYmxlPgoKPHA+PHNtYWxsPkZvbnRlOiBiYXNlIGNvbXBhcmF0aXZhIFBldHJv
+QW5hbHl0aWNzIChSSSArIFNFQyBFREdBUikuIENTViBlbSBhbmV4by48L3NtYWxsPjwvcD4KPHNj
+cmlwdD4KdmFyIGQ9W1snU0hFTEwnLCA2NC4wOV0sIFsnUEVUUk9CUkFTJywgMzMuNjFdXSwgcj1b
+J1NIRUxMJywgJ1BFVFJPQlJBUyddLCBjPVsnI0U2OUYwMCcsICcjMDA3MkIyJ107IApQbG90bHku
+bmV3UGxvdCgnZycsW3t0eXBlOidiYXInLHg6cix5OmQubWFwKGZ1bmN0aW9uKHYpe3JldHVybiB2
+WzFdO30pLAogIHRleHQ6ZC5tYXAoZnVuY3Rpb24odil7cmV0dXJuIHZbMV0udG9GaXhlZCgyKTt9
+KSx0ZXh0cG9zaXRpb246J291dHNpZGUnLAogIG1hcmtlcjp7Y29sb3I6Y30sY2xpcG9uYXhpczp0
+cnVlLAogIGhvdmVydGVtcGxhdGU6JyV7eH06ICV7eTosLjJmfSBVU0QgYmk8ZXh0cmE+cmVhbDwv
+ZXh0cmE+J31dLAoge3RpdGxlOidSZWNlaXRhIGxpcXVpZGEgMjAyNlEyJyxtYXJnaW46e3Q6NTAs
+Yjo2MCxsOjU1LHI6MjB9LAogICB5YXhpczp7cmFuZ2Vtb2RlOid0b3plcm8nLGF1dG9tYXJnaW46
+dHJ1ZX0seGF4aXM6e2F1dG9tYXJnaW46dHJ1ZSx0aWNrYW5nbGU6LTIwfSwKICAgdGVtcGxhdGU6
+J3Bsb3RseScsdW5pZm9ybXRleHQ6e21pbnNpemU6OX0sc2hvd2xlZ2VuZDpmYWxzZX0sCiAge3Jl
+c3BvbnNpdmU6dHJ1ZX0pOwo8L3NjcmlwdD48L2h0bWw+
 
---===============1262606738004061083==
+--===============7370388083639520206==
 Content-Type: image/png
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.png"
@@ -1232,7 +1233,7 @@ lmUlzIMAAQIECBAgQIAAgRwFZCJAgAABAgQIECBAgAABAqUTUCCs+JLokAABAgQIECBAgAABAgQI
 EMhfQEICBAgQIECAAAECtSvw/wEAAP//Ps0ehAAAAAZJREFUAwAi2EcR6kuRYwAAAABJRU5ErkJg
 gg==
 
---===============1262606738004061083==
+--===============7370388083639520206==
 Content-Type: text/csv
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.csv"
@@ -1242,4 +1243,4 @@ MIME-Version: 1.0
 UTI7UkVDRUlUQV9MSVFVSURBOzY0LjA5MDA7DQpQRVRST0JSQVM7MjAyNlEyO1JFQ0VJVEFfTElR
 VUlEQTszMy42MDcwOw0K
 
---===============1262606738004061083==--
+--===============7370388083639520206==--

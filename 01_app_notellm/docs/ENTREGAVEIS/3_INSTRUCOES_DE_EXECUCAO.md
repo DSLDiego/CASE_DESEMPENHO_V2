@@ -59,7 +59,10 @@ Ou pelo menu `main_vis.bat` → opção **1**.
 | `python app_main.py fontes metrica` | mede páginas/tabelas dos PDFs (M8.12) | 133 PDFs · 6,7 pág/s |
 | `python app_main.py email --para d@x.com` | e-mail com HTML + PNG + CSV | — |
 | `python app_main.py pdf --periodo 2026Q2` | slide deck executivo (13 páginas) | — |
-| `python -m pytest tests/ -q` | suíte | **117 passam, 2 skips** |
+| `python -m pytest tests/ -q` | suíte | **131 passam, 2 skips** |
+| `python app_main.py fontes urls` | URL quebrada x bloqueio de automação | — |
+| `python app_main.py fontes cache` | cache de texto de PDF (M8.11) | — |
+| `python app_main.py qualidade limiar` | limiar por empresa/rubrica (M7.22) | — |
 | `python app_main.py pdf --pptx` | apresentação em PowerPoint (23 slides) | `docs/APRESENTACAO_PETROBRAS.pptx` |
 
 ## 5. Atualização trimestral (ex.: chegada do 3T26)

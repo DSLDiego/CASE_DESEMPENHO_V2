@@ -36,7 +36,46 @@ def cmd_full(_: argparse.Namespace) -> int:
     return cmd_web(argparse.Namespace(periodo="2026Q2", serve=False))
 
 
+def _garantir_ambiente() -> int:
+    """Checa Python >= 3.10 e libs do requirements antes de rodar o ETL.
+
+    Se faltarem bibliotecas, tenta instalar; se o Python for insuficiente ou
+    a instalação falhar, ainda devolve 2 (o ETL que não roda).
+    """
+    import subprocess
+    check = Path(__file__).with_name("check_env.py")
+    try:
+        r = subprocess.run([sys.executable, str(check)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=120)
+    except Exception as exc:  # noqa: BLE001
+        print(f"aviso: não foi possível verificar o ambiente ({exc}); seguindo mesmo assim")
+        return 0
+    print(r.stdout)
+    if r.returncode == 0:
+        return 0
+    if r.returncode == 1:  # Python insuficiente: não dá para seguir
+        print("ETL cancelado: versão de Python insuficiente (exige >= 3.10).")
+        return 2
+    print("Ambiente incompleto — tentando instalar o que falta...")
+    try:
+        r2 = subprocess.run([sys.executable, str(check), "--instalar"],
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=600)
+        print(r2.stdout)
+        if r2.returncode == 0:
+            return 0
+        print("Instalação incompleta: rode `python check_env.py --instalar` manualmente.")
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print(f"falha na auto-instalação: {exc}")
+        return 2
+
+
 def cmd_etl(args: argparse.Namespace) -> int:
+    rc = _garantir_ambiente()
+    if rc == 2:
+        print("ETL cancelado: corrija o ambiente e rode de novo.")
+        return 2
     from config import PERIODS
     alvos = set(PERIODS) | set(args.extra or [])
     ctl = PipelineController()
@@ -266,6 +305,27 @@ def cmd_qualidade(args: argparse.Namespace) -> int:
             print(f"  {i['prioridade']} {i['codigo']:<24}{i['empresa']:<14}{i['periodo']:<9}"
                   f"{i['motivo'][:70]}")
         return 0
+    if args.acao == "limiar":
+        from controllers import SourceController
+        ctrl = SourceController()
+        if args.codigo and args.limiar is not None:
+            r = ctrl.limiar_regra(args.codigo, args.limiar, args.empresa, args.rubrica)
+            print(f"{r['codigo']}: limiar {r['limiar_padrao']} -> {r['limiar_efetivo']} "
+                  f"(empresa={r['empresa'] or 'todas'}, rubrica={r['rubrica'] or 'todas'})")
+            return 0
+        from workers.quality_score import listar_limiares, REGRAS
+        from models.database import DatabaseManager as _DB
+        excecoes = listar_limiares(_DB())
+        if not excecoes:
+            print("nenhuma excecao calibrada — todos os limiares sao os globais:")
+            for codigo, regra in REGRAS.items():
+                print(f"  {codigo:<26}{regra['limiar']:>6}  {regra['descricao']}")
+            return 0
+        print(f"{len(excecoes)} excecao(oes) calibrada(s) (M7.22):")
+        for e in excecoes:
+            print(f"  {e['codigo']:<26}{e['limiar']:>6}  "
+                  f"empresa={e['empresa'] or '*'} rubrica={e['rubrica'] or '*'}")
+        return 0
     if args.acao == "historico":
         from workers.quality_score import historico_scorecard
         from models.database import DatabaseManager as _DB
@@ -285,18 +345,90 @@ def cmd_qualidade(args: argparse.Namespace) -> int:
         for r in p["regras"]:
             print(f"  {r['codigo']:<26}{r['limiar']:>6}  {r['severidade']:<7}{r['descricao']}")
         return 0
-    print("acoes: rodar | resumo | fila | regras | historico")
+    if args.acao == "proveniencia":
+        from controllers import SourceController
+        r = SourceController().proveniencia(args.empresa, args.periodo,
+                                            reanotar=args.reanotar)
+        rs = r["resumo"]
+        if args.reanotar:
+            a = r["anotado"]
+            print(f"reclassificados: {a['financeiro']} financeiros, {a['operacional']} "
+                  f"operacionais ({a['primario']} primario, {a['secundario']} secundario, "
+                  f"{a['derivado']} derivados)")
+        print(f"fatos classificados: {rs['total']} | score medio de proveniencia: "
+              f"{rs['score_medio']}")
+        for n in rs["por_nivel"]:
+            print(f"  nivel {n['profundidade']} {n['rotulo']:<12} score {n['score']:<4}"
+                  f" {n['fatos']:>6} fatos ({n['pct']}%)")
+        print("\nrubricas mais fracas primeiro (score menor pesa mais na analise):")
+        for r_ in r["rubricas"][:10]:
+            print(f"  {r_['rubrica']:<26}{r_['fatos']:>5} fatos  prof {r_['profundidade']:<4}"
+                  f" score {r_['score']:<4} conf {r_['confianca']}")
+        if "cadeia" in r:
+            print(f"\ntrilha de {r['empresa']} em {r['periodo']}:")
+            for i in r["cadeia"]:
+                print(f"  {i['item']:<26}{i['valor']:>10} {i['moeda']:<5}"
+                      f" prof {str(i['profundidade']):<3} {i['rotulo']:<12} | {i['cadeia']}")
+        else:
+            print("\nDica: de a trilha completa de um trimestre com "
+                  "`--empresa PETROBRAS --periodo 2026Q2`.")
+        return 0
+    print("acoes: rodar | resumo | fila | regras | historico | proveniencia")
     return 1
 
 
 def cmd_forecast(args: argparse.Namespace) -> int:
     """Projecao estatistica (M3): grava em tb_projecao e mostra o resumo."""
+    if args.cenarios:
+        from controllers import ForecastController
+        emp = args.empresa or "PETROBRAS"
+        rub = args.rubrica or "RECEITA_LIQUIDA"
+        r = ForecastController().cenarios_macro(emp, rub, horizonte=max(1, min(args.horizonte, 3)))
+        if r.get("erro"):
+            print(f"sem cenario: {r['erro']}")
+            return 1
+        s = r["sensibilidade"]
+        print(f"== Cenarios Brent/FX — {emp}/{rub} ==")
+        print(f"sensibilidade: beta_brent={s['beta_brent']:+.3f} beta_ptax={s['beta_ptax']:+.3f} "
+              f"({s['pares']} pares; {s['motivo']}) · cov(brent,ptax)={s['cov_brent_ptax']:+.6f}")
+        for c in r["cenarios"]:
+            print(f"  {c['periodo']} [{c['metodo']}]")
+            for nome in ("pessimista", "base", "otimista"):
+                v = c[nome]
+                print(f"    {nome:<11} {v['valor']:>10}  IC95 [{v['inf']:>10} … {v['sup']:>10}]")
+            print(f"    spread ot-pes: {c['spread']}")
+        print("premissa: brent ±15%, ptax +10%/-10% sobre o ultimo trimestre")
+        print("nota: cenario nao e fato publicado — ele abre o intervalo quando as premissas variam")
+        return 0
+    if args.avaliar:
+        from controllers import ForecastController
+        r = ForecastController().avaliar(args.empresa, args.rubrica)
+        er = r["erro_real"]
+        print("== Erro real das projecoes gravadas (vs fato publicado) ==")
+        if er["total"] == 0:
+            print("  ainda nao ha projecao com fato real contraparte — rode de novo outro trimestre")
+        else:
+            print(f"  comparadas: {er['total']} · cobertura IC95: {er['cobertura_geral']} "
+                  f"· MAE {er['mae_geral']} · MAPE {er['mape_geral']}%")
+            for m, a in er["por_metodo"].items():
+                print(f"    {m:<20} n={a['n']} MAE {a['mae']} MAPE {a['mape']}% "
+                      f"cobertura {a['cobertura']}")
+        ro = r["rolling_origin"]
+        print("== Rolling-origin (MAE/RMSE por metodo, janela 4+) ==")
+        for nome, g in ro["geral"].items():
+            print(f"    {nome:<20} MAE {g['mae']} RMSE {g['rmse']} MAPE {g['mape']}% (n={g['n']})")
+        return 0
     from workers.forecast_run import run_forecast
     horizonte = max(1, min(args.horizonte, 3))
     print(f"== Projecao estatistica (horizonte {horizonte} trimestre(s)) ==")
-    print("metodo: 1 dado -> repete ±15% · 2-5 dados -> média ±2 desvios-padrão · "
-          ">=6 dados -> backtesting (Sazonal-Naive, Holt-Winters damped, "
-          "Ultima-Observacao) com IC95 pela dispersao dos erros.")
+    print("metodo: 1 dado -> repete ±15% · 2-5 dados -> media ±2 desvios-padrao · "
+          ">=6 dados -> backtesting com IC95 pela dispersao dos erros.\n"
+          "candidatos por perfil (M10.7): FLUXO (receita, EBITDA, lucro, FCO) "
+          "disputa Sazonal-Naive, Holt-Winters damped e Ultima-Observacao; "
+          "ESTOQUE (divida, CAPEX) disputa so nivel e tendencia, porque o "
+          "sazonal nao descreve saldo.\n"
+          "nota: texto em ASCII de proposito — o console do Windows e cp1252 e "
+          "sigla nao acentuada quebra a saida.")
     resumo = run_forecast(horizonte=horizonte,
                           empresas=[args.empresa] if args.empresa else None,
                           rubricas=[args.rubrica] if args.rubrica else None)
@@ -401,6 +533,79 @@ def cmd_fontes(args: argparse.Namespace) -> int:
         for f in faltantes[:20]:
             print(f"  #{f['id_fonte']} {f['caminho_local']}")
         return 0
+    if acao == "urls":
+        # M1.14: URL quebrada x bloqueio de automacao (403 nao e link morto)
+        from workers.api_scan import checar_fontes
+        from models.repositories import FonteRepository
+        r = checar_fontes(FonteRepository(), limite=args.limite if args.limite != 50 else None)
+        print(f"checadas: {r['checadas']} · quebradas/inacessiveis: {len(r['quebradas'])}")
+        for b in r["quebradas"]:
+            tipo = "BLOQUEIO" if b["bloqueio"] else "QUEBRADA"
+            print(f"  [{tipo}] #{b['id_fonte']:<5} {b['nome_empresa']:<14} {b['status']:<12}"
+                  f"{b['url'][:52]}")
+            print(f"            {b['diagnostico']}")
+        return 0 if r["ok"] else 2
+    if acao == "aprovar":
+        # M1.15: aprovacao em lote. O padrao e so mexer no que esta PENDENTE —
+        # "aprovar tudo" sobre um catalogo com 26 pendentes entre 500 linhas
+        # mudaria 474 sem o operador pedir.
+        if not args.ids:
+            print("informe --ids 12,13,14 (ou 'todas' para as PENDENTE).",
+                  file=sys.stderr)
+            return 2
+        if args.ids.strip().lower() == "todas":
+            ids = [f["id_fonte"] for f in ctrl.fontes_pendentes()]
+            if not ids:
+                print("nenhuma fonte PENDENTE.")
+                return 0
+        else:
+            try:
+                ids = [int(x) for x in args.ids.replace(";", ",").split(",") if x.strip()]
+            except ValueError:
+                print("--ids deve conter numeros inteiros (ex.: 12,13,14).", file=sys.stderr)
+                return 2
+        try:
+            r = ctrl.aprovar_lote(ids, args.novo_status.upper(),
+                                  apenas_pendentes=not args.incluir_nao_pendentes)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(f"aprovadas {r['aprovados']} de {r['solicitados']} -> {r['status']}")
+        if r["ids"]:
+            print("  #" + " #".join(str(i) for i in r["ids"][:40])
+                  + (" ..." if len(r["ids"]) > 40 else ""))
+        for ig in r["ignorados"][:20]:
+            print(f"  ignorado #{ig['id_fonte']}: {ig['motivo']}")
+        if len(r["ignorados"]) > 20:
+            print(f"  ... e mais {len(r['ignorados']) - 20} ignorada(s)")
+        return 0
+    if acao == "render":
+        # M9.13: baixa o portal de RI com render de JS. Sem JS, Chevron/BP/
+        # Petrobras/Equinor devolvem pagina em branco e o coletor concluiria
+        # (erroneamente) que nao ha documento.
+        if not args.empresa:
+            print("informe --empresa (ex.: --empresa PETROBRAS) — render por portal")
+            return 2
+        from workers.ri_collector import fetch_pagina_ri
+        import config
+        try:
+            html, modo = fetch_pagina_ri(args.empresa)
+        except (ValueError, RuntimeError) as exc:
+            print(f"erro: {exc}")
+            return 1
+        print(f"empresa: {args.empresa} · modo: {modo} · html {len(html):,} chars")
+        destino = Path(config.DATA_DIR) / f"ri_render_{args.empresa.lower()}.html"
+        destino.write_text(html, encoding="utf-8")
+        print(f"salvo em: {destino}")
+        return 0
+    if acao == "cache":
+        from workers import parse_pdf as pp
+        st = pp.cache_stats()
+        print(f"cache de PDF: {st['entradas']} entrada(s), {st['mb']} MB em {st['dir']}")
+        if args.limpar:
+            print(f"removidas: {pp.cache_limpar(tudo=True)}")
+            print(pp.cache_stats())
+        return 0
     if acao == "metrica":
         # M8.12: mede páginas/tabelas dos PDFs que ainda não têm métrica
         from workers.pdf_metrics import medir_metricas_pdf
@@ -444,6 +649,20 @@ def cmd_email(args: argparse.Namespace) -> int:
             print("sem alertas P1 abertos — nenhum e-mail gerado.")
             return 0
         print(("ENVIADO para" if args.enviar else "e-mail de alerta gerado em"), rota)
+        return 0
+    if args.publicacao:  # M9.14: alerta automático do trimestre publicado
+        from workers.publicacao import enviar as _enviar_pub, ultimo_periodo_com_dados
+        info = ultimo_periodo_com_dados()
+        if info is None:
+            print("sem fatos na base — nada a publicar.")
+            return 0
+        rota = _enviar_pub(args.para, dry_run=not args.enviar)
+        if rota is None:
+            print(f"sem comparativo para {info['periodo']}: e-mail não gerado.")
+            return 0
+        print(f"{'ENVIADO para' if args.enviar else 'e-mail de publicação gerado em'} {rota}")
+        print(f"publicado: {info['periodo']} — {info['fatos_no_periodo']} fatos de "
+              f"{info['empresas']} empresas")
         return 0
     from controllers import MailController
     try:
@@ -538,6 +757,8 @@ def main(argv: list[str] | None = None) -> int:
     email.add_argument("--para", required=True)
     email.add_argument("--alerta", action="store_true",
                        help="M7.25: envia o e-mail de ALERTAS P1 da fila de qualidade")
+    email.add_argument("--publicacao", action="store_true",
+                       help="M9.14: e-mail automático do último trimestre publicado")
     email.add_argument("--rubrica", default="RECEITA_LIQUIDA")
     email.add_argument("--periodo", default="2026Q2")
     email.add_argument("--enviar", action="store_true",
@@ -548,9 +769,11 @@ def main(argv: list[str] | None = None) -> int:
                        help="abre o .eml gerado no programa de e-mail padrão")
     fontes = sub.add_parser("fontes", help="CRUD e gestao do catalogo de fontes")
     fontes.add_argument("acao", choices=["list", "add", "edit", "del", "show", "api",
-                                        "check", "metrica"])
+                                        "check", "urls", "metrica", "cache", "aprovar", "render"])
     fontes.add_argument("--jobs", type=int, default=None,
                         help="processos para medir (metrica); padrao: automatico")
+    fontes.add_argument("--limpar", action="store_true",
+                        help="cache: limpa todas as entradas")
     fontes.add_argument("id", nargs="?", type=int, help="id_fonte (edit/del/show)")
     fontes.add_argument("--empresa", default=None)
     fontes.add_argument("--url", default=None)
@@ -562,14 +785,33 @@ def main(argv: list[str] | None = None) -> int:
     fontes.add_argument("--status", default=None)
     fontes.add_argument("--cik", default=None)
     fontes.add_argument("--limite", type=int, default=50)
+    fontes.add_argument("--ids", default=None,
+                        help="aprovar: lista de id_fonte separados por virgula "
+                             "(ou 'todas' para as PENDENTE)")
+    fontes.add_argument("--novo-status", dest="novo_status", default="PROCESSADO",
+                        help="aprovar: status de destino (padrao: PROCESSADO)")
+    fontes.add_argument("--incluir-nao-pendentes", action="store_true",
+                        help="aprovar: tambem mexe em fontes que nao estao PENDENTE")
     qa = sub.add_parser("qualidade", help="gestao e controle de qualidade (M7)")
-    qa.add_argument("acao", choices=["rodar", "resumo", "fila", "regras", "historico"])
+    qa.add_argument("acao", choices=["rodar", "resumo", "fila", "regras", "historico",
+                                        "limiar", "proveniencia"])
     qa.add_argument("--limite", type=int, default=25)
     qa.add_argument("--empresa", default=None, help="filtra o historico por empresa")
+    qa.add_argument("--rubrica", default=None, help="rubrica do limiar calibrado")
+    qa.add_argument("--codigo", default=None, help="regra a calibrar (ex.: DRIFT_ZSCORE)")
+    qa.add_argument("--limiar", type=float, default=None,
+                    help="novo limiar (com --codigo): so para essa empresa/rubrica")
+    qa.add_argument("--periodo", default=None, help="trimestre da trilha de proveniencia")
+    qa.add_argument("--reanotar", action="store_true",
+                    help="proveniencia: reclassifica a base sem reprocessar documentos")
     fc = sub.add_parser("projecao", help="projecao estatistica (M3) ate 3 trimestres")
     fc.add_argument("--horizonte", type=int, default=3)
     fc.add_argument("--empresa", default=None)
     fc.add_argument("--rubrica", default=None)
+    fc.add_argument("--cenarios", action="store_true",
+                    help="M3.13/M10.8: mostra cenarios Brent/FX com intervalo covariancia-sensivel")
+    fc.add_argument("--avaliar", action="store_true",
+                    help="M3.14/M10.9: erro real das projecoes e rolling-origin (metodo x MSE)")
     aud = sub.add_parser("auditoria", help="gestao e controle da auditoria (M2)")
     aud.add_argument("acao", choices=["resumo", "fila", "decidir", "reabrir",
                                       "decisoes", "relatorio"])

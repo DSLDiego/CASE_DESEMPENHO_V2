@@ -141,7 +141,7 @@ não um defeito de dado. Já completude 40,6 diz que falta rubrica — e aí é 
 > "Escrevi os testes para provar as decisões, e eles acharam coisas que eu não
 > veria lendo o código."
 
-**22 bugs reais**, dos quais cito quatro que mostram o tipo de raciocínio:
+**23 bugs reais**, dos quais cito cinco que mostram o tipo de raciocínio:
 
 1. **`Transcrição 1T25.pdf` era parseado.** Eu comparava nome de arquivo
    por substring; o acento quebrava o casamento. O documento narrativo entrava na
@@ -155,6 +155,10 @@ não um defeito de dado. Já completude 40,6 diz que falta rubrica — e aí é 
    denominador era o número de *tipos* de decisão (`GROUP BY decisao`), não o total
    de decisões. O KPI estava errado na direção otimista — o pior defeito possível
    num controle. Hoje são 50% (2 de 4) e o painel mostra os dois contadores.
+5. **O botão de e-mail da tela desktop não tinha o `import pathlib`** — ele chamava
+   `Path(...)` para mostrar o nome do arquivo gerado. Clicar nele dava NameError em
+   100% das vezes. Os testes montavam a GUI, mas não clicavam em nada: um botão
+   quebrado inteiro convivia com a suíte verde. → teste que **clica** no botão.
 
 E o achado mais honesto:
 
@@ -280,6 +284,6 @@ fonte seria apresentar um bug como resultado de negócio.
 | ETL completo / incremental | 135 s (3 processos) / 2–5 s |
 | Leitura de PDF (M8.12) | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
 | Apresentação | 23 slides em PPTX, cores Petrobras, gerados do banco (`app_main.py pdf --pptx`) |
-| Testes | 117 passam, 2 skips |
+| Testes | 131 passam, 2 skips |
 | Erros de carga | 0 |
 | Contrato de dados | 393 fatos verificados, 0 violações |

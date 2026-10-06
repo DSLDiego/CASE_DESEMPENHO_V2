@@ -25,7 +25,102 @@ def _num_tokens(text: str) -> list[str]:
             if NUM_TOKEN.match(t.strip("*,[]")) and "%" not in t and not FOOTNOTE.match(t.strip())]
 
 
+# ------------------------------------------------------- cache de texto (M8.11)
+# Texto extraído é a parte cara do parse (0,31 s nas 12 primeiras páginas do DF
+# da Petrobras). Reprocessar o MESMO arquivo reextrai tudo de novo, e reprocessar
+# é comum: um `etl` completo apósoload de um trimestre novo relê o acervo inteiro.
+#
+# A chave é o SHA-256 do arquivo (o mesmo que identifica a fonte), então o cache é
+# seguro por construção: arquivo com o mesmo hash tem o mesmo texto. Nome do cache
+# = hash + nº de páginas lidas, porque mudar a profundidade muda o texto.
+CACHE_DIR = Path(os.environ.get("PETRO_CACHE_DIR", "")) if os.environ.get(
+    "PETRO_CACHE_DIR") else Path(__file__).resolve().parent.parent / "data" / "cache_pdf"
+_CACHE_MB_MAX = 512          # teto: o acervo cresce, o disco não é infinito
+
+
+def _chave_cache(path: Path, max_pages: int) -> str:
+    from models.repositories import sha256_file
+    return f"{sha256_file(path)}_{max_pages}"
+
+
+def _caminho_cache(chave: str) -> Path:
+    return CACHE_DIR / f"{chave}.json"
+
+
+def cache_ler(chave: str) -> list[str] | None:
+    """Texto em cache, ou None se não houver / estiver corrompido."""
+    destino = _caminho_cache(chave)
+    if not destino.exists():
+        return None
+    try:
+        import json
+        dados = json.loads(destino.read_text(encoding="utf-8"))
+        textos = dados["textos"]
+        return [str(t) for t in textos] if isinstance(textos, list) else None
+    except Exception:
+        return None       # cache corrompido e um cache normal: reextrai
+
+
+def cache_gravar(chave: str, textos: list[str]) -> None:
+    try:
+        import json
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        _caminho_cache(chave).write_text(
+            json.dumps({"textos": textos}, ensure_ascii=False), encoding="utf-8")
+        cache_limpar()
+    except Exception:
+        return      # disco cheio/permission: o parse ja foi feito, cache e otimizacao
+
+
+def cache_limpar(tudo: bool = False) -> int:
+    """Remove entradas antigas até o teto de disco. Devolve quantas saiu.
+
+    `tudo=True` esvazia o cache (o que o `fontes cache --limpar` faz): nome
+    "usar_teto=False" seria ambíguo — se sem teto, o que a função faria?
+    """
+    if not CACHE_DIR.exists():
+        return 0
+    arquivos = sorted(CACHE_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime)
+    if tudo:
+        for p in arquivos:
+            p.unlink(missing_ok=True)
+        return len(arquivos)
+    total = sum(p.stat().st_size for p in arquivos)
+    teto = _CACHE_MB_MAX * 1024 * 1024
+    removidos = 0
+    for p in arquivos:
+        if total <= teto:
+            break
+        total -= p.stat().st_size
+        p.unlink(missing_ok=True)
+        removidos += 1
+    return removidos
+
+
+def cache_stats() -> dict:
+    arquivos = list(CACHE_DIR.glob("*.json")) if CACHE_DIR.exists() else []
+    return {"entradas": len(arquivos),
+            "mb": round(sum(p.stat().st_size for p in arquivos) / 1024 / 1024, 1),
+            "dir": str(CACHE_DIR)}
+
+
 def page_texts(path: Path, max_pages: int = 12) -> list[str]:
+    """Texto por página, com cache por hash do arquivo (M8.11).
+
+    O cache é ligado por padrão porque o caso que o justifica é o reprocessamento:
+    um `etl` completo relê o acervo inteiro e o texto não mudou. Quem quiser medir
+    o parse cru desliga com PETRO_CACHE_PDF=0.
+    """
+    usar_cache = os.environ.get("PETRO_CACHE_PDF", "1") != "0"
+    chave: str | None = None
+    if usar_cache:
+        try:
+            chave = _chave_cache(path, max_pages)
+            em_cache = cache_ler(chave)
+            if em_cache is not None:
+                return em_cache
+        except Exception:
+            chave = None      # hash falha (arquivo sumindo): segue sem cache
     try:
         import pymupdf
         out = []
@@ -34,9 +129,11 @@ def page_texts(path: Path, max_pages: int = 12) -> list[str]:
                 if i >= max_pages:
                     break
                 out.append(page.get_text("text") or "")
-        return out
     except Exception:
         return []
+    if chave:
+        cache_gravar(chave, out)
+    return out
 
 
 # Ultima metrica de leitura do PDF processado (M8.12). O ETL le este valor logo

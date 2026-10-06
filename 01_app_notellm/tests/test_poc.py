@@ -1,6 +1,7 @@
 """Smoke tests da PoC (banco, de-para, parsers, ETL, web)."""
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from config import CONTAINER_DIR  # noqa: E402
 from models.database import DatabaseManager  # noqa: E402
 from models.depara import resolve  # noqa: E402
 from models.repositories import FatoRepository, FonteRepository  # noqa: E402
+
+_GUI_DISPONIVEL = importlib.util.find_spec("PySide6") is not None
 
 
 def _scan_stub(repo=None, *args, **kwargs):
@@ -719,6 +722,384 @@ def test_migration_idempotente(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+def test_cache_pdf_reprocessa_sem_reextrair(tmp_path, monkeypatch):
+    """M8.11: o texto do PDF é cacheado por hash e o reprocessamento não reextrai.
+
+    É o caso que justifica o cache: um `etl` completo relê o acervo inteiro e o
+    texto do arquivo não mudou. Medido no DF da Petrobras: 0,375 s na primeira
+    leitura contra 0,014 s na segunda, com texto idêntico.
+    """
+    from workers import parse_pdf as pp
+    monkeypatch.setattr(pp, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setenv("PETRO_CACHE_PDF", "1")
+    real = _pdf_real("*Desempenho Financeiro Petrobras 1T25.pdf")
+    local = tmp_path / real.name
+    local.write_bytes(real.read_bytes())
+
+    primeiro = pp.page_texts(local, max_pages=6)
+    assert primeiro and sum(len(t) for t in primeiro) > 1000
+    assert pp.cache_stats()["entradas"] == 1
+    assert pp.page_texts(local, max_pages=6) == primeiro
+    # profundidade diferente = chave diferente (o texto muda junto)
+    pp.page_texts(local, max_pages=4)
+    assert pp.cache_stats()["entradas"] == 2
+
+    # cache corrompido não pode derrubar o parse: reextrai e segue
+    chave = pp._chave_cache(local, 6)
+    pp._caminho_cache(chave).write_text("{isto nao e json", encoding="utf-8")
+    assert pp.page_texts(local, max_pages=6) == primeiro
+
+    # desligar o cache dá o mesmo texto (é otimização, não mudança de resultado)
+    monkeypatch.setenv("PETRO_CACHE_PDF", "0")
+    assert pp.page_texts(local, max_pages=6) == primeiro
+
+    # e a limpeza esvazia tudo
+    assert pp.cache_limpar(tudo=True) >= 2
+    assert pp.cache_stats()["entradas"] == 0
+    assert pp.cache_limpar(tudo=True) == 0
+    DatabaseManager._instance = None
+
+
+def test_cache_pdf_usa_hash_do_arquivo(tmp_path, monkeypatch):
+    """A chave é o SHA-256: dois arquivos com conteúdo igual compartilham o texto.
+
+    Se a chave fosse o nome do caminho, o mesmo PDF com nomes diferentes (cópia,
+    download repetido) seria reextraído — que é exatamente o que o acervo já
+    demonstrava acontecer.
+    """
+    from workers import parse_pdf as pp
+    monkeypatch.setattr(pp, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setenv("PETRO_CACHE_PDF", "1")
+    real = _pdf_real("*Desempenho Financeiro Petrobras 1T25.pdf")
+    a = tmp_path / "Desempenho Financeiro Petrobras 1T25.pdf"
+    b = tmp_path / "copia do mesmo arquivo.pdf"
+    a.write_bytes(real.read_bytes())
+    b.write_bytes(real.read_bytes())
+    pp.page_texts(a, max_pages=4)
+    assert pp.cache_stats()["entradas"] == 1
+    assert pp.page_texts(b, max_pages=4) == pp.page_texts(a, max_pages=4)
+    assert pp.cache_stats()["entradas"] == 1        # não criou segunda entrada
+    DatabaseManager._instance = None
+
+
+def test_cache_pdf_respeita_teto_de_disco(tmp_path, monkeypatch):
+    """O cache não pode crescer sem limite: acima do teto, sai o mais antigo."""
+    from workers import parse_pdf as pp
+    monkeypatch.setattr(pp, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(pp, "_CACHE_MB_MAX", 0)      # teto 0: tudo tem que sair
+    monkeypatch.setenv("PETRO_CACHE_PDF", "1")
+    real = _pdf_real("*Desempenho Financeiro Petrobras 1T25.pdf")
+    local = tmp_path / real.name
+    local.write_bytes(real.read_bytes())
+    pp.page_texts(local, max_pages=6)
+    assert pp.cache_stats()["entradas"] <= 1
+    DatabaseManager._instance = None
+
+
+def test_etl_reprocessa_com_cache_sem_mudar_resultado(tmp_path, monkeypatch):
+    """Com o cache ligado, reprocessar dá o MESMO resultado do ETL."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr(config, "CATALOG_JSON", tmp_path / "c.json")
+    monkeypatch.setattr(config, "CATALOG_CSV", tmp_path / "c.csv")
+    DatabaseManager._instance = None
+    from workers import etl as etl_mod
+    from workers import parse_pdf as pp
+    monkeypatch.setattr(etl_mod, "scan_container", _scan_stub)
+    monkeypatch.setattr(pp, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setenv("PETRO_CACHE_PDF", "1")
+    real = _pdf_real("*Desempenho Financeiro Petrobras 1T25.pdf")
+    pdf = tmp_path / real.name
+    pdf.write_bytes(real.read_bytes())
+    from models.repositories import FonteRepository
+    FonteRepository().registrar("PETROBRAS", "http://ri/df.pdf", "PDF", str(pdf))
+    primeira = etl_mod.run_etl(jobs=1)
+    assert pp.cache_stats()["entradas"] >= 1
+    segunda = etl_mod.run_etl(jobs=1)
+    # o resultado do ETL não pode depender do cache estar ligado
+    assert segunda["cargas"] == primeira["cargas"]
+    assert segunda["erros"] == primeira["erros"]
+    assert segunda["arquivos_processados"] == primeira["arquivos_processados"]
+    DatabaseManager._instance = None
+
+
+# ------------------------------------------------- M10.7: metodo por rubrica
+def test_metodo_de_projecao_respeita_o_tipo_da_rubrica():
+    """Estoque não disputa com o método sazonal; fluxo disputa (M10.7).
+
+    Sazonal-Naive pressupõe que o trimestre se repete ano a ano. Isso vale para
+    receita e lucro (fluxo do período) e é errado para dívida e CAPEX (saldo). Deixar
+    os dois competirem juntos mistura dois regimes numa série só.
+    """
+    from workers.forecast import (CANDIDATOS, ESTOQUE, FLUXO, candidatos_rubrica,
+                                  perfil_rubrica, projetar)
+    assert perfil_rubrica("DIVIDA_LIQUIDA") == ESTOQUE
+    assert perfil_rubrica("CAPEX") == ESTOQUE
+    assert perfil_rubrica("RECEITA_LIQUIDA") == FLUXO
+    assert perfil_rubrica("EBITDA_AJUSTADO") == FLUXO
+    assert perfil_rubrica("RUBRICA_DESCONHECIDA") == FLUXO     # padrão conservador
+    assert "SAZONAL_NAIVE" not in CANDIDATOS[ESTOQUE]
+    assert "SAZONAL_NAIVE" in CANDIDATOS[FLUXO]
+
+    # dívida com tendência: os candidatos são só nível/tendência
+    divida = [50, 51, 52, 51.5, 53, 54, 55, 56, 55.5, 57, 58, 59]
+    r = projetar(divida, rubrica="DIVIDA_LIQUIDA")
+    assert r["perfil"] == ESTOQUE and r["metodo"] != "SAZONAL_NAIVE"
+    assert r["candidatos"] == list(CANDIDATOS[ESTOQUE])
+    # receita com sazonalidade forte: o sazonal entra e ganha
+    receita = [80, 72, 95, 84, 82, 74, 97, 86, 84, 76, 99, 88]
+    r2 = projetar(receita, rubrica="RECEITA_LIQUIDA")
+    assert r2["perfil"] == FLUXO and r2["metodo"] == "SAZONAL_NAIVE"
+    # sem rubrica, o comportamento é o de fluxo (não quebra quem chamava sem ela)
+    assert projetar(receita)["metodo"] == r2["metodo"]
+    assert candidatos_rubrica(None) == CANDIDATOS[FLUXO]
+
+
+def test_run_forecast_registra_o_perfil_por_metodo(tmp_path, monkeypatch):
+    """O resumo do ETL de projeção diz qual método foi usado por perfil."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from models.repositories import FatoRepository
+    from workers.forecast_run import run_forecast
+    repo = FatoRepository()
+    serie_fluxo = [80, 72, 95, 84, 82, 74, 97, 86, 84, 76, 99, 88]
+    serie_estoque = [50, 51, 52, 51.5, 53, 54, 55, 56, 55.5, 57, 58, 59]
+    for i in range(8):
+        repo.upsert_financeiro("PETROBRAS", f"{2024 + i // 4}Q{i % 4 + 1}",
+                               "RECEITA_LIQUIDA", serie_fluxo[i])
+        repo.upsert_financeiro("PETROBRAS", f"{2024 + i // 4}Q{i % 4 + 1}",
+                               "DIVIDA_LIQUIDA", serie_estoque[i])
+    r = run_forecast(_DB())
+    assert r["series"] == 2
+    # nenhuma serie de estoque foi projetada com metodo sazonal
+    assert all(not k.endswith("/SAZONAL_NAIVE")
+               for k in r["por_perfil"] if k.startswith("estoque/")), r["por_perfil"]
+    assert any(k.startswith("fluxo/") for k in r["por_perfil"]), r["por_perfil"]
+    DatabaseManager._instance = None
+
+
+# ------------------------------------------------- M7.22: limiar por empresa/rubrica
+def test_limiar_calibrado_por_empresa_e_rubrica(tmp_path, monkeypatch):
+    """Limiar mais específico vence o global; desconhecido cai no padrão."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from workers.quality_score import REGRAS, gravar_limiar, limiar_efetivo, listar_limiares
+    db = _DB()
+    codigo = "DRIFT_ZSCORE"
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") is None
+
+    gravar_limiar(db, codigo, 3.5, rubrica="RECEITA_LIQUIDA")
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") == 3.5
+    # so vale para essa rubrica
+    assert limiar_efetivo(db, codigo, "BP", "CAPEX") is None
+    # empresa + rubrica vence so a rubrica
+    gravar_limiar(db, codigo, 1.0, empresa="BP", rubrica="RECEITA_LIQUIDA")
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") == 1.0
+    assert limiar_efetivo(db, codigo, "SHELL", "RECEITA_LIQUIDA") == 3.5
+    # so a empresa vale para qualquer rubrica dessa empresa
+    gravar_limiar(db, codigo, 2.5, empresa="SHELL")
+    assert limiar_efetivo(db, codigo, "SHELL", "CAPEX") == 2.5
+    assert limiar_efetivo(db, codigo, "BP", "CAPEX") is None
+    # recalibrar a MESMA chave sobrescreve em vez de duplicar
+    gravar_limiar(db, codigo, 1.4, empresa="BP", rubrica="RECEITA_LIQUIDA")
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") == 1.4
+    assert len(listar_limiares(db, codigo)) == 3
+    # desativar a excecao mais especifica volta a valer a seguinte
+    gravar_limiar(db, codigo, 1.4, empresa="BP", rubrica="RECEITA_LIQUIDA", ativo=0)
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") == 3.5
+    # sem nenhuma excecao ativa, o padrao do codigo manda
+    gravar_limiar(db, codigo, 3.5, rubrica="RECEITA_LIQUIDA", ativo=0)
+    assert limiar_efetivo(db, codigo, "BP", "RECEITA_LIQUIDA") is None
+    assert REGRAS[codigo]["limiar"] == 2.0
+    DatabaseManager._instance = None
+
+
+def test_regra_calibrada_muda_o_alerta_emitido(tmp_path, monkeypatch):
+    """A calibracao precisa EFEITO no alerta, não só existir na tabela."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from models.repositories import FatoRepository
+    from workers.quality_score import detectar_desvios, gravar_limiar
+    repo = FatoRepository()
+    # o ultimo ponto fica em +2,17σ: acima do limiar padrao (2,0) e abaixo de um
+    # calibrado (3,0). Serie com ruido de proposito: janela sem desvio padrao
+    # devolveria z=0 e o alerta nunca dispararia.
+    base = [10, 12, 9, 11, 10, 13, 9.5, 10.5, 10, 10, 13.0]
+    for i, v in enumerate(base):
+        repo.upsert_financeiro("BP", f"{2023 + i // 4}Q{i % 4 + 1}",
+                               "RECEITA_LIQUIDA", v, "USD", None, 0.9)
+    db = _DB()
+    antes = [a for a in detectar_desvios(db) if a["codigo"] == "DRIFT_ZSCORE"
+             and a["empresa"] == "BP"]
+    assert antes, "o salto devia disparar DRIFT_ZSCORE com o limiar padrao"
+    assert antes[0]["calibrado"] is False
+    # subir o limiar para 3,0 sigma silencia o alerta
+    gravar_limiar(db, "DRIFT_ZSCORE", 3.0, empresa="BP", rubrica="RECEITA_LIQUIDA")
+    depois = [a for a in detectar_desvios(db) if a["codigo"] == "DRIFT_ZSCORE"
+              and a["empresa"] == "BP"]
+    assert depois == []
+    # e a serie da SHELL nao foi afetada pela calibracao da BP
+    for i, v in enumerate(base):
+        repo.upsert_financeiro("SHELL", f"{2023 + i // 4}Q{i % 4 + 1}",
+                               "RECEITA_LIQUIDA", v, "USD", None, 0.9)
+    ainda = [a for a in detectar_desvios(db) if a["codigo"] == "DRIFT_ZSCORE"
+             and a["empresa"] == "SHELL"]
+    assert ainda, "calibrar a BP nao pode silenciar a SHELL"
+    DatabaseManager._instance = None
+
+
+def test_limiar_por_rubrica_no_cross_sectional(tmp_path, monkeypatch):
+    """CAPEX pode ter outro limiar de outlier: a rubrica entra na consulta."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from models.repositories import FatoRepository
+    from workers.quality_score import detectar_cross_sectional, gravar_limiar
+    repo = FatoRepository()
+    # 5 empresas em CAPEX: a Petrobras muito abaixo (0,01 contra 3..6 dos pares)
+    for emp, v in (("PETROBRAS", 0.01), ("SHELL", 4.0), ("BP", 3.1),
+                   ("CHEVRON", 4.5), ("EXXONMOBIL", 5.0)):
+        repo.upsert_financeiro(emp, "2026Q2", "CAPEX", v, "USD", None, 0.9)
+    db = _DB()
+    achados = [a for a in detectar_cross_sectional(db) if a["empresa"] == "PETROBRAS"]
+    assert achados, "o CAPEX da Petrobras devia sair como outlier"
+    # com limiar mais exigente para CAPEX, o alerta deixa de sair
+    gravar_limiar(db, "OUTLIER_CROSS_SECTIONAL", 9.0, rubrica="CAPEX")
+    assert [a for a in detectar_cross_sectional(db) if a["empresa"] == "PETROBRAS"] == []
+    DatabaseManager._instance = None
+
+
+def test_limiar_via_controller_e_cli(tmp_path, monkeypatch):
+    """O calibrador é alcançável pelo controller e pelo CLI."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from controllers import SourceController
+    ctrl = SourceController()
+    r = ctrl.limiar_regra("DRIFT_ZSCORE", 3.0, rubrica="RECEITA_LIQUIDA")
+    assert r["limiar_padrao"] == 2.0 and r["limiar_efetivo"] == 3.0
+    assert len(r["excecoes"]) == 1
+    with pytest.raises(ValueError):
+        ctrl.limiar_regra("REGRA_QUE_NAO_EXISTE", 1.0)
+    import app_main
+    assert app_main.main(["qualidade", "limiar", "--codigo", "DRIFT_ZSCORE",
+                          "--limiar", "4.0", "--rubrica", "CAPEX"]) == 0
+    # a excecao por rubrica so vale para CAPEX: consultar RECEITA nao pega o 4,0
+    assert ctrl.limiar_regra("DRIFT_ZSCORE", rubrica="CAPEX")["limiar_efetivo"] == 4.0
+    assert ctrl.limiar_regra("DRIFT_ZSCORE", rubrica="RECEITA_LIQUIDA")["limiar_efetivo"] == 3.0
+    assert app_main.main(["qualidade", "limiar"]) == 0
+    DatabaseManager._instance = None
+
+
+# ------------------------------------------------- M1.14: URL quebrada
+def test_checar_url_distingue_quebrada_de_bloqueio(monkeypatch):
+    """403 é bloqueio de automação, não link quebrado — e não se retenta.
+
+    O acervo tem Chevron e BP devolvendo 403. Chamar isso de "URL quebrada"
+    levaria a recomendação errada ("arrume o link"), e retentar 3 vezes só
+    transformaria um bloqueio temporário em permanente.
+    """
+    import requests
+    from workers import api_scan as a
+    chamadas: list[str] = []
+
+    class Resp:
+        def __init__(self, code):
+            self.status_code = code
+
+    def fake_head(url, headers=None, timeout=None, allow_redirects=True):
+        chamadas.append(url)
+        if "404" in url:
+            return Resp(404)
+        if "403" in url:
+            return Resp(403)
+        if "ok" in url:
+            return Resp(200)
+        raise requests.ConnectionError("sem rota")
+
+    monkeypatch.setattr(a.requests, "head", fake_head)
+    monkeypatch.setattr(a, "ESPERA_ENTRE_TENTATIVAS", 0)   # não dormir no teste
+
+    ok = a.checar_url("http://x/ok.pdf")
+    assert ok["ok"] and ok["status"] == "HTTP_200"
+
+    morta = a.checar_url("http://x/404.pdf", tentativas=3)
+    assert not morta["ok"] and morta["codigo"] == 404
+    assert "removida" in morta["diagnostico"]
+    assert chamadas.count("http://x/404.pdf") == 3        # 404 se retenta
+
+    bloqueada = a.checar_url("http://x/403.pdf", tentativas=3)
+    assert not bloqueada["ok"]
+    assert "bloqueio de automação" in bloqueada["diagnostico"]
+    assert chamadas.count("http://x/403.pdf") == 1        # 403 NÃO se retenta
+
+    sem_rede = a.checar_url("http://x/timeout", tentativas=2)
+    assert sem_rede["status"].startswith("ERRO_REDE")
+    assert sem_rede["tentativas"] == 2
+    assert a.checar_url("")["diagnostico"] == "fonte sem URL de origem"
+
+
+def test_checar_fontes_acha_as_quebradas_do_catalogo(tmp_path, monkeypatch):
+    """Varre o catálogo e classifica cada URL como quebrada ou bloqueio."""
+    import requests
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from workers import api_scan as a
+    from models.repositories import FonteRepository
+
+    class Resp:
+        def __init__(self, code):
+            self.status_code = code
+
+    def fake_head(url, headers=None, timeout=None, allow_redirects=True):
+        if "morta" in url:
+            return Resp(404)
+        if "bp" in url:
+            return Resp(403)
+        return Resp(200)
+
+    monkeypatch.setattr(a.requests, "head", fake_head)
+    repo = FonteRepository()
+    repo.registrar("PETROBRAS", "http://ri/ok.pdf", "PDF")
+    repo.registrar("BP", "http://ri/bp/x.pdf", "PDF")
+    repo.registrar("CHEVRON", "http://ri/morta.pdf", "PDF")
+    r = a.checar_fontes(repo)
+    assert r["checadas"] == 3 and not r["ok"]
+    por_empresa = {b["nome_empresa"]: b for b in r["quebradas"]}
+    assert por_empresa["BP"]["bloqueio"] is True
+    assert por_empresa["CHEVRON"]["bloqueio"] is False
+    assert "removida" in por_empresa["CHEVRON"]["diagnostico"]
+    DatabaseManager._instance = None
+
+
+def test_urls_pelo_cli(tmp_path, monkeypatch):
+    """`fontes urls` sai com 2 quando acha problema (para o script poder falhar)."""
+    import requests
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from workers import api_scan as a
+    from models.repositories import FonteRepository
+
+    class Resp:
+        status_code = 404
+
+    monkeypatch.setattr(a.requests, "head", lambda *ar, **kw: Resp())
+    monkeypatch.setattr(a, "ESPERA_ENTRE_TENTATIVAS", 0)
+    FonteRepository().registrar("PETROBRAS", "http://ri/morta.pdf", "PDF")
+    import app_main
+    assert app_main.main(["fontes", "urls"]) == 2
+    DatabaseManager._instance = None
+
+
 def test_api_scan_offline(tmp_path, monkeypatch):
     import requests
     from workers import api_scan
@@ -877,6 +1258,46 @@ def test_web_anti_sobreposicao_e_ux(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+def test_gui_botao_email_nao_quebra_com_path_indefinido(tmp_path, monkeypatch):
+    """Regressão: o botão de e-mail chamava `Path(...)` sem importar pathlib.
+
+    `Path` não estava importado no módulo, então o clique no botão ✉ terminava em
+    NameError e a barra de status mostrava "Falha ao gerar e-mail: name 'Path' is
+    not defined" — um botão que falhava 100% das vezes e nenhum teste pegava,
+    porque os testes montavam a GUI sem clicar em nada.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QInputDialog, QPushButton
+    app = QApplication.instance() or QApplication([])
+    import controllers
+    from views.gui_app import BenchmarkGUI
+
+    # captura o que o botão tentaria fazer, sem SMTP e sem QInputDialog modal
+    chamadas: dict = {}
+
+    def _fake_enviar(self, para, rubrica="RECEITA_LIQUIDA", periodo="2026Q2", **kw):
+        chamadas["para"] = para
+        return {"resultado": str(tmp_path / "benchmark.eml"), "assunto": "x",
+                "anexos": ["benchmark.csv"], "enviado": False}
+
+    monkeypatch.setattr(controllers.MailController, "enviar", _fake_enviar)
+    monkeypatch.setattr(QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("destino@exemplo.com", True)))
+    win = BenchmarkGUI(periodo="2026Q2").build()
+    botao = next((b for b in win.findChildren(QPushButton)
+                  if "e-mail" in b.text().lower()), None)
+    assert botao is not None, "botão de e-mail não encontrado na GUI"
+    botao.click()
+    app.processEvents()
+    assert chamadas.get("para") == "destino@exemplo.com"
+    # a barra precisa dizer o nome do arquivo: se `Path` voltar a faltar, cai no
+    # except e a mensagem vira "Falha ao gerar e-mail: ..."
+    assert "benchmark.eml" in win.statusBar().currentMessage(), \
+        win.statusBar().currentMessage()
+    _ = app
+    DatabaseManager._instance = None
+
+
 def test_gui_anti_sobreposicao_e_foco(monkeypatch):
     """pyqtgraph clipado, range estavel, foco em tela cheia e botao de e-mail."""
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
@@ -905,6 +1326,704 @@ def test_gui_anti_sobreposicao_e_foco(monkeypatch):
     assert plot.parentWidget() is not parent_original, "plot deve ir para o dialog"
     dlg.close()
     assert plot.parentWidget() is parent_original, "plot nao voltou para a aba"
+
+
+def test_aprovacao_em_lote_de_fontes(tmp_path, monkeypatch):
+    """M1.15: aprovar as PENDENTE em lote, sem encostar nas outras.
+
+    O comportamento que importa aqui e o filtro: o padrao ignora o que nao esta
+    PENDENTE. Um "aprovar tudo" sobre um catalogo com 26 pendentes entre 500
+    linhas mudaria o estado de 474 sem o operador pedir — entao quem vem de
+    outro status so entra com pedido explicito (apenas_pendentes=False).
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from controllers import SourceController
+    from models.repositories import FonteRepository
+    repo = FonteRepository()
+    ids = [repo.registrar("PETROBRAS", f"https://exemplo/{i}.pdf", "PDF",
+                          nome_documento=f"doc{i}") for i in range(4)]
+    repo.atualizar_status(ids[2], "PROCESSADO")
+    repo.atualizar_status(ids[3], "ERRO")
+    ctrl = SourceController()
+    assert {f["id_fonte"] for f in ctrl.fontes_pendentes()} == {ids[0], ids[1]}
+
+    r = ctrl.aprovar_lote(ids)
+    assert r["aprovados"] == 2 and r["solicitados"] == 4
+    assert r["ids"] == [ids[0], ids[1]]
+    motivos = {ig["id_fonte"]: ig["motivo"] for ig in r["ignorados"]}
+    assert "PROCESSADO" in motivos[ids[2]] and "ERRO" in motivos[ids[3]]
+    assert ctrl.fontes_pendentes() == []
+    assert repo.obter(ids[2])["status_processamento"] == "PROCESSADO"  # nao regravado
+    assert repo.obter(ids[3])["status_processamento"] == "ERRO"
+
+    # id repetido e alvo unico: o relatorio nao mente contando duas vezes
+    assert ctrl.aprovar_lote([ids[0], ids[0], ids[0]], "CATALOGADO")["solicitados"] == 1
+    # id inexistente nao quebra: entra como ignorado com motivo
+    sumido = ctrl.aprovar_lote([999999])
+    assert sumido["aprovados"] == 0 and sumido["ignorados"][0]["motivo"] == "inexistente"
+    # entradas invalidas falham alto, nao silenciosamente
+    with pytest.raises(ValueError):
+        ctrl.aprovar_lote([])
+    with pytest.raises(ValueError):
+        ctrl.aprovar_lote([ids[0]], "STATUS_QUE_NAO_EXISTE")
+    # com pedido explicito, mexe em qualquer status
+    assert ctrl.aprovar_lote([ids[3]], "CATALOGADO",
+                             apenas_pendentes=False)["aprovados"] == 1
+    DatabaseManager._instance = None
+
+
+def test_aprovacao_em_lote_pela_api_e_cli(tmp_path, monkeypatch):
+    """M1.15: o lote tambem existe na API (POST) e no CLI."""
+    import json as _json
+    import threading
+    import urllib.error
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from controllers import SourceController
+    from models.repositories import FonteRepository
+    from views.web_server import DashboardHandler
+    repo = FonteRepository()
+    nova = repo.registrar("SHELL", "https://exemplo/s.pdf", "PDF")
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), DashboardHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    porta = httpd.server_address[1]
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{porta}/api/fontes",
+                                    timeout=30) as r:
+            cat = _json.loads(r.read().decode())
+        assert cat["pendentes"] == 1
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{porta}/api/fontes/lote",
+            data=_json.dumps({"ids": [nova], "status": "PROCESSADO",
+                              "apenas_pendentes": True}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            j = _json.loads(r.read().decode())
+        assert j["aprovados"] == 1 and j["ids"] == [nova]
+        assert repo.obter(nova)["status_processamento"] == "PROCESSADO"
+        # selecao vazia e erro do cliente (400), nao 500
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{porta}/api/fontes/lote",
+            data=_json.dumps({"ids": []}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(urllib.error.HTTPError) as ei:
+            urllib.request.urlopen(req2, timeout=30)
+        assert ei.value.code == 400
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    import app_main
+    outra = repo.registrar("BP", "https://exemplo/bp.pdf", "PDF")
+    assert app_main.main(["fontes", "aprovar", "--ids", str(outra)]) == 0
+    assert repo.obter(outra)["status_processamento"] == "PROCESSADO"
+    assert app_main.main(["fontes", "aprovar", "--ids", "abc"]) == 2
+    assert SourceController().fontes_pendentes() == []
+    assert app_main.main(["fontes", "aprovar", "--ids", "todas"]) == 0
+    DatabaseManager._instance = None
+
+
+@pytest.mark.skipif(not _GUI_DISPONIVEL, reason="PySide6 ausente")
+def test_gui_tem_o_lote_de_fontes(tmp_path, monkeypatch):
+    """M1.15: a GUI também tem coluna de seleção e aprova o lote.
+
+    offscreen: não abre janela, mas exercita o botão de verdade — inclusive o
+    filtro "só PENDENTES", que é onde o lote poderia aprovar a fonte errada.
+    """
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository
+    repo = FonteRepository()
+    ids = [repo.registrar("PETROBRAS", f"https://exemplo/{i}.pdf", "PDF")
+           for i in range(5)]
+    repo.atualizar_status(ids[3], "PROCESSADO")
+    repo.atualizar_status(ids[4], "ERRO")
+    from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QTableWidget
+    app = QApplication.instance() or QApplication([])
+    from views.gui_app import BenchmarkGUI
+    gui = BenchmarkGUI()
+    gui.build()                      # run() chama app.exec() e bloqueia
+    assert gui.window is not None
+    gui.window.show()
+    app.processEvents()
+    tabela = None
+    for t in gui.window.findChildren(QTableWidget):
+        titulos = [t.horizontalHeaderItem(c).text() if t.horizontalHeaderItem(c) else ""
+                   for c in range(t.columnCount())]
+        if titulos[:2] == ["sel.", "ID"]:
+            tabela = t
+            break
+    assert tabela is not None, "a tabela de fontes precisa da coluna de selecao"
+    assert tabela.rowCount() == 5 and tabela.columnCount() == 9
+    # a ordem da tabela não é a ordem de cadastro; o teste olha por id
+    id_por_linha = {r: int(tabela.item(r, 1).text()) for r in range(tabela.rowCount())}
+    botoes = {b.text(): b for b in gui.window.findChildren(QPushButton)}
+    marcar = next(b for t, b in botoes.items() if "PENDENTE" in t)
+    aprovar = next(b for t, b in botoes.items() if "aprovar" in t)
+    # "marcar PENDENTES" marca as 3 PENDENTE e nao as outras 2
+    marcar.click()
+    app.processEvents()
+    marcadas = {id_por_linha[r] for r in range(tabela.rowCount())
+                 if tabela.item(r, 0).checkState().value == 2}
+    assert marcadas == {ids[0], ids[1], ids[2]}, marcadas
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QMessageBox.Yes))
+    aprovar.click()
+    app.processEvents()
+    estados = {f["id_fonte"]: f["status_processamento"] for f in repo.listar()}
+    assert estados[ids[0]] == estados[ids[1]] == estados[ids[2]] == "PROCESSADO"
+    assert estados[ids[3]] == "PROCESSADO"     # já estava; não mudou
+    assert estados[ids[4]] == "ERRO"           # o lote não encosta
+    gui.window.close()
+    DatabaseManager._instance = None
+
+
+def test_aba_fontes_tem_selecao_para_o_lote(tmp_path, monkeypatch):
+    """M1.15: a tabela de fontes tem coluna de seleção e os botões do lote.
+
+    Sem checkbox na linha não há como montar o lote pela tela — o backend
+    existiria e não teria dono na interface.
+    """
+    import config
+    import re
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository
+    FonteRepository().registrar("PETROBRAS", "https://exemplo/a.pdf", "PDF")
+    FonteRepository().registrar("SHELL", "https://exemplo/b.pdf", "PDF")
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    for alvo in ("fMarcarPendentes()", "fAprovarSelecionadas()", "fDesmarcar()",
+                 "/api/fontes/lote", "f_todas_pend", "f_lote_msg"):
+        assert alvo in html, alvo
+    # a coluna nova no cabeçalho e nas linhas, na mesma posição
+    tabela = html[html.find('id="tab_fontes"'):]
+    tabela = tabela[:tabela.find("</table>")]
+    linhas = re.findall(r"<tr\b[^>]*>(.*?)</tr>", tabela, re.S)
+    cabecalho = len(re.findall(r"<th\b", linhas[0]))
+    assert cabecalho == 11
+    larguras = {len(re.findall(r"<td\b", r)) for r in linhas[1:]}
+    assert larguras == {cabecalho}, larguras
+    primeira = re.findall(r"<td\b[^>]*>(.*?)</td>", linhas[1], re.S)
+    assert "fchk" in primeira[1]                 # coluna 1 = seleção
+    assert "id_fonte" not in primeira[0] and primeira[0].strip().isdigit()
+    DatabaseManager._instance = None
+
+
+def test_email_publica_o_ic95_da_projecao(tmp_path, monkeypatch):
+    """M3.15: o e-mail traz o intervalo, não só o número.
+
+    Sem o IC95, quem lê o número projetado fora do sistema não sabe o quanto ele
+    pode variar — e é o intervalo que diz se o número serve para decidir. O bloco
+    vai no texto, na tabela do HTML (com barra de erro no gráfico) e no CSV.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from models.repositories import FatoRepository
+    from workers.forecast_run import run_forecast
+    db = _DB()
+    repo = FatoRepository()
+    serie = [80, 72, 95, 84, 82, 74, 97, 86, 84, 76, 99, 88, 84, 92]
+    # 14 periodos = 2023Q1..2026Q2: o ultimo fato é o trimestre do e-mail, e a
+    # projeção vai para 2026Q3. Sem fato em 2026Q2 o e-mail não teria gráfico anexo.
+    periodos = [f"{2023 + i // 4}Q{i % 4 + 1}" for i in range(14)]
+    for emp in ("PETROBRAS", "SHELL"):
+        for i, v in enumerate(serie):
+            repo.upsert_financeiro(emp, periodos[i], "RECEITA_LIQUIDA", v, "USD", None, 0.9)
+    run_forecast(db, empresas=["PETROBRAS", "SHELL"], rubricas=["RECEITA_LIQUIDA"])
+    # projeção de 2026Q3 precisa existir para o e-mail de 2026Q2 ter o que mostrar
+    with db.connect() as conn:
+        tem = conn.execute(
+            "SELECT COUNT(*) c FROM tb_projecao WHERE periodo_projetado = ?",
+            ("2026Q3",)).fetchone()["c"]
+    assert tem >= 1, "sem projecao o teste nao exercita o bloco"
+
+    from workers.mailer import montar_email
+    msg = montar_email("d@x.com", "RECEITA_LIQUIDA", "2026Q2", db=db)
+    texto = next(p.get_payload(decode=True).decode("utf-8", "replace")
+                 for p in msg.walk() if p.get_content_type() == "text/plain")
+    assert "Projeção (IC 95%)" in texto
+    assert "2026Q3" in texto and "confiança" in texto
+    assert "Projeção não é fato publicado" in texto      # projeção ≠ fato, no e-mail
+    # o intervalo é de verdade: inf < valor < sup em pelo menos uma linha
+    linhas = [l for l in texto.splitlines() if l.strip().startswith(("PETROBRAS", "SHELL"))]
+    assert linhas
+    assert any("…" in l for l in linhas)
+
+    html = next(p.get_payload(decode=True).decode("utf-8", "replace")
+                for p in msg.walk()
+                if p.get_filename() and p.get_filename().endswith(".html"))
+    assert "IC 95%" in html and "error_y" in html       # barra de erro no gráfico
+    csv_txt = next(p.get_payload(decode=True).decode("utf-8-sig", "replace")
+                   for p in msg.walk()
+                   if p.get_filename() and p.get_filename().endswith(".csv"))
+    assert "intervalo_inf" in csv_txt and "intervalo_sup" in csv_txt
+
+    # sem projeção pedida, o e-mail volta ao formato antigo
+    msg2 = montar_email("d@x.com", "RECEITA_LIQUIDA", "2026Q2", db=db,
+                        com_projection=False)
+    texto2 = next(p.get_payload(decode=True).decode("utf-8", "replace")
+                  for p in msg2.walk() if p.get_content_type() == "text/plain")
+    assert "Projeção (IC 95%)" not in texto2
+    DatabaseManager._instance = None
+
+
+def test_proveniencia_nivela_do_fato(tmp_path, monkeypatch):
+    """M7.27: RI=1, copia SEC=2, derivada=3; o numero em si nao muda.
+
+    O mesmo valor (30 USD bi) em tres origens leva profundidades diferentes —
+    e mudar o rotulo nao pode alterar o valor. Derivadas (margens, alavancagem)
+    sao nivel 3 de proposito: dependem de outros fatos e herdam o erro deles.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    fontes, fatos = FonteRepository(), FatoRepository()
+    id_ri = fontes.registrar("PETROBRAS", "https://ri/2t26.pdf", "PDF", origem="MANUAL")
+    id_sec = fontes.registrar("CHEVRON", "https://sec/2q26.htm", "HTML", origem="SEC:10-Q")
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "RECEITA_LIQUIDA", 30.0, "USD", id_ri, 0.9)
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "EBITDA_AJUSTADO", 12.0, "USD", id_ri, 0.9)
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "LUCRO_LIQUIDO", 5.0, "USD", id_ri, 0.9)
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "DIVIDA_LIQUIDA", 90.0, "USD", id_ri, 0.9)
+    fatos.upsert_financeiro("CHEVRON", "2026Q2", "RECEITA_LIQUIDA", 30.0, "USD", id_sec, 0.9)
+
+    from workers.derived import compute_derived
+    from workers.provenance import anotar_fatos, cadeia_de, classificar, resumo_cadeia
+    res = anotar_fatos()
+    assert res["financeiro"] == 5 and res["primario"] == 4 and res["secundario"] == 1
+    compute_derived()
+    res2 = anotar_fatos()
+    assert res2["operacional"] == 3 and res2["derivado"] == 3
+    # classificar unitario: origens conhecidas e desconhecidas
+    assert classificar("SEC:10-K/anexo")["profundidade"] == 2
+    assert classificar(None)["profundidade"] == 0
+    assert classificar("MANUAL", derivado_de=("EBITDA", "RECEITA"))["profundidade"] == 3
+    # valor nao mudou quando o rotulo mudou
+    with DatabaseManager().connect() as conn:
+        vals = {r["nome_empresa"] for r in conn.execute(
+            "SELECT nome_empresa FROM tb_fato_financeiro"
+            " WHERE periodo='2026Q2' AND rubrica_padronizada='RECEITA_LIQUIDA'"
+            " AND valor=30.0").fetchall()}
+    assert vals == {"PETROBRAS", "CHEVRON"}
+    trilha = cadeia_de(DatabaseManager(), "PETROBRAS", "2026Q2")
+    margem = next(t for t in trilha if t["item"] == "MARGEM_EBITDA")
+    assert margem["profundidade"] == 3 and "derivada" in margem["cadeia"]
+    resumo = resumo_cadeia()
+    assert resumo["total"] == 8 and resumo["score_medio"] > 0
+    # idempotente: rodar de novo tem que produzir o mesmo relatorio
+    assert anotar_fatos() == anotar_fatos()
+    DatabaseManager._instance = None
+
+
+def test_proveniencia_api_e_cli(tmp_path, monkeypatch):
+    """M7.27: a API e o CLI expoem a cadeia; o CLI reclassifica sem re-ETL."""
+    import json as _json
+    import threading
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    id_ = FonteRepository().registrar("PETROBRAS", "https://ri/a.pdf", "PDF", origem="MANUAL")
+    FatoRepository().upsert_financeiro("PETROBRAS", "2026Q2", "RECEITA_LIQUIDA",
+                                        30.0, "USD", id_, 0.9)
+    from workers.provenance import anotar_fatos
+    anotar_fatos()
+    from views.web_server import DashboardHandler
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), DashboardHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    porta = httpd.server_address[1]
+    try:
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{porta}/api/qualidade?proveniencia=1",
+                timeout=30) as r:
+            j = _json.loads(r.read().decode())
+        assert j["resumo"]["total"] == 1
+        assert j["resumo"]["score_medio"] == 100.0
+        assert j["rubricas"][0]["rubrica"] == "RECEITA_LIQUIDA"
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{porta}/api/qualidade?proveniencia=1&empresa=PETROBRAS&periodo=2026Q2",
+                timeout=30) as r:
+            j2 = _json.loads(r.read().decode())
+        assert j2["cadeia"][0]["origem"] == "MANUAL"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    import app_main
+    assert app_main.main(["qualidade", "proveniencia"]) == 0
+    assert app_main.main(["qualidade", "proveniencia", "--reanotar"]) == 0
+    assert app_main.main(["qualidade", "proveniencia", "--empresa", "PETROBRAS",
+                          "--periodo", "2026Q2"]) == 0
+    DatabaseManager._instance = None
+
+
+def test_aba_qualidade_tem_bloco_de_proveniencia(tmp_path, monkeypatch):
+    """M7.27: a aba Qualidade mostra a cadeia de origem."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    id_ = FonteRepository().registrar("PETROBRAS", "https://ri/a.pdf", "PDF", origem="MANUAL")
+    FatoRepository().upsert_financeiro("PETROBRAS", "2026Q2", "RECEITA_LIQUIDA",
+                                        30.0, "USD", id_, 0.9)
+    from workers.provenance import anotar_fatos
+    anotar_fatos()
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    for alvo in ("prov_kpis", "prov_rub", "prov_graf", "provRender()",
+                 "provCarregar", "M7.27", "/api/qualidade?proveniencia=1"):
+        assert alvo in html, alvo
+    DatabaseManager._instance = None
+
+
+def test_cenarios_brent_fx_intervalo_sensivel(tmp_path, monkeypatch):
+    """M3.13/M10.8: cenário move o valor pela sensibilidade e ABRE o IC.
+
+    Construo uma série em que Δ%"= Δ%Brent (receita proporcial ao Brent):
+    aí β_brent ≈ 1, e um choque de -15% no Brent deve deslocar o projetado em
+    ~15%. E o spread otimista–pessimista tem que exceder o IC da base: o termo
+    covariância não deixa Brent e câmbio andarem sem aumentar a incerteza.
+    Cenário e IC fazem parte da análise, não são fato publicado.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    from workers.macro import BRENT_BASE, carregar_base_macro, cenarios, sensibilidade
+    db = DatabaseManager()
+    carregar_base_macro(db)
+    fontes, fatos = FonteRepository(db), FatoRepository(db)
+    id_ = fontes.registrar("PETROBRAS", "https://ri/a.pdf", "PDF", origem="MANUAL")
+    for p, b in BRENT_BASE.items():
+        # receita "perfeitamente sensível" ao Brent no nível: Δ% receita = Δ% brent
+        fatos.upsert_financeiro("PETROBRAS", p, "RECEITA_LIQUIDA",
+                                round(100.0 * b / 82.0, 4), "USD", id_, 0.9)
+    s = sensibilidade(db, "PETROBRAS", "RECEITA_LIQUIDA")
+    assert s["pares"] >= 12, s
+    assert s["beta_brent"] > 0.5, s        # quase 1 por construção
+    r = cenarios(db, "PETROBRAS", "RECEITA_LIQUIDA", horizonte=3)
+    assert r["cenarios"], r
+    periodo = r["cenarios"][0]
+    base, ot, pes = periodo["base"]["valor"], periodo["otimista"]["valor"], periodo["pessimista"]["valor"]
+    assert pes < base, (pes, base)
+    assert ot > base, (ot, base)
+    # spread(ot-pes) tem que ser maior que a largura do IC da base em ~uma ordem
+    largura_base = periodo["base"]["sup"] - periodo["base"]["inf"]
+    assert periodo["spread"] >= largura_base * 0.9, (periodo["spread"], largura_base)
+    # e o cenário otimista fica acima do valor base
+    DatabaseManager._instance = None
+
+
+def test_avaliacao_erro_real_e_rolling(tmp_path, monkeypatch):
+    """M3.14/M10.9: projeção antiga vs fato real = cobertura do IC medida de verdade.
+
+    Gravo 2 projeções na mão: uma com o real dentro do IC, outra com o real fora.
+    Cobertura tem que dar 0.5 — sem isso a aba Projeções estaria dizendo que o IC
+    é 95% desconhecido sem testar. E o rolling-origin tem que devolver MAE/RMSE
+    de cada método, nunca só de um deles.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    from models.repositories import ProjectionRepository
+    db = DatabaseManager()
+    fontes, fatos, proj = FonteRepository(db), FatoRepository(db), ProjectionRepository(db)
+    id_ = fontes.registrar("PETROBRAS", "https://ri/a.pdf", "PDF", origem="MANUAL")
+    serie = [80, 72, 95, 84, 82, 74, 97, 86, 84, 76, 99, 88, 84, 92]
+    for i, v in enumerate(serie):
+        fatos.upsert_financeiro("PETROBRAS", f"{2023 + i // 4}Q{i % 4 + 1}",
+                                "RECEITA_LIQUIDA", v, "USD", id_, 0.9)
+    # projeção cujo real ainda não existia (2T25): real 76 e IC largo que cobre
+    proj.salvar("PETROBRAS", "RECEITA_LIQUIDA", "2025Q1", 1,
+                {"metodo": "ULTIMA_OBSERVACAO", "valores": [76.0],
+                 "futuros": ["2025Q2"], "inf": [60.0], "sup": [92.0],
+                 "sigma": 8.0, "mae": 5.0, "mape": 6.0, "confianca": 0.8,
+                 "n": 8, "lacunas": 0, "perfil": "fluxo", "candidatos": [],
+                 "alternativas": []})
+    # segunda projeção cujo real cai FORA do intervalo (erro de sinal)
+    proj.salvar("PETROBRAS", "RECEITA_LIQUIDA", "2025Q2", 1,
+                {"metodo": "ULTIMA_OBSERVACAO", "valores": [88.0],
+                 "futuros": ["2025Q3"], "inf": [80.0], "sup": [96.0],
+                 "sigma": 8.0, "mae": 5.0, "mape": 6.0, "confianca": 0.8,
+                 "n": 8, "lacunas": 0, "perfil": "fluxo", "candidatos": [],
+                 "alternativas": []})
+    # a série já tem o real de 2025Q2 (76) e de 2025Q3 (99) gravados;
+    # o cenário usa esses mesmos fatos — cobertura ≠ fato ≠ projeção.
+
+    from workers.rolling_eval import erro_real_das_projecoes, rolling_method_eval
+    er = erro_real_das_projecoes(db)
+    assert er["total"] == 2, er
+    assert er["cobertura_geral"] == 0.5, er          # 1 coberta, 1 não coberta
+    assert er["por_metodo"]["ULTIMA_OBSERVACAO"]["n"] == 2
+    assert er["por_metodo"]["ULTIMA_OBSERVACAO"]["cobertura"] == 0.5
+    assert er["mae_geral"] > 0
+
+    rolling = rolling_method_eval(db)
+    assert rolling["avaliadas"] > 0
+    geral = rolling["geral"]
+    assert set(geral) >= {"ULTIMA_OBSERVACAO", "HOLT_WINTERS_DAMPED"}, set(geral)
+    for nome, g in geral.items():
+        assert g["mae"] is not None and g["rmse"] >= g["mae"], (nome, g)
+    DatabaseManager._instance = None
+
+
+def test_check_env_detecta_bibliotecas_e_python():
+    """check_env.py: a rotina de ambiente lista o Python e as libs do requirements.
+
+    O ponto do teste: a checagem precisa refletir o requirements.txt — se uma
+    lib nova for adicionada ao ETL, ela aparece aqui (import OK) ou vira gap
+    explícito a instalar. Não é suficiente "parece que está instalado".
+    """
+    import check_env
+    ok_py, versao = check_env.verificar_python()
+    assert ok_py, f"Python {versao} insuficiente para o projeto"
+    libs = check_env.verificar_bibliotecas()
+    assert libs, "nenhuma biblioteca encontrada no requirements.txt"
+    faltantes = [pip for pip, _, presente in libs if not presente]
+    # o ambiente de CI devia já ter tudo; se não tiver, o teste avisa o que falta
+    if faltantes:
+        pytest.fail(f"bibliotecas ausentes do ambiente de teste: {faltantes}")
+
+
+def test_check_env_como_script_return_code_zero(tmp_path):
+    """Rodando como script, check_env devolve 0 quando o ambiente está pronto."""
+    import subprocess
+    script = Path(__file__).resolve().parent.parent / "check_env.py"
+    r = subprocess.run([sys.executable, str(script)], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "Python:" in r.stdout and "Bibliotecas" in r.stdout
+
+
+def test_etl_tem_guarda_de_ambiente(monkeypatch):
+    """O ETL chama o check antes de processar: se o ambiente não se sustenta,
+    ele cancela com código 2 em vez de estourar no meio do parse de 500 PDFs."""
+    import app_main
+    chamadas = []
+    monkeypatch.setattr(app_main, "_garantir_ambiente", lambda: chamadas.append(1) or 0)
+    # não roda o pipeline inteiro no teste: só confirmar que a guarda chama
+    from controllers import PipelineController
+    monkeypatch.setattr(PipelineController, "etl_completo",
+                        lambda self, alvos, **kw: {"cenarios": {}})
+    import argparse
+    rc = app_main.cmd_etl(argparse.Namespace(extra=[], novos=False, jobs=None))
+    assert rc == 0 and chamadas, "cmd_etl deve chamar _garantir_ambiente antes"
+    monkeypatch.setattr(app_main, "_garantir_ambiente", lambda: 2)
+    rc2 = app_main.cmd_etl(argparse.Namespace(extra=[], novos=False, jobs=None))
+    assert rc2 == 2, "ambiente inválido deve abortar o ETL com código 2"
+
+
+def test_painel_nao_vaza_conteudo_entre_abas(tmp_path, monkeypatch):
+    """Regressão de vazamento: o conteúdo de cada aba vive DENTRO da `.page` dela.
+
+    Bug real (M1.15): um `</div>` extra no bloco do lote fechou o `.crud` do
+    formulário de Fontes cedo demais; o `</div>` que fecharia o formulário
+    'comia' o fechamento da PÁGINA de Fontes, e daí em diante ETL, Auditoria,
+    Projeções e Qualidade vazavam para o nível raiz de #work — aparecendo em
+    TODAS as abas. Este teste valida o DOM de verdade: balanceado, 11 páginas
+    irmãs (uma por aba) e cada bloco novo dentro da sua página.
+    """
+    import config
+    import re as _re
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository
+    FonteRepository().registrar("PETROBRAS", "https://exemplo/a.pdf", "PDF")
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    # só o DOM interessa: script tem template literals com <div de mentira
+    dom = _re.sub(r"<script[\s\S]*?</script>", "", html)
+    dom = _re.sub(r"<!--[\s\S]*?-->", "", dom)
+
+    # 1) balanceamento global
+    abre = len(_re.findall(r"<div\b", dom))
+    fecha = len(_re.findall(r"</div>", dom))
+    assert abre == fecha, f"div desbalanceado: {abre} abre x {fecha} fecha"
+
+    # 2) #work: filhos diretos = tabs + 11 páginas irmãs + 2 modais
+    i = dom.find('id="work"')
+    seg = dom[i:]
+    prof, fim = 0, None
+    for m in _re.finditer(r"<div\b[^>]*>|</div>", seg):
+        if m.group(0).startswith("</"):
+            prof -= 1
+            if prof < 0:
+                fim = m.start()
+                break
+        else:
+            prof += 1
+    assert fim is not None, "#work sem fechamento"
+    work = seg[:fim]
+    prof, diretos, spans = 0, [], []          # spans = (ini, fim) de cada .page
+    ini_pg = None
+    for m in _re.finditer(r"<div\b[^>]*>|</div>", work):
+        tok = m.group(0)
+        if tok.startswith("</"):
+            prof -= 1
+            if prof == 0 and ini_pg is not None:
+                spans.append((ini_pg, m.start()))
+                ini_pg = None
+            continue
+        cls = _re.search(r'class="([^"]*)"', tok)
+        if prof == 0:
+            diretos.append(cls.group(1) if cls else "")
+            if cls and "page" in cls.group(1).split():
+                ini_pg = m.start()
+        prof += 1
+    pages = [c for c in diretos if "page" in c.split()]
+    assert len(pages) == 11, f"11 abas exigem 11 páginas irmãs: {diretos}"
+    assert diretos.count("tabs") == 1, "barra de abas fora do lugar"
+    assert diretos.count("fs") == 2, "modais (e-mail e tela cheia) fora do lugar"
+
+    # 3) cada bloco novo DENTRO da página certa (índice da .page = índice da aba)
+    def _dentro(alvo: str, idx: int) -> None:
+        ini, fim_pg = spans[idx]
+        pos = work.find(alvo)
+        assert pos != -1, f"{alvo} sumiu do painel"
+        assert ini < pos < fim_pg, f"{alvo} fora da página {idx} (vazou!)"
+
+    _dentro('id="f_lote_msg"', 5)     # lote M1.15 -> aba Fontes (6ª)
+    _dentro('id="etl_kpis"', 6)       # KPIs do ETL -> aba Gestão ETL (7ª)
+    _dentro('id="pr_tbody"', 8)       # tabela de projeções -> aba Projeções (9ª)
+    _dentro('id="cen_tbody"', 8)      # cenários Brent/FX -> Projeções
+    _dentro('id="prov_kpis"', 9)      # proveniência M7.27 -> aba Qualidade (10ª)
+    _dentro('id="qual_regras"', 9)    # regras -> Qualidade
+    DatabaseManager._instance = None
+
+
+def test_email_publicacao_trimestre(tmp_path, monkeypatch):
+    """M9.14: o e-mail de publicação sai do trimestre mais recente da base.
+
+    O alerta é automático no sentido honesto: o trimestre mais novo vira assunto
+    do e-mail sem o usuário pedir por indicador. Se não houver fato, não sai nada.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    import workers.mailer as _mailer
+    monkeypatch.setattr(_mailer, "DATA_DIR", tmp_path)  # bound no import de mailer
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    db = DatabaseManager()
+    fontes, fatos = FonteRepository(db), FatoRepository(db)
+    id_ = fontes.registrar("PETROBRAS", "https://ri/a.pdf", "PDF", origem="MANUAL")
+    id_2 = fontes.registrar("SHELL", "https://sec/s.htm", "HTML", origem="SEC:10-Q")
+    for p, v in [("2025Q4", 60.0), ("2026Q1", 63.0), ("2026Q2", 70.0)]:
+        fatos.upsert_financeiro("PETROBRAS", p, "RECEITA_LIQUIDA", v, "USD", id_, 0.9)
+    fatos.upsert_financeiro("SHELL", "2026Q2", "RECEITA_LIQUIDA", 90.0, "USD", id_2, 0.9)
+    from workers.publicacao import ultimo_periodo_com_dados, montar_email_publicacao
+    info = ultimo_periodo_com_dados(db)
+    assert info["periodo"] == "2026Q2" and info["fatos_no_periodo"] == 2
+    msg = montar_email_publicacao("equipe@exemplo.com", db)
+    assert msg is not None and "2026Q2" in msg["Subject"]
+    partes = {p.get_content_type(): p.get_payload(decode=True).decode("utf-8", "replace")
+              for p in msg.walk() if not p.is_multipart()}
+    csv_t = [p.get_payload(decode=True).decode("utf-8-sig", "replace")
+             for p in msg.walk() if p.get_filename() and p.get_filename().endswith(".csv")][0]
+    assert "RECEITA_LIQUIDA" in csv_t and "2026Q2" in csv_t
+    assert "RECEITA_LIQUIDA" in partes["text/html"] and "publicado" in partes["text/plain"]
+    csv_linhas = [l for l in csv_t.splitlines() if "RECEITA_LIQUIDA" in l]
+    # média das duas empresas: (70 + 90) / 2 = 80.0
+    assert len(csv_linhas) == 1 and "80.0" in csv_linhas[0], csv_linhas
+    import app_main
+    assert app_main.main(["email", "--para", "equipe@exemplo.com", "--publicacao"]) == 0
+    assert list((tmp_path / "outbox").glob("*.eml")), "publicacao devia gerar .eml"
+    DatabaseManager._instance = None
+
+
+def test_render_js_ri_sem_playwright(tmp_path, monkeypatch, capsys):
+    """M9.13: sem playwright instalado o portal de RI JS-hes devolve 'http-fallback'
+    e não fingir que renderizou. Com render stubado, o modo marca como 'playwright'."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    DatabaseManager._instance = None
+    import workers.ri_collector as _ri
+    _DB()  # inicializa schema em tmp
+    monkeypatch.setattr(_ri, "fetch", lambda url, timeout=25: "<html>vazio</html>")
+    import workers.jsrender as _js
+    # simula o playwright ausente: fetch_renderizado levanta RuntimeError
+    monkeypatch.setattr(_js, "fetch_renderizado",
+                        lambda url, wait_ms=4000: (_ for _ in ()).throw(RuntimeError("pw off")))
+    html, modo = _ri.fetch_pagina_ri("PETROBRAS")
+    assert modo == "http-fallback" and html == "<html>vazio</html>"
+    # quando o render funciona (stub), o modo vira 'playwright'
+    monkeypatch.setattr(_js, "fetch_renderizado",
+                        lambda url, wait_ms=4000: "<html>renderizado</html>")
+    html, modo = _ri.fetch_pagina_ri("CHEVRON")
+    assert modo == "playwright" and html == "<html>renderizado</html>"
+    # diff_render deve detectar que o render mudou a pagina
+    from workers.jsrender import diff_render
+    antes = "<html><body></body></html>"
+    depois = ("<html><body><table>x</table>" * 50 + "TEXTO " * 200 + "</body></html>")
+    d = diff_render(antes, depois)
+    assert d["tabelas_depois"] >= 1 and d["cresceu_pct"] > 50 and d["precisa_js"]
+    DatabaseManager._instance = None
+
+
+def test_render_cli_sem_empresa(capsys):
+    """M9.13 via CLI: sem --empresa a execução falha com orientação."""
+    import app_main
+    rc = app_main.main(["fontes", "render"])
+    assert rc == 2
+    out = capsys.readouterr().out + capsys.readouterr().err
+    assert "informe --empresa" in out
+
+
+def test_html_do_email_e_js_valido(tmp_path, monkeypatch):
+    """O HTML do e-mail traz JS com o IC95 — e ele precisa ser JS que roda.
+
+    Regressão real: a vírgula da lista de traces ficou fora do array e o e-mail
+    abria com erro de sintaxe — o gráfico não aparecia e o anexo (que é o
+    entregável) virava lixo.
+    """
+    import shutil
+    import subprocess
+    if shutil.which("node") is None:
+        pytest.skip("node indisponivel")
+    import re
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.database import DatabaseManager as _DB
+    from models.repositories import FatoRepository
+    from workers.forecast_run import run_forecast
+    from workers.mailer import montar_email
+    db = _DB()
+    repo = FatoRepository()
+    for i, v in enumerate([80, 72, 95, 84, 82, 74, 97, 86, 84, 76, 99, 88, 84, 92]):
+        repo.upsert_financeiro("PETROBRAS", f"{2023 + i // 4}Q{i % 4 + 1}",
+                               "RECEITA_LIQUIDA", v, "USD", None, 0.9)
+    run_forecast(db, empresas=["PETROBRAS"], rubricas=["RECEITA_LIQUIDA"])
+    for com in (True, False):
+        msg = montar_email("d@x.com", "RECEITA_LIQUIDA", "2026Q2", db=db,
+                           com_projection=com)
+        html = next(p.get_payload(decode=True).decode("utf-8", "replace")
+                    for p in msg.walk()
+                    if p.get_filename() and p.get_filename().endswith(".html"))
+        js = re.search(r"<script>(.*?)</script>", html, re.S).group(1)
+        destino = tmp_path / f"mail_{com}.js"
+        destino.write_text(js, encoding="utf-8")
+        proc = subprocess.run(["node", "--check", str(destino)],
+                              capture_output=True, text=True, timeout=60)
+        assert proc.returncode == 0, f"com_projection={com}: {proc.stderr}"
+    DatabaseManager._instance = None
 
 
 def test_email_anexa_grafico(tmp_path, monkeypatch):
@@ -1550,7 +2669,7 @@ def test_projecao_cobre_toda_rubrica_com_fato(tmp_path, monkeypatch):
 
 def test_projecao_intervalo_ignora_sinal_negativo():
     """Série negativa (despesa) não pode inverter o IC95 (inf > sup)."""
-    from workers.forecast import METODOS, projetar
+    from workers.forecast import projetar
     r = projetar([-10.0], horizonte=1)          # 1 dado -> REPETIR_15
     assert r["metodo"] == "REPETIR_15"
     assert r["inf"][0] < r["sup"][0], r

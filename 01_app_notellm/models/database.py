@@ -131,6 +131,15 @@ CREATE TABLE IF NOT EXISTS tb_projecao (
 );
 
 CREATE INDEX IF NOT EXISTS idx_projecao_chave ON tb_projecao (nome_empresa, rubrica_padronizada);
+
+-- Premissas macro por trimestre (Brent, PTAX). Alimenta os cenários (M3.13/M10.8).
+-- valor é em USD/bbl (Brent) ou BRL/USD (ptax), média trimestral.
+CREATE TABLE IF NOT EXISTS tb_macro_fator (
+    periodo TEXT NOT NULL,
+    fator TEXT NOT NULL,
+    valor REAL NOT NULL,
+    PRIMARY KEY (periodo, fator)
+);
 -- Trilha de decisao da auditoria (quem aceitou/rejeitou/ignorou cada achado).
 CREATE TABLE IF NOT EXISTS tb_auditoria_decisao (
     id_decisao INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,12 +194,26 @@ CREATE TABLE IF NOT EXISTS tb_qualidade_historico (
 CREATE INDEX IF NOT EXISTS idx_qhist_chave ON tb_qualidade_historico (nome_empresa, periodo, gerado_em);
 
 -- Registro das regras de alerta/limiar (permite calibrar e reduzir alarme).
+-- Registro das regras de alerta/limiar (permite calibrar e reduzir alarme).
+-- Chave primaria no codigo: uma regra, um limiar global.
 CREATE TABLE IF NOT EXISTS tb_regra_alerta (
     codigo TEXT PRIMARY KEY,
     descricao TEXT,
     limiar REAL,
     severidade TEXT DEFAULT 'MEDIUM',
     ativo INTEGER DEFAULT 1
+);
+
+-- M7.22: excecao de limiar por empresa e/ou rubrica. Tabela separada de proposito:
+-- mexer na chave primaria de tb_regra_alerta exigiria recriar a tabela em toda base
+-- antiga, e a excecao e naturalmente 1:N em relacao a regra.
+CREATE TABLE IF NOT EXISTS tb_regra_limiar (
+    codigo TEXT NOT NULL,
+    empresa TEXT NOT NULL DEFAULT '',
+    rubrica TEXT NOT NULL DEFAULT '',
+    limiar REAL NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    PRIMARY KEY (codigo, empresa, rubrica)
 );
 
 CREATE INDEX IF NOT EXISTS idx_score_periodo ON tb_qualidade_score (periodo);
@@ -222,6 +245,19 @@ MIGRATIONS: dict[str, dict[str, str]] = {
     "tb_etl_execucao": {
         "paginas_lidas": "INTEGER DEFAULT 0",
         "tabelas_detectadas": "INTEGER DEFAULT 0",
+    },
+    # M7.27 — proveniencia: o numero veio do documento da propria empresa (RI),
+    # de uma copia regulatoria (SEC) ou e derivado de outros fatos? A cadeia
+    # fica no proprio fato para nao depender de refazer o ETL.
+    "tb_fato_financeiro": {
+        "profundidade_proveniencia": "INTEGER",
+        "origem_proveniencia": "TEXT",
+        "cadeia_proveniencia": "TEXT",
+    },
+    "tb_fato_operacional": {
+        "profundidade_proveniencia": "INTEGER",
+        "origem_proveniencia": "TEXT",
+        "cadeia_proveniencia": "TEXT",
     },
 }
 
@@ -272,6 +308,7 @@ class DatabaseManager:
             for tbl in ("tb_review_queue", "tb_quality_alerts", "tb_fato_operacional",
                         "tb_fato_financeiro", "tb_depara_rubrica", "tb_fonte_dados",
                         "tb_etl_execucao", "tb_projecao", "tb_auditoria_decisao",
-                        "tb_qualidade_historico", "tb_qualidade_score", "tb_regra_alerta"):
+                        "tb_qualidade_historico", "tb_qualidade_score",
+                        "tb_regra_alerta", "tb_regra_limiar", "tb_macro_fator"):
                 conn.execute(f"DELETE FROM {tbl};")
             conn.commit()

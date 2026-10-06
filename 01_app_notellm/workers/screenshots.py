@@ -108,7 +108,9 @@ def capturar(exe: str, url: str, saida: Path, espera_ms: int, altura: int) -> bo
                f"--virtual-time-budget={espera_ms}",
                "--no-first-run", "--no-default-browser-check",
                f"--screenshot={saida}", url]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        # stderr do Chrome nao interessa aqui: um "--headless" novo demais avisa
+        # sobre GPU e isso nao diz se o print saiu. O que vale e o arquivo.
+        subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     return saida.exists() and saida.stat().st_size > 5000
 
 

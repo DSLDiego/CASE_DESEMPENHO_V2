@@ -321,8 +321,12 @@ class FonteRepository:
         return row is not None
 
     def listar(self) -> list[dict[str, Any]]:
+        # desempate por id: sem ele a ordem entre linhas com o mesmo
+        # data_download (quase todas) fica a critério do SQLite e muda entre
+        # consultas — na tela de aprovação em lote a linha marcada saltava.
         with self.db.connect() as conn:
-            rows = conn.execute("SELECT * FROM tb_fonte_dados ORDER BY data_download DESC").fetchall()
+            rows = conn.execute("SELECT * FROM tb_fonte_dados"
+                                " ORDER BY data_download DESC, id_fonte DESC").fetchall()
         return [dict(r) for r in rows]
 
     def atualizar_status(self, id_fonte: int, status: str) -> None:

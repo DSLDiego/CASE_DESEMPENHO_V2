@@ -58,6 +58,9 @@ Ou pelo menu: `main_vis.bat` → opção 1.
 | `python app_main.py fontes api` | detecta serviço JSON público por empresa (SEC companyfacts / Investidor10) |
 | `python app_main.py fontes check` | acusa arquivos locais ausentes |
 | `python app_main.py fontes metrica` | mede páginas/tabelas dos PDFs sem métrica (M8.12), sem reprocessar |
+| `python app_main.py fontes cache` | mostra/limpa o cache de texto de PDF (M8.11); desligar com `PETRO_CACHE_PDF=0` |
+| `python app_main.py fontes urls` | checa as URLs do catálogo e separa link morto de bloqueio de automação (M1.14) |
+| `python app_main.py fontes aprovar --ids 12,13,14` | aprova as fontes selecionadas como PROCESSADO (M1.15); `--ids todas` pega só as PENDENTE. Sem seleção explícita, fontes fora de PENDENTE são ignoradas e listadas como tal — use `--incluir-nao-pendentes` para mexer nelas |
 | `python app_main.py auditoria resumo\|fila` | KPIs e fila priorizada da auditoria |
 | `python app_main.py auditoria decidir --id 4245 --decisao ACEITO` | triagem (aceito/rejeitado/ignorado) |
 | `python app_main.py auditoria reabrir --id 4245` | desfaz a triagem (item volta para a fila) |
@@ -65,7 +68,7 @@ Ou pelo menu: `main_vis.bat` → opção 1.
 | `python app_main.py auditoria relatorio --de ... --ate ...` | relatório de auditoria em PDF (M2.10) |
 | `python app_main.py qualidade rodar\|resumo\|fila\|regras\|historico` | scorecard, alertas, fila, limiares e evolução do DQS |
 | `python app_main.py sec --periodos 2023Q1 2024Q4` | completa o histórico 4 anos via XBRL |
-| `python -m pytest tests/ -q` | suíte de testes (**119 testes: 117 passam, 2 skip** por Container sem 2023/2024) |
+| `python -m pytest tests/ -q` | suíte de testes (**151 testes: 149 passam, 2 skip** por Container sem 2023/2024) |
 
 ## 3.1 CRUD de fontes pela interface
 - **Web**: `python app_main.py web --periodo 2026Q2 --serve` → aba **Fontes (CRUD)**:
@@ -285,7 +288,7 @@ aba Auditoria (botão **📄 gerar relatório PDF**) ou por `GET /api/auditoria?
 
 ## 5.6 Qualidade e Rastreabilidade (gestão e controle)
 - **Web**: aba **Qualidade** (atalho `0`) · **GUI**: aba **Qualidade** ·
-  **CLI**: `python app_main.py qualidade rodar|resumo|fila|regras|historico`
+  **CLI**: `python app_main.py qualidade rodar|resumo|fila|regras|historico|limiar`
 
 Cada **empresa × trimestre** recebe um **DQS 0–100** com cinco dimensões ponderadas:
 Completude 30%, Plausibilidade 25%, Consistência 15%, Rastreabilidade 15% (todo fato com

@@ -11,7 +11,6 @@ import urllib.parse
 import urllib.request
 from datetime import date
 from html.parser import HTMLParser
-from pathlib import Path
 
 from config import COMPANIES, DOWNLOADS_DIR, USER_AGENT
 from models.repositories import FonteRepository, sha256_file
@@ -92,6 +91,34 @@ class _Links(HTMLParser):
         if self.links and data.strip():
             href, _ = self.links[-1]
             self.links[-1] = (href, (self.links[-1][1] + " " + data.strip()).strip())
+
+
+# Portais em que a página útil é desenhada por JS: a requisição pura devolve o
+# esqueleto. Para esses, o render (playwright) é default; nos demais, o fetch puro.
+_RI_JS_PESADO = {"CHEVRON", "BP", "PETROBRAS", "EQUINOR"}
+
+
+def fetch_pagina_ri(empresa: str, fallback_sem_js: bool = True) -> tuple[str, str]:
+    """Retorna (html_renderizado, modo) para o portal de RI da empresa.
+
+    modo: 'playwright' | 'http' | 'http-fallback'.
+    Em Chevron/BP/Petrobras/Equinor o HTML base chega vazio sem JS: tentamos
+    renderizar; sem playwright instalado, cai para o download puro e avisa
+    ('http-fallback') para o chamador já saber que a página pode vir em branco.
+    """
+    empresa = empresa.upper()
+    url = RI_SITES.get(empresa)
+    if not url:
+        raise ValueError(f"empresa sem portal RI mapeado: {empresa}")
+    if empresa in _RI_JS_PESADO:
+        try:
+            from workers.jsrender import fetch_renderizado
+            return fetch_renderizado(url), "playwright"
+        except RuntimeError:
+            if not fallback_sem_js:
+                raise
+            return fetch(url), "http-fallback"
+    return fetch(url), "http"
 
 
 def fetch(url: str, timeout: int = 25) -> str:

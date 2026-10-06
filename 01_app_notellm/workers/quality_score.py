@@ -27,10 +27,10 @@ from datetime import datetime
 from statistics import mean, pstdev
 from typing import Any
 
-from config import COMPANIES, INDICATORS
+from config import INDICATORS
 from models.database import DatabaseManager
-from models.repositories import FatoRepository, QualityRepository
-from workers.forecast import parse_periodo, proximos
+from models.repositories import QualityRepository
+from workers.forecast import proximos
 
 RUBRICAS_ESPERADAS = [i["codigo"] for i in INDICATORS if i["categoria"] == "Financeiro"]
 PESOS = {"completude": 0.30, "tempestividade": 0.15, "plausibilidade": 0.25,
@@ -270,7 +270,6 @@ def detectar_cross_sectional(db: DatabaseManager) -> list[dict[str, Any]]:
     diferença parece anomalia.
     """
     alertas: list[dict[str, Any]] = []
-    limiar = REGRAS["OUTLIER_CROSS_SECTIONAL"]["limiar"]
     MIN_PARES = 4
     with db.connect() as conn:
         marcas = ",".join("?" * len(RUBRICAS_CROSS_SECTIONAL))
@@ -285,6 +284,10 @@ def detectar_cross_sectional(db: DatabaseManager) -> list[dict[str, Any]]:
     for (periodo, rubrica), pares in grupos.items():
         if len(pares) < MIN_PARES:
             continue
+        # M7.22: o limiar pode ser calibrado por rubrica (CAPEX tem outra variabilidade
+        # que receita) ou por empresa, sem sair do código.
+        limiar = limiar_efetivo(db, "OUTLIER_CROSS_SECTIONAL", None, rubrica) \
+            or REGRAS["OUTLIER_CROSS_SECTIONAL"]["limiar"]
         valores = [v for _, v in pares]
         media = mean(valores)
         desvio = pstdev(valores) if len(valores) > 1 else 0.0
@@ -329,25 +332,37 @@ def detectar_desvios(db: DatabaseManager) -> list[dict[str, Any]]:
                                 "empresa": "(todas)", "periodo": periodos[-1],
                                 "descricao": (f"último trimestre carregado é {periodos[-1]}, "
                                               f"esperado {esperado} — pipeline possivelmente parado")})
-    # regra: z-score e quebra estrutural por serie
+    # regra: z-score e quebra estrutural por serie, com limiar por empresa/rubrica
     for empresa, rubrica in sorted(series):
         serie = _serie(db, empresa, rubrica)
         vals = [v for _, v in serie]
+        limiar_drift = limiar_efetivo(db, "DRIFT_ZSCORE", empresa, rubrica) \
+            or lim["DRIFT_ZSCORE"]
+        limiar_quebra = limiar_efetivo(db, "QUEBRA_ESTRUTURAL", empresa, rubrica) \
+            or lim["QUEBRA_ESTRUTURAL"]
         for i in range(3, len(vals)):
             z = _zscore(vals[i], vals[max(0, i - 6):i])
-            if abs(z) >= lim["DRIFT_ZSCORE"]:
+            if abs(z) >= limiar_drift:
+                calibrated = limiar_drift != lim["DRIFT_ZSCORE"]
                 alertas.append({"codigo": "DRIFT_ZSCORE", "severidade": REGRAS["DRIFT_ZSCORE"]["severidade"],
                                 "empresa": empresa, "periodo": serie[i][0],
+                                "calibrado": calibrated,
                                 "descricao": (f"{rubrica} {serie[i][0]}: valor {vals[i]:,.2f} "
-                                              f"desvia {z:+.1f}σ da série anterior")})
+                                              f"desvia {z:+.1f}σ da série anterior"
+                                              + (f" (limiar calibrado: {limiar_drift}σ)"
+                                                 if calibrated else ""))})
         if len(vals) >= 4:
             meio = len(vals) // 2
             m1, m2 = mean(vals[:meio]), mean(vals[meio:])
-            if m1 and abs(m2 - m1) / abs(m1) >= lim["QUEBRA_ESTRUTURAL"]:
+            if m1 and abs(m2 - m1) / abs(m1) >= limiar_quebra:
+                calibrated = limiar_quebra != lim["QUEBRA_ESTRUTURAL"]
                 alertas.append({"codigo": "QUEBRA_ESTRUTURAL", "severidade": REGRAS["QUEBRA_ESTRUTURAL"]["severidade"],
                                 "empresa": empresa, "periodo": serie[-1][0],
+                                "calibrado": calibrated,
                                 "descricao": (f"{rubrica}: nível muda de {m1:,.2f} para {m2:,.2f} "
-                                              f"({(m2 - m1) / abs(m1):+.0%}) na série")})
+                                              f"({(m2 - m1) / abs(m1):+.0%}) na série"
+                                              + (f" (limiar calibrado: {limiar_quebra:.0%})"
+                                                 if calibrated else ""))})
     return alertas
 
 
@@ -446,6 +461,77 @@ def _sincronizar_regras(db: DatabaseManager) -> None:
                 " descricao = excluded.descricao, limiar = excluded.limiar",
                 (codigo, r["descricao"], r["limiar"], r["severidade"]))
         conn.commit()
+
+
+# ------------------------------------------------- limiar por empresa/rubrica (M7.22)
+def gravar_limiar(db: DatabaseManager, codigo: str, limiar: float,
+                   empresa: str | None = None, rubrica: str | None = None,
+                   ativo: int = 1) -> None:
+    """Calibra um limiar so para uma empresa e/ou rubrica.
+
+    Empresa vazia + rubrica vazia = regra global (sobrescreve tb_regra_alerta).
+    Empresa "" + rubrica "CAPEX" = so CAPEX, para qualquer empresa.
+    Empresa "BP" + rubrica "" = so a BP.
+    """
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO tb_regra_limiar (codigo, empresa, rubrica, limiar, ativo)"
+            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(codigo, empresa, rubrica) DO UPDATE SET"
+            " limiar = excluded.limiar, ativo = excluded.ativo",
+            (codigo, empresa or "", rubrica or "", float(limiar), int(ativo)))
+        conn.commit()
+
+
+def listar_limiares(db: DatabaseManager, codigo: str | None = None) -> list[dict[str, Any]]:
+    q = "SELECT * FROM tb_regra_limiar"
+    params: tuple = ()
+    if codigo:
+        q += " WHERE codigo = ?"
+        params = (codigo,)
+    q += (" ORDER BY codigo,"
+           " CASE WHEN empresa <> '' THEN 0 ELSE 1 END,"
+           " CASE WHEN rubrica <> '' THEN 0 ELSE 1 END")
+    with db.connect() as conn:
+        return [dict(r) for r in conn.execute(q, params).fetchall()]
+
+
+def limiar_efetivo(db: DatabaseManager, codigo: str, empresa: str | None = None,
+                   rubrica: str | None = None) -> float | None:
+    """Limiar que vale para (empresa, rubrica), do mais especifico ao global.
+
+    Ordem: empresa+rubrica > rubrica > empresa > global (tb_regra_alerta).
+    Sem excecao cadastrada, devolve None — quem chama usa REGRAS[codigo].
+    """
+    empresa, rubrica = empresa or "", rubrica or ""
+    with db.connect() as conn:
+        for cand_empresa, cand_rubrica in ((empresa, rubrica),
+                                           ("", rubrica), (empresa, ""), ("", "")):
+            if not cand_empresa and not cand_rubrica:
+                continue    # global fica em tb_regra_alerta
+            linha = conn.execute(
+                "SELECT limiar FROM tb_regra_limiar WHERE codigo = ? AND empresa = ?"
+                " AND rubrica = ? AND ativo = 1", (codigo, cand_empresa, cand_rubrica)).fetchone()
+            if linha is not None:
+                return float(linha["limiar"])
+    return None
+
+
+def _limiares_efetivos(db: DatabaseManager, empresa: str, rubrica: str) -> dict[str, float]:
+    """Todos os limiares aplicáveis a um par (empresa, rubrica), já resolvidos."""
+    with db.connect() as conn:
+        base = {r["codigo"]: r["limiar"] for r in conn.execute(
+            "SELECT codigo, limiar FROM tb_regra_alerta WHERE ativo = 1").fetchall()}
+        excecoes = [dict(r) for r in conn.execute(
+            "SELECT codigo, empresa, rubrica, limiar FROM tb_regra_limiar"
+            " WHERE ativo = 1").fetchall()]
+    # (-especificidade) para que a mais especifica seja aplicada por ultimo
+    especificidade = {(e["empresa"], e["rubrica"]): s
+                      for s, e in enumerate(((empresa, rubrica), ("", rubrica), (empresa, "")))}
+    for exc in sorted(excecoes, key=lambda e: especificidade.get(
+            (e["empresa"], e["rubrica"]), 99)):
+        if (exc["empresa"] in ("", empresa)) and (exc["rubrica"] in ("", rubrica)):
+            base[exc["codigo"]] = exc["limiar"]
+    return base
 
 
 def salvar_scorecard(db: DatabaseManager, cards: list[dict[str, Any]]) -> int:

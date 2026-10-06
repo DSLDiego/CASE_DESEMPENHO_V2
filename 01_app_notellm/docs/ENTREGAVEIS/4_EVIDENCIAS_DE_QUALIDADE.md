@@ -166,15 +166,15 @@ sem ninguém precisar comparar as tabelas à mão.
 
 ## 8. Testes automatizados
 
-`python -m pytest tests/ -q` → **117 passam, 2 skips** (2023/2024 sem pasta no Container).
+`python -m pytest tests/ -q` → **131 passam, 2 skips** (2023/2024 sem pasta no Container).
 
-Os testes não são decorativos: **22 bugs reais** foram encontrados por eles, entre
+Os testes não são decorativos: **23 bugs reais** foram encontrados por eles, entre
 os quais `Transcrição 1T25.pdf` sendo parseado, `R$` lido como USD, IC95 invertido
 em série negativa, `ZeroDivisionError` na aba Qualidade, a duração do arquivo
 medida antes do parse (67,8 ms gravados como 0), a taxa de resolução da auditoria
 dividindo pelo nº de **tipos** de decisão (100% com 875 itens abertos), o
 `addTextItem` removido no pyqtgraph 0.14 quebrando a GUI com base vazia e a faixa de
-KPI do PPTX com o par (rótulo, valor) invertido.
+KPI do PPTX com o par (rótulo, valor) invertido e o botão de e-mail da GUI chamando `Path` sem o import.
 
 | Verificação | Evidência |
 |---|---|

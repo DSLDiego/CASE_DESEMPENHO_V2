@@ -102,7 +102,6 @@ def m_holt_damped(serie: list[float], h: int, k: int = K, alpha: float = 0.4,
     # 3) atualizacao
     ajustada = [serie[t] / max(indices[t % k], 1e-9) for t in range(n)]
     for t in range(k, n):
-        f = nivel + phi * tend
         nivel_novo = alpha * ajustada[t] + (1 - alpha) * (nivel + phi * tend)
         tend = beta * (nivel_novo - nivel) + (1 - beta) * phi * tend
         nivel = nivel_novo
@@ -132,6 +131,42 @@ METODOS: dict[str, Callable[[list[float], int, int], list[float]]] = {
     "MEDIA_2DP": m_media_2dp,          # regra para series curtas (poucos dados)
     "REPETIR_15": m_repetir_15,        # regra para serie de um unico dado
 }
+
+# Candidatos do backtesting, por TIPO de rubrica (M10.7).
+#
+# Antes o mesmo conjunto de 3 métodos era oferecido para toda rubrica. Isso é errado
+# por natureza do dado, não por ajuste fino: Sazonal-Naive pressupõe que o trimestre
+# se repete ano a ano, e isso vale para FLUXO (receita, EBITDA, lucro) mas não para
+# ESTOQUE (dívida, CAPEX). Dívida líquida não "repete o Q1" — ela carrega saldo.
+# Deixar o sazonal competir em estoque é o backtest "ganhando" por acaso: ele
+# ganha quando o nível é estável e perde quando a dívida sobe ou cai, misturando
+# os dois regimes numa série só.
+FLUXO = "fluxo"      # receita, lucro, EBITDA: fluxo do período, sazonal faz sentido
+ESTOQUE = "estoque"  # dívida, CAPEX: saldo acumulado, sazonal não se aplica
+PERFIL_PADRAO = FLUXO
+
+CANDIDATOS: dict[str, tuple[str, ...]] = {
+    FLUXO: ("ULTIMA_OBSERVACAO", "SAZONAL_NAIVE", "HOLT_WINTERS_DAMPED"),
+    # Holt-Winters com tendência amortecida ainda modela saldo (nível + tendência);
+    # o que se exclui é só o sazonal, que pressupõe ciclo anual.
+    ESTOQUE: ("ULTIMA_OBSERVACAO", "HOLT_WINTERS_DAMPED"),
+}
+
+# Classificação das rubricas gravadas em tb_fato_financeiro.
+RUBRICAS_ESTOQUE = {"DIVIDA_LIQUIDA", "DIVIDA_BRUTA", "CAPEX"}
+RUBRICAS_FLUXO = {"RECEITA_LIQUIDA", "EBITDA_AJUSTADO", "LUCRO_LIQUIDO", "FCO",
+                  "LUCRO_BRUTO", "DESPESA_OPERACIONAL", "FCL"}
+
+
+def perfil_rubrica(rubrica: str | None) -> str:
+    """ESTOQUE ou FLUXO. Rubrica desconhecida cai em FLUXO (o regime mais geral)."""
+    if rubrica in RUBRICAS_ESTOQUE:
+        return ESTOQUE
+    return FLUXO
+
+
+def candidatos_rubrica(rubrica: str | None) -> tuple[str, ...]:
+    return CANDIDATOS[perfil_rubrica(rubrica)]
 
 # Metodos sem backtesting: escolhidos por regra de negocio (poucos dados).
 METODOS_REGRA: dict[str, str] = {
@@ -190,15 +225,19 @@ def backtest(serie: list[float], metodo: Callable, k: int = K,
 
 
 def projetar(valores: list[float | None], horizonte: int = HORIZONTE_MAX,
-             k: int = K) -> dict[str, Any]:
+              k: int = K, rubrica: str | None = None) -> dict[str, Any]:
     """Projeta uma serie. Retorna metodo, valores, IC95, confianca e avisos.
 
-    Regras deFallback (poucos dados), na ordem:
+    Regras de fallback (poucos dados), na ordem:
       1. 1 unico dado  -> REPETIR_15  (repete o valor, intervalo ±15%)
       2. 2 a 5 dados   -> MEDIA_2DP   (média da série, intervalo ±2 desvios-padrão)
-      3. >= 6 dados    -> backtesting entre os métodos que modelam tendência/sazonalidade
+      3. >= 6 dados    -> backtesting entre os métodos do PERFIL da rubrica (M10.7)
+
+    `rubrica` decide quais métodos disputam: em estoque (dívida, CAPEX) o
+    sazonal é excluído da disputa por não descrever o dado.
     """
     horizonte = max(1, min(int(horizonte), HORIZONTE_MAX))
+    candidatos_nomes = candidatos_rubrica(rubrica)
     serie, lacunas = _completar(valores)
     n = len(serie)
     if n < 1:
@@ -212,6 +251,7 @@ def projetar(valores: list[float | None], horizonte: int = HORIZONTE_MAX,
         return {"metodo": "REPETIR_15", "valores": [round(v, 4) for v in previsto],
                 "inf": inf, "sup": sup, "sigma": 0.0, "mae": None, "mape": None,
                 "confianca": 0.25, "n": n, "lacunas": lacunas,
+                "perfil": perfil_rubrica(rubrica), "candidatos": [],
                 "regra": METODOS_REGRA["REPETIR_15"], "alternativas": []}
     # --- regra 2: poucos dados (2..5) ---
     if n < POCOS_DADOS:
@@ -223,10 +263,11 @@ def projetar(valores: list[float | None], horizonte: int = HORIZONTE_MAX,
         return {"metodo": "MEDIA_2DP", "valores": [round(v, 4) for v in previsto],
                 "inf": inf, "sup": sup, "sigma": round(sd, 4), "mae": None, "mape": None,
                 "confianca": conf, "n": n, "lacunas": lacunas,
+                "perfil": perfil_rubrica(rubrica), "candidatos": [],
                 "regra": METODOS_REGRA["MEDIA_2DP"], "alternativas": []}
-    # --- regra 3: serie suficiente -> backtesting ---
+    # --- regra 3: serie suficiente -> backtesting entre os candidatos do perfil ---
     candidatos: list[tuple[float, float, str]] = []
-    for nome in ("ULTIMA_OBSERVACAO", "SAZONAL_NAIVE", "HOLT_WINTERS_DAMPED"):
+    for nome in candidatos_nomes:
         mae, mape = backtest(serie, METODOS[nome], k)
         if math.isfinite(mae):
             candidatos.append((mae, mape, nome))
@@ -268,15 +309,18 @@ def projetar(valores: list[float | None], horizonte: int = HORIZONTE_MAX,
         "n": n,
         "lacunas": lacunas,
         "regra": None,
+        "perfil": perfil_rubrica(rubrica),
+        "candidatos": list(candidatos_nomes),
         "alternativas": [{"metodo": c[2], "mae": None if math.isinf(c[0]) else round(c[0], 4)}
                          for c in candidatos[1:]],
     }
 
 
 def projetar_serie(periodos: list[str], valores: list[float | None],
-                   horizonte: int = HORIZONTE_MAX) -> dict[str, Any]:
+                   horizonte: int = HORIZONTE_MAX,
+                   rubrica: str | None = None) -> dict[str, Any]:
     """Une a serie do banco com a projecao, incluindo os periodos futuros."""
-    r = projetar(valores, horizonte)
+    r = projetar(valores, horizonte, rubrica=rubrica)
     if not r["valores"]:
         return r
     r["periodos"] = list(periodos)

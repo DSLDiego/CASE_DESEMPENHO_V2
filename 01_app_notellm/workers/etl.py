@@ -358,6 +358,14 @@ def run_etl(db: DatabaseManager | None = None, apenas_periodos: set[str] | None 
         resumo["contrato"] = rodar_contrato(db)
     except Exception as exc:                       # noqa: BLE001
         resumo["contrato"] = {"ok": True, "erro": f"{type(exc).__name__}: {exc}"}
+    # Proveniencia (M7.27): classifica cada fato como primario/secundario/derivado.
+    # Fora do try de proposito — se a classificacao falhar, os numeros continuam
+    # carregados e o pipeline nao inteiro por causa de um campo de rotulo.
+    try:
+        from workers.provenance import anotar_fatos
+        resumo["proveniencia"] = anotar_fatos(db)
+    except Exception as exc:                       # noqa: BLE001
+        resumo["proveniencia"] = {"erro": f"{type(exc).__name__}: {exc}"}
     fontes.fechar_execucao(id_execucao, arquivos=resumo["arquivos_processados"],
                            extracoes=resumo["extracoes"], cargas=resumo["cargas"],
                            pulados=resumo["pulados_pdf"], revisao=resumo["revisao"],

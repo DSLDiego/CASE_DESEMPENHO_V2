@@ -19,7 +19,12 @@ pytest>=8.0
 
 # PDF oficial (slide deck) e PPTX (apresentacao executiva)
 reportlab>=5.0
-python-pptx>=1.0        # `app_main.py pdf --pptx` → docs/APRESENTACAO_PETROBRAS.pptx
+python-pptx>=1.0        # `app_main.py pdf --pptx|--visual` → docs/APRESENTACAO_*.pptx
+pillow>=10.0            # proporção das figuras do deck visual
 
 # Envio de e-mail com o gráfico anexado em PNG (fallback: HTML + CSV)
 kaleido>=1.0
+
+# Screenshot das abas do painel (workers/screenshots.py) usa Chrome/Edge do
+# sistema em modo headless — não há dependência pip; sem navegador, o script
+# avisa e sai com código 2 em vez de estourar.

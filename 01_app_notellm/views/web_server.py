@@ -47,6 +47,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     projecoes (M3) e a gestao da auditoria (M2)."""
 
     api_prefix = "/api/fontes"
+    lote_prefix = "/api/fontes/lote"
     mail_prefix = "/api/email"
     etl_prefix = "/api/etl"
     proj_prefix = "/api/projecao"
@@ -80,7 +81,12 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         if rota == self.api_prefix:
             ctrl = SourceController()
             ctrl.complementar_campos()
-            self._json(200, {"fontes": ctrl.catalogo()})
+            self._json(200, {"fontes": ctrl.catalogo(),
+                             "pendentes": len(ctrl.fontes_pendentes())})
+            return
+        if rota == self.lote_prefix:  # linhas PENDENTE para a aprovação em lote
+            ctrl = SourceController()
+            self._json(200, {"pendentes": ctrl.fontes_pendentes()[:500]})
             return
         if rota == self.etl_prefix:  # painel de gestão do ETL
             self._json(200, SourceController().painel_etl())
@@ -95,6 +101,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             painel = ctrl.painel(empresa, rubrica)
             if (q.get("cobertura") or ["0"])[0] in ("1", "true"):
                 painel["cobertura"] = _cobertura_projecao()
+            if (q.get("cenarios") or ["0"])[0] in ("1", "true"):
+                painel["cenarios_macro"] = ctrl.cenarios_macro(
+                    empresa, rubrica, int((q.get("horizonte") or ["3"])[0]))
+            if (q.get("avaliar") or ["0"])[0] in ("1", "true"):
+                painel["avaliacao"] = ctrl.avaliar(empresa or None, rubrica or None)
             self._json(200, painel)
             return
         if rota == self.aud_prefix:  # auditoria (M2)
@@ -116,9 +127,18 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._json(200, payload)
             return
         if rota == self.qual_prefix:  # qualidade e rastreabilidade (M7)
+            q = parse_qs(urlparse(self.path).query)
+            if (q.get("proveniencia") or ["0"])[0] in ("1", "true"):
+                # M7.27: cadeia de origem. Precisa vir antes do painel de qualidade
+                # porque `reanotar` reescreve as colunas de proveniencia dos fatos.
+                self._json(200, SourceController().proveniencia(
+                    (q.get("empresa") or [""])[0] or None,
+                    (q.get("periodo") or [""])[0] or None,
+                    reanotar=(q.get("reanotar") or ["0"])[0] in ("1", "true")))
+                return
             from workers.quality_score import painel_qualidade
             p = painel_qualidade()
-            if (parse_qs(urlparse(self.path).query).get("rodar") or ["0"])[0] in ("1", "true"):
+            if (q.get("rodar") or ["0"])[0] in ("1", "true"):
                 from workers.quality_score import run_quality_score
                 p["execucao"] = run_quality_score()
                 p = painel_qualidade()
@@ -165,6 +185,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 r = SourceController().decidir(int(dados.get("id")), dados.get("decisao", ""),
                                               dados.get("comentario"))
             except (TypeError, ValueError) as exc:
+                self._json(400, {"erro": str(exc)})
+                return
+            self._json(200, r)
+            return
+        if rota == self.lote_prefix:  # aprovacao em lote de fontes (M1.15)
+            try:
+                r = SourceController().aprovar_lote(
+                    dados.get("ids") or [], (dados.get("status") or "PROCESSADO").upper(),
+                    apenas_pendentes=dados.get("apenas_pendentes", True) is not False)
+            except ValueError as exc:
                 self._json(400, {"erro": str(exc)})
                 return
             self._json(200, r)

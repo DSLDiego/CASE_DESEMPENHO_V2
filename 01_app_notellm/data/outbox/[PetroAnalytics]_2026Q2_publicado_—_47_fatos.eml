@@ -1,0 +1,71 @@
+From: PetroAnalytics <poc@petroanalytics.local>
+To: equipe@exemplo.com
+Date: Tue, 06 Oct 2026 16:54:32 -0300
+Subject: [PetroAnalytics] 2026Q2 publicado =?utf-8?b?4oCU?= 47 fatos
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============7642895324814614193=="
+
+--===============7642895324814614193==
+Content-Type: multipart/alternative;
+ boundary="===============4624111907165899440=="
+
+--===============4624111907165899440==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Publicado: 2026Q2 =E2=80=94 47 fatos novos de 7 empresas.
+
+    Indicador                 M=C3=A9dia das empresas
+  RECEITA_LIQUIDA             67.37 US$ bi =C2=B7 7 empresas (+33.2% vs 2026Q=
+1)
+  EBITDA_AJUSTADO              17.5 US$ bi =C2=B7 3 empresas (+26.1% vs 2026Q=
+1)
+  LUCRO_LIQUIDO                8.88 US$ bi =C2=B7 7 empresas (+94.7% vs 2026Q=
+1)
+  FCO                         20.35 US$ bi =C2=B7 7 empresas (+121.0% vs 2026=
+Q1)
+  DIVIDA_LIQUIDA              36.03 US$ bi =C2=B7 4 empresas (-11.6% vs 2026Q=
+1)
+  CAPEX                        3.02 US$ bi =C2=B7 5 empresas (-16.2% vs 2026Q=
+1)
+
+Proje=C3=A7=C3=A3o n=C3=A3o =C3=A9 fato publicado: os n=C3=BAmeros do relat=
+=C3=B3rio s=C3=A3o extra=C3=ADdos de documentos da pr=C3=B3pria empresa (RI) =
+ou da c=C3=B3pia regulat=C3=B3ria no SEC. Ver painel em `python app_main.py w=
+eb`.
+
+--===============4624111907165899440==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body><h2>Publica=C3=A7=C3=A3o detectada</h2><p><b>2026Q2</b> =E2=80=94=
+ 47 fatos novos de 7 empresas.</p><table border=3D'1' cellpadding=3D'4' cells=
+pacing=3D'0' style=3D'border-collapse:collapse'><tr><th>Indicador</th><th>M=
+=C3=A9dia (US$ bi)</th><th>Empresas</th><th>Vs trimestre anterior</th></tr><t=
+r><td>RECEITA_LIQUIDA</td><td align=3D'right'>67.37</td><td align=3D'right'>7=
+</td><td>+33.2% vs 2026Q1</td></tr><tr><td>EBITDA_AJUSTADO</td><td align=3D'r=
+ight'>17.50</td><td align=3D'right'>3</td><td>+26.1% vs 2026Q1</td></tr><tr><=
+td>LUCRO_LIQUIDO</td><td align=3D'right'>8.88</td><td align=3D'right'>7</td><=
+td>+94.7% vs 2026Q1</td></tr><tr><td>FCO</td><td align=3D'right'>20.35</td><t=
+d align=3D'right'>7</td><td>+121.0% vs 2026Q1</td></tr><tr><td>DIVIDA_LIQUIDA=
+</td><td align=3D'right'>36.03</td><td align=3D'right'>4</td><td>-11.6% vs 20=
+26Q1</td></tr><tr><td>CAPEX</td><td align=3D'right'>3.02</td><td align=3D'rig=
+ht'>5</td><td>-16.2% vs 2026Q1</td></tr></table><p><small>Proje=C3=A7=C3=A3o =
+n=C3=A3o =C3=A9 fato publicado.</small></p></body></html>
+
+--===============4624111907165899440==--
+
+--===============7642895324814614193==
+Content-Type: text/csv
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="publicacao_2026Q2.csv"
+MIME-Version: 1.0
+
+77u/cnVicmljYTtwZXJpb2RvO21lZGlhX3VzZF9iaTtlbXByZXNhczt2YXJpYWNhb19xdF9hbnRl
+cmlvcl9wY3QNClJFQ0VJVEFfTElRVUlEQTsyMDI2UTI7NjcuMzc7NzszMy4yDQpFQklUREFfQUpV
+U1RBRE87MjAyNlEyOzE3LjU7MzsyNi4xDQpMVUNST19MSVFVSURPOzIwMjZRMjs4Ljg4Ozc7OTQu
+Nw0KRkNPOzIwMjZRMjsyMC4zNTs3OzEyMS4wDQpESVZJREFfTElRVUlEQTsyMDI2UTI7MzYuMDM7
+NDstMTEuNg0KQ0FQRVg7MjAyNlEyOzMuMDI7NTstMTYuMg0K
+
+--===============7642895324814614193==--
