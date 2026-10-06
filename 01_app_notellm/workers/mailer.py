@@ -123,6 +123,37 @@ def montar_email(para: str, rubrica: str, periodo: str,
 
 
 
+def listar_alerta_p1(db: DatabaseManager | None = None) -> list[dict]:
+    """M7.25: itens P1 abertos da fila de qualidade (alertas que precisam agir)."""
+    from workers.quality_score import fila_analise
+    return [i for i in fila_analise(db or DatabaseManager()) if i["prioridade"] == "P1"]
+
+
+def montar_email_alerta(para: str, db: DatabaseManager | None = None) -> EmailMessage | None:
+    """Compõe o e-mail de alerta de P1. Retorna None quando não há P1 (sem spam)."""
+    p1 = listar_alerta_p1(db)
+    if not p1:
+        return None
+    corpo = [f"PetroAnalytics — {len(p1)} alerta(s) P1 na fila de qualidade:", ""]
+    for i in p1[:25]:
+        corpo.append(f"  [{i['codigo']}] {i.get('empresa','')} {i.get('periodo','')} — {i['motivo']}")
+    corpo += ["", "Triagem: python app_main.py auditoria fila --prioridade P1"]
+    msg = EmailMessage()
+    msg["Subject"] = f"[PetroAnalytics] ALERTAS P1 — {len(p1)} itens na fila"
+    msg["From"] = os.environ.get("SMTP_DE", "petroanalytics@exemplo.com")
+    msg["To"] = para
+    msg["Date"] = formatdate(localtime=True)
+    msg.set_content("\n".join(corpo))
+    return msg
+
+
+def alertar_p1(para: str, db: DatabaseManager | None = None, dry_run: bool = True) -> str | None:
+    msg = montar_email_alerta(para, db)
+    if msg is None:
+        return None
+    return enviar(msg, dry_run=dry_run)
+
+
 def enviar(msg: EmailMessage, dry_run: bool = True) -> str:
     """dry_run=True: salva .eml em data/outbox (sem rede). Retorna o caminho ou 'ENVIADO'."""
     if dry_run:

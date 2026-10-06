@@ -1,6 +1,6 @@
 # Catalogo de fontes utilizadas (gerado pelo ETL)
 
-Total de arquivos catalogados: **798** (130 do Container + cache SEC, se houver).
+Total de arquivos catalogados: **871** (130 do Container + cache SEC, se houver).
 Origem: portais oficiais de Relacoes com Investidores (ver `RI_URLS` em `workers/scanner.py`) + arquivos locais do Container.
 Rastreabilidade: cada fato carrega `id_fonte`; catalogos-espelho em `data/sources_catalog.json` e `.csv`.
 
@@ -9,42 +9,45 @@ Rastreabilidade: cada fato carrega `id_fonte`; catalogos-espelho em `data/source
 | Empresa | Tipo | Status | Qtd |
 |---|---|---|---|
 | BP | DOC | NAO_BAIXADO | 1 |
-| BP | HTML | NAO_BAIXADO | 1 |
+| BP | HTML | NAO_BAIXADO | 2 |
 | BP | JSON | NAO_BAIXADO | 1 |
 | BP | PDF | NAO_PROCESSADO | 8 |
 | BP | PDF | SEM_DADOS | 10 |
 | BP | XLSX | PROCESSADO | 3 |
 | CHEVRON | DOC | NAO_BAIXADO | 2 |
-| CHEVRON | HTML | NAO_BAIXADO | 1 |
+| CHEVRON | HTML | NAO_BAIXADO | 8 |
 | CHEVRON | JSON | NAO_BAIXADO | 1 |
 | CHEVRON | PDF | NAO_PROCESSADO | 9 |
 | CHEVRON | PDF | SEM_DADOS | 3 |
 | CHEVRON | XLSX | PROCESSADO | 3 |
+| DESCONHECIDA | JSON | SEM_PARSER | 7 |
 | EQUINOR | DOC | NAO_BAIXADO | 1 |
-| EQUINOR | HTML | NAO_BAIXADO | 1 |
+| EQUINOR | HTML | NAO_BAIXADO | 2 |
 | EQUINOR | JSON | NAO_BAIXADO | 1 |
 | EQUINOR | PDF | NAO_PROCESSADO | 6 |
 | EQUINOR | PDF | PROCESSADO | 3 |
 | EXXONMOBIL | DOC | NAO_BAIXADO | 1 |
-| EXXONMOBIL | HTML | NAO_BAIXADO | 1 |
+| EXXONMOBIL | HTML | NAO_BAIXADO | 2 |
 | EXXONMOBIL | JSON | NAO_BAIXADO | 1 |
 | EXXONMOBIL | PDF | NAO_BAIXADO | 318 |
-| EXXONMOBIL | PDF | NAO_PROCESSADO | 7 |
+| EXXONMOBIL | PDF | NAO_PROCESSADO | 10 |
 | EXXONMOBIL | PDF | PROCESSADO | 3 |
-| EXXONMOBIL | PDF | SEM_DADOS | 10 |
+| EXXONMOBIL | PDF | SEM_DADOS | 7 |
 | EXXONMOBIL | XLSX | NAO_BAIXADO | 50 |
 | EXXONMOBIL | XLSX | PROCESSADO | 1 |
 | EXXONMOBIL | XLSX | SEM_DADOS | 2 |
 | PETROBRAS | DOC | NAO_BAIXADO | 1 |
-| PETROBRAS | HTML | NAO_BAIXADO | 1 |
+| PETROBRAS | HTML | NAO_BAIXADO | 10 |
+| PETROBRAS | HTML | SEM_DADOS | 9 |
 | PETROBRAS | JSON | NAO_BAIXADO | 1 |
-| PETROBRAS | PDF | NAO_PROCESSADO | 5 |
-| PETROBRAS | PDF | PROCESSADO | 2 |
-| PETROBRAS | PDF | SEM_DADOS | 13 |
+| PETROBRAS | PDF | NAO_PROCESSADO | 6 |
+| PETROBRAS | PDF | PROCESSADO | 1 |
+| PETROBRAS | PDF | SEM_DADOS | 37 |
 | PETROBRAS | XLSX | PROCESSADO | 3 |
-| PETROBRAS | XLSX | SEM_DADOS | 3 |
+| PETROBRAS | XLSX | SEM_DADOS | 9 |
 | SHELL | DOC | NAO_BAIXADO | 1 |
-| SHELL | HTML | NAO_BAIXADO | 1 |
+| SHELL | HTML | NAO_BAIXADO | 2 |
+| SHELL | HTML | SEM_DADOS | 7 |
 | SHELL | JSON | NAO_BAIXADO | 1 |
 | SHELL | PDF | NAO_PROCESSADO | 9 |
 | SHELL | PDF | PROCESSADO | 3 |
@@ -73,14 +76,13 @@ Rastreabilidade: cada fato carrega `id_fonte`; catalogos-espelho em `data/source
 | 2019 | EQUINOR | q1-2026-financial-statements-and-review-equinor.pdf | 2026-10-04 20:54:32 |
 | 2022 | EQUINOR | q2-2026-financial-statements-and-review-equinor.pdf | 2026-10-04 20:54:32 |
 | 2024 | EXXONMOBIL | 4Q25 Earnings Press Release Website.pdf | 2026-10-04 20:54:32 |
+| 2033 | EXXONMOBIL | 1Q26 Earnings Press Release Website.pdf | 2026-10-04 20:54:33 |
 | 2040 | EXXONMOBIL | 2Q26 Earnings Release Website.pdf | 2026-10-04 20:54:33 |
-| 2042 | EXXONMOBIL | 2Q26 Prepared Remarks.pdf | 2026-10-04 20:54:33 |
 | 2045 | EXXONMOBIL | Earning Release Supplement Data - Excel Version.xlsx | 2026-10-04 20:54:34 |
 | 2051 | PETROBRAS | Excel 4T25 USD.xlsx | 2026-10-04 20:54:34 |
 | 2059 | PETROBRAS | Excel 1T26 USD.xlsx | 2026-10-04 20:54:35 |
 | 2060 | PETROBRAS | Relatório de Produção de Vendas 1T26.pdf | 2026-10-04 20:54:35 |
 | 2067 | PETROBRAS | Excel 2T26 USD.xlsx | 2026-10-04 20:54:35 |
-| 2068 | PETROBRAS | Relatório de Produção e Vendas 2T26.pdf | 2026-10-04 20:54:35 |
 | 2073 | SHELL | q4-2025-quarterly-databook.xlsx | 2026-10-04 20:54:35 |
 | 2074 | SHELL | q4-2025-quarterly-press-release.pdf | 2026-10-04 20:54:35 |
 | 2079 | SHELL | q1-2026-quarterly-databook.xlsx | 2026-10-04 20:54:36 |

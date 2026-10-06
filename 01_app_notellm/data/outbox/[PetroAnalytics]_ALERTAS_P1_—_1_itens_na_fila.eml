@@ -1,0 +1,13 @@
+Subject: [PetroAnalytics] ALERTAS P1 =?utf-8?b?4oCU?= 1 itens na fila
+From: petroanalytics@exemplo.com
+To: a@b.com
+Date: Tue, 06 Oct 2026 09:01:12 -0300
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+PetroAnalytics — 1 alerta(s) P1 na fila de qualidade:
+
+  [ATRASO_TRIMESTRE] (todas) 2026Q3 — atraso
+
+Triagem: python app_main.py auditoria fila --prioridade P1

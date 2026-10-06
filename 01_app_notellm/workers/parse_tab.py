@@ -171,6 +171,7 @@ def extract_from_matrix(rows: list[list[object]], fonte: str) -> list[RawExtract
     header_idx, period_cols = -1, {}
     for i, row in enumerate(rows[:40]):
         found = {}
+        com_ano = False
         for j in range(1, min(len(row), 42)):
             per, tem_ano = norm_period(row[j])
             if not per:
@@ -180,8 +181,14 @@ def extract_from_matrix(rows: list[list[object]], fonte: str) -> list[RawExtract
                 if not ano:
                     continue
                 per = f"{ano}{per}"
+            else:
+                com_ano = True
             found[j] = per
-        if len(found) >= 2:
+        # >= 2 colunas: regra original (evita confundir uma célula solta com período).
+        # == 1 colunia: só aceito se o PRÓPRIO cabeçalho traz o ano ("2026Q3", "1T26"),
+        # que é inequívoco. Uma coluna única de "Q3" sem ano continua rejeitada,
+        # senão qualquer número solto na planilha viraria trimestre.
+        if len(found) >= 2 or (len(found) == 1 and com_ano):
             header_idx, period_cols = i, found
             break
     if header_idx < 0:

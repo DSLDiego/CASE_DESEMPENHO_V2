@@ -5,10 +5,12 @@ para nao estourar memoria (skill BigString: evita concatenar tudo).
 """
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 from models.depara import resolve
+from workers.naming import periodo_do_nome
 from workers.parse_tab import (RawExtraction, norm_period, scale_and_currency,
                                to_number, SKIP_ROW)
 
@@ -37,7 +39,126 @@ def page_texts(path: Path, max_pages: int = 12) -> list[str]:
         return []
 
 
+# Ultima metrica de leitura do PDF processado (M8.12). O ETL le este valor logo
+# depois do parse, entao um dicionario por processo e suficiente: o parse de cada
+# arquivo acontece em um processo (ou na serial), e a leitura e imediata.
+_ULTIMA_METRICA: dict[str, int] = {}
+
+
+def ultima_metrica() -> dict[str, int]:
+    """Metrica de leitura do ULTIMO PDF parseado (paginas/paginas_lidas/tabelas)."""
+    return dict(_ULTIMA_METRICA)
+
+
+def _registrar_metricas(path: Path, max_pages: int, tabelas: list | None) -> None:
+    _ULTIMA_METRICA.clear()
+    _ULTIMA_METRICA.update(metricas(path, max_pages, tabelas))
+
+
+def n_paginas(path: Path) -> int:
+    """Total de páginas do PDF (0 se não der para abrir). Só a contagem, sem texto."""
+    try:
+        import pymupdf
+        with pymupdf.open(path) as doc:
+            return int(doc.page_count)
+    except Exception:
+        return 0
+
+
+def _contar_tabelas(path: Path, max_pages: int) -> int:
+    """Quantas tabelas o detector acha no documento (sem extrair as matrizes).
+
+    `find_tables()` já faz o trabalho caro da detecção; `extract()` (o que o parse
+    usa para virar extração) é o passo seguinte. Contar separadamente custa ~0,2 s
+    por documento e por isso só acontece quando o parse NÃO já passou por aqui.
+    """
+    try:
+        import pymupdf
+        achadas = 0
+        with pymupdf.open(path) as doc:
+            for i, page in enumerate(doc):
+                if i >= max_pages:
+                    break
+                detector = getattr(page, "find_tables", None)
+                if detector is None:          # build antigo do MuPDF, sem suporte
+                    break
+                try:
+                    achadas += len(getattr(detector(), "tables", None) or [])
+                except Exception:
+                    continue
+        if achadas:
+            return achadas
+    except Exception:
+        pass
+    try:
+        return len(_tables_pdfplumber(path, min(max_pages, 8)))
+    except Exception:
+        return 0
+
+
+def metricas(path: Path, max_pages: int = 12, tabelas: list | None = None) -> dict[str, int]:
+    """Métrica de leitura do documento (M8.12): páginas e tabelas detectadas.
+
+    `paginas` é o total real do arquivo e `paginas_lidas` o que o parse realmente
+    percorreu (limitado por max_pages) — misturar os dois esconderia o custo de um
+    DF de 37 páginas lido só até a 12ª.
+
+    `tabelas` reaproveita a detecção que o parse acabou de fazer (mesma lista,
+    mesmo custo). Só quando ela não é passada é que a contagem roda aqui.
+    """
+    total = n_paginas(path)
+    if not total:
+        return {"paginas": 0, "paginas_lidas": 0, "tabelas": 0}
+    lidas = min(total, max_pages)
+    return {"paginas": total, "paginas_lidas": lidas,
+            "tabelas": len(tabelas) if tabelas is not None else _contar_tabelas(path, lidas)}
+
+
 def extract_tables(path: Path, max_pages: int = 8) -> list[list[list[object]]]:
+    """Tabelas do PDF: PyMuPDF primeiro (rápido, MuPDF nativo), pdfplumber como fallback.
+
+    PyMuPDF é ~3-8x mais rápido e não depende de cairo; em DFs da Petrobras ele
+    encontra as tabelas com a mesma qualidade, então virou o caminho primário.
+    """
+    tabelas = _tables_pymupdf(path, max_pages)
+    if tabelas:
+        return tabelas
+    return _tables_pdfplumber(path, max_pages)
+
+
+def _tables_pymupdf(path: Path, max_pages: int) -> list[list[list[object]]]:
+    """Detecção de tabelas via PyMuPDF (page.find_tables, seleção 'lines')."""
+    out: list[list[list[object]]] = []
+    try:
+        import pymupdf
+    except ImportError:
+        return out
+    try:
+        with pymupdf.open(path) as doc:
+            for i, page in enumerate(doc):
+                if i >= max_pages:
+                    break
+                detector = getattr(page, "find_tables", None)
+                if detector is None:          # build antigo do MuPDF, sem suporte
+                    break
+                try:
+                    achadas = detector()
+                except Exception:
+                    continue
+                for tb in (getattr(achadas, "tables", None) or []):
+                    try:
+                        matriz = tb.extract()
+                    except Exception:
+                        continue
+                    matriz = [[c for c in linha] for linha in (matriz or [])]
+                    if matriz and len(matriz) >= 3:
+                        out.append(matriz)
+    except Exception:
+        return out
+    return out
+
+
+def _tables_pdfplumber(path: Path, max_pages: int) -> list[list[list[object]]]:
     try:
         import pdfplumber
         tables = []
@@ -89,6 +210,10 @@ def flowed(lines: list[str]) -> list[str]:
     """Junta quebras fisicas do PDF antes de fatiar em sentencas."""
     return [" ".join(lines)]
 DOC_FOLDER = re.compile(r"(20\d{2})_([1-4])T")
+
+# Extrator complementar (PDFOxide/Rust). Liga/desliga por var de ambiente para
+# poder desligar em maquina sem a lib sem mexer no codigo.
+ENABLE_EXTRATOR_ALTERNATIVO = os.environ.get("PETRO_NO_ALTERNATIVO", "0") != "1"
 ANNUAL_CUE = re.compile(
     r"full.year|annual|since|cumulative|guidance|expect|plan|compared|versus|target|outlook|"
     r"buyback|dividend|distribution|repurchase|20(2[0-4]|19\d)|2030",
@@ -108,24 +233,14 @@ def doc_year_hint(path: Path) -> str | None:
 
 
 def doc_period_hint(path: Path) -> tuple[str, str] | None:
-    """(ano, trimestre) inferidos do nome/pasta: 4Q25->(2025,Q4), q2-2026->(2026,Q2)."""
+    """(ano, trimestre) do nome/pasta, tolerante a acento/espaco/hifen/cifrao.
+
+    Cobre 4Q25, q2-2026, 1T26, 3Q25, '2025 3T', 'Demonstracoes ... US$ (1)'.
+    """
     m = DOC_FOLDER.search(path.parent.name)
     if m:
         return m.group(1), f"Q{m.group(2)}"
-    text = path.name
-    m = re.search(r"\b([1-4])Q(\d{2})\b", text)
-    if m:
-        return f"20{m.group(2)}", f"Q{m.group(1)}"
-    m = re.search(r"Q([1-4])[-_ ]?(20\d{2})", text, re.IGNORECASE)
-    if m:
-        return m.group(2), f"Q{m.group(1)}"
-    m = re.search(r"\b([1-4])T(2\d)\b", text)
-    if m:
-        return f"20{m.group(2)}", f"Q{m.group(1)}"
-    m = re.search(r"(20\d{2})", text)
-    if m:
-        return m.group(1), ""
-    return None
+    return periodo_do_nome(path.name)
 
 
 def extract_sentence3_figures(lines: list[str], fonte: str,
@@ -338,11 +453,42 @@ def extract_key_figures(lines: list[str], fonte: str) -> list[RawExtraction]:
     return list(best.values())
 
 
+def page_texts_alternativo(path: Path, max_pages: int = 12) -> list[str]:
+    """Fallback de texto (PDFOxide/Rust) para quando o MuPDF não devolve nada.
+
+    Benchmark no acervo (11 PDFs, `docs/LISTA_TAREFAS.md` M8.8): o PDFOxide é 2,8x
+    mais lento que o PyMuPDF para texto e **não** acha mais tabelas (0 contra 2 nos
+    DFs da Petrobras), e como extrator *primário* não amplia os fatos extraídos
+    (mesmas 35 extrações). Portanto fica só como resiliência: entra quando o
+    PyMuPDF falha em abrir/decodificar o arquivo (stream corrompido, por exemplo).
+    """
+    try:
+        import pdf_oxide
+    except ImportError:
+        return []
+    try:
+        doc = pdf_oxide.PdfDocument.from_bytes(Path(path).read_bytes())
+        return [str(doc.extract_text(i))
+                for i in range(min(max_pages, doc.page_count()))]
+    except Exception:
+        return []
+    except BaseException as exc:      # noqa: BLE001
+        # PDFOxide é Rust/pyo3: um PDF truncado derruba um pânico que NÃO é
+        # Exception (PanicException deriva de BaseException) e derrubaria o ETL
+        # inteiro. Fallback de resiliência não pode ser o que quebra a carga.
+        print(f"[parse_pdf] fallback oxide falhou em {Path(path).name}: "
+              f"{type(exc).__name__}")
+        return []
+
+
 def parse_pdf(path: Path) -> list[RawExtraction]:
     from workers.parse_tab import extract_from_matrix
     deep = "financial-statement" in path.name.lower()
-    texts = page_texts(path, max_pages=30 if deep else 12)
-    lines = [ln.strip() for t in texts for ln in t.splitlines()]
+    max_pag = 30 if deep else 12
+    textos = page_texts(path, max_pages=max_pag)
+    if not textos and ENABLE_EXTRATOR_ALTERNATIVO:
+        textos = page_texts_alternativo(path, max_pag)   # MuPDF falhou: tenta o Rust
+    lines = [ln.strip() for t in textos for ln in t.splitlines()]
     keyfig = extract_key_figures(lines, path.name)
     frase = extract_sentence_figures(lines, path.name)
     frase2 = extract_sentence2_figures(lines, path.name, doc_year_hint(path))
@@ -351,9 +497,12 @@ def parse_pdf(path: Path) -> list[RawExtraction]:
     for e in frase + frase2 + frase3:
         precisos.setdefault((e.rubrica, e.periodo), e)
     if precisos:  # layouts de alta precisao dispensam tabelas ruidosas
+        _registrar_metricas(path, max_pag, None)
         return list(precisos.values())
     out: list[RawExtraction] = []
-    for tbl in extract_tables(path):
+    tabelas = extract_tables(path)
+    _registrar_metricas(path, max_pag, tabelas)
+    for tbl in tabelas:
         rows = [[c for c in r] for r in tbl]
         out.extend(extract_from_matrix(rows, f"{path.name}#pdf-table"))
     if out:
@@ -365,7 +514,7 @@ def parse_pdf(path: Path) -> list[RawExtraction]:
                 best[key] = ext
         return list(best.values())
     # fallback textual: procura "Rotulo ... valor" proximo a periodo citado
-    joined = "\n".join(texts[:6])
+    joined = "\n".join(textos[:6])
     periodo = None
     for cand in re.findall(r"[1-4]T\d{2}|Q[1-4]\s*20\d{2}|20\d{2}Q[1-4]|[1-4]Q\d{2}", joined):
         periodo, _ = norm_period(cand)
@@ -393,5 +542,6 @@ def parse_pdf(path: Path) -> list[RawExtraction]:
         scale, _moeda = scale_and_currency([[joined[:500]]], path.name)
         valor = num if canon in ("EFETIVO_TOTAL", "PRODUCAO_BOED") else num * scale
         results.append(RawExtraction(canon, periodo, round(valor, 4), "USD bi", 0.55,
-                                     f"{path.name}#texto", {"rotulo_origem": label.strip()}))
+                                     f"{path.name}#texto",
+                                     extras={"rotulo_origem": label.strip()}))
     return results

@@ -3,6 +3,33 @@
 Formato `[Gx-Ay-Tnnnn]`. PoC executada (out/2026): ETL real + pytest + painel no ar.
 Itens marcados derivam 1:1 de modulos, testes e evidencias existentes.
 
+## Backlog de melhorias (M1-M3) - prioridade alta
+
+| ID | Melhoria | Escopo | Onde |
+|---|---|---|---|
+| **M1** | Aba Fontes -> **Gestao e Controle de Fontes** | De CRUD para gestao: cobertura empresa x periodo, integridade (hash/arquivo/URL), lacunas (o que falta vs. o que existe), acoes em lote, KPIs por status/origem/extensao | `SourceController.painel_fontes()`, aba Fontes |
+| **M2** | Aba Auditoria -> **Gestao e Controle de Auditoria** | KPIs por severidade/tipo/empresa, triagem (aceitar/rejeitar/ignorar) com trilha em `tb_auditoria_decisao`, aging da fila, reabertura | `QualityRepository.decidir()`, aba Auditoria |
+| **M3** | **Metodologia estatistica de projecao (ate 3 trimestres)** | `workers/forecast.py`: Holt-Winters aditivo damped com sazonalidade trimestral + sazonal-naive + ultima-observacao; **metodo escolhido por backtesting** (MAE/MAPE), IC95 que alarga com o horizonte, piso de dados e aviso de baixa confianca | `tb_projecao`, aba Projecoes |
+
+### M3 - metodologia (detalhamento)
+1. **Serie**: valores por trimestre (YYYYQn) por empresa x rubrica; lacunas interpoladas
+   linearmente e descontadas da confianca.
+2. **Sazonalidade (k=4)**: indices por trimestre normalizados (soma zero), aplicada apenas
+   com >= 6 observacoes.
+3. **Tendencia**: Holt linear com amortecimento (phi=0.85) - evita extrapolacao explosiva
+   em series de petroleo.
+4. **Selecao por backtesting**: testa sazonal-naive, HW-damped e ultima-observacao nos
+   ultimos k pontos; fica com a de menor MAE (desempate: menor MAPE).
+5. **Incerteza**: sigma dos erros de backtesting; IC95 = f +- 1,96*sigma*sqrt(h).
+6. **Governanca**: confianca < 0.5 quando < 6 pontos ou sigma alto; a projecao e sempre
+   rotulada como projecao e **nunca** entra na matriz de fatos reais.
+
+### Limites de M3 (registrados em PREMISSAS_E_LIMITACOES.md)
+- 14 trimestres por rubrica e pouco para sazonalidade robusta: por isso backtesting e
+  intervalos declarados, e nunca projecao pontual sem erro.
+- Projecao nao e previsao de preco do petroleo nem de resultado: e continuacao do padrao
+  trimestral da serie, util para cenarios; decisao humana continua obrigatoria.
+
 ## G1 — Fundacao e Model SQLite (170 tarefas)
 _Modulos: `models/database.py, models/repositories.py, config.py`_
 

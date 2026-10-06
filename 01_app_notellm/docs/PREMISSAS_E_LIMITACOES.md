@@ -61,3 +61,17 @@
 9. `SEM_DADOS` significa "parseou, mas nenhum período-alvo foi extraído" (documento
    institucional, Release sem números do trimestre, etc.). O motivo fica gravado na
    coluna `erro` para não se perder a informação.
+10. **Projeção não é previsão de preço nem de resultado**: é continuação do padrão
+    trimestral da série. As regras fixas para séries curtas são deliberadamente
+    conservadoras — 1 dado → repete o valor com intervalo **±15%** (confiança 0,25);
+    2–5 dados → **média ± 2 desvios-padrão** (confiança 0,35–0,50). Com 6+ pontos o método
+    é escolhido por backtesting e o IC95 alarga com o horizonte. Uso correto: cenários e
+    planejamento; a decisão humana continua obrigatória.
+11. A projeção vive em `tb_projecao` e **nunca** alimenta `tb_fato_financeiro`, a matriz
+    comparativa nem o e-mail de benchmark — assim nenhum número projetado é confundido
+    com dado publicado.
+12. O DQS é uma **regra interna**, não uma certificação externa: os pesos (Completude 30,
+    Plausibilidade 25, Consistência 15, Rastreabilidade 15, Tempestividade 15) e os
+    limiares de alerta são escolha de projeto, registrados em `tb_regra_alerta` para
+    recalibração. Na base atual o DQS médio é 75,4 — puxado para baixo pela completude
+    (40,4%), não por erro de extração (plausibilidade 98,5 e rastreabilidade 100).

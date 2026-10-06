@@ -39,8 +39,43 @@ def cmd_full(_: argparse.Namespace) -> int:
 def cmd_etl(args: argparse.Namespace) -> int:
     from config import PERIODS
     alvos = set(PERIODS) | set(args.extra or [])
-    resumo = PipelineController().etl_completo(alvos)
-    print(resumo)
+    ctl = PipelineController()
+    if getattr(args, "novos", False):
+        print("== ETL incremental: varredura do Container + somente arquivos novos ==")
+        resumo = ctl.etl_incremental(alvos, jobs=getattr(args, "jobs", None))
+        scan = resumo.get("scan", {})
+        print(f"Inventario: {scan.get('novos', 0)} novo(s), "
+              f"{scan.get('duplicados', 0)} duplicado(s) por hash, {scan.get('erros', 0)} erro(s)")
+        print(f"Processados: {resumo.get('arquivos_processados', 0)} | "
+              f"cargas: {resumo.get('cargas', 0)} | revisao: {resumo.get('revisao', 0)}"
+              f" | parse em {resumo.get('jobs', 1)} processo(s)")
+        if not scan.get("novos", 0) and not resumo.get("arquivos_processados", 0):
+            print("Nada novo no Container e nada aguardando parse: nada a fazer.")
+        elif not scan.get("novos", 0):
+            print("Sem arquivo novo, mas havia documento baixado ainda não processado.")
+    else:
+        resumo = ctl.etl_completo(alvos)
+        print(resumo)
+    return 0
+
+
+def cmd_descoberta(args: argparse.Namespace) -> int:
+    """Acha o que foi anunciado (SEC/RI) e ainda nao esta no acervo."""
+    from workers.discovery import resumo_texto
+    site = (args.site or "all").upper()
+    dados = PipelineController().descoberta(
+        periodo=args.periodo, incluir_sec=site in ("ALL", "SEC"),
+        incluir_ri=site in ("ALL", "RI"), registrar=not args.sem_registrar,
+        baixar=args.baixar,
+        empresas=args.empresa or None)
+    if args.json:
+        print(json.dumps(dados, ensure_ascii=False, indent=2))
+        return 0
+    print(resumo_texto(dados))
+    lacunas = sum(len(r["lacunas"]) for r in dados["empresas"])
+    if lacunas and site in ("ALL", "SEC"):
+        print("\nDica: XBRL do trimestre so aparece depois da publicacao. "
+              " Rode de novo em novembro.")
     return 0
 
 
@@ -204,6 +239,122 @@ def cmd_coleta(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_qualidade(args: argparse.Namespace) -> int:
+    """Gestao e controle de qualidade e rastreabilidade (M7)."""
+    from workers.quality_score import painel_qualidade, run_quality_score
+    if args.acao == "rodar":
+        r = run_quality_score()
+        print(f"DQS medio: {r['dqs_medio']} · scorecards: {r['cards']} "
+              f"· desvios: {r['desvios']} (novos {r['alertas_novos']})")
+        print(f"dimensoes: {r['por_dimensao']}")
+        print(f"classificacao: {r['classificacao']}")
+        print(f"fila de analise: {r['fila']} (P1={r['p1']} P2={r['p2']} P3={r['p3']})")
+        for p in r["pior"]:
+            print(f"  pior: {p['nome_empresa']} {p['periodo']} DQS={p['dqs']} {p['classificacao']}")
+        return 0
+    p = painel_qualidade()
+    if args.acao == "resumo":
+        print(f"empresas={p['resumo']['empresas']} periodos={p['resumo']['periodos']} "
+              f"DQS={p['resumo']['dqs_medio']} class={p['resumo']['classificacao']}")
+        print(f"dimensoes: {p['resumo']['por_dimensao']}")
+        return 0
+    if args.acao == "fila":
+        for i in p["fila"][: args.limite]:
+            print(f"  {i['prioridade']} {i['codigo']:<24}{i['empresa']:<14}{i['periodo']:<9}"
+                  f"{i['motivo'][:70]}")
+        return 0
+    if args.acao == "historico":
+        from workers.quality_score import historico_scorecard
+        from models.database import DatabaseManager as _DB
+        h = historico_scorecard(_DB(), args.empresa)
+        if not h["empresas"]:
+            print("sem historico: rode `qualidade rodar` para gravar a primeira serie.")
+            return 1
+        print(f"DQS medio {h['dqs_inicial']} -> {h['dqs_atual']} "
+              f"({h['variacao_media']:+}) em {len(h['periodos'])} periodo(s)")
+        for m in h["media_por_periodo"]:
+            print(f"  {m['periodo']}  DQS {m['dqs_medio']:>5}  ({m['empresas']} empresas)")
+        for v in h["por_empresa"].values():
+            print(f"  {v['empresa']:<14} {v['dqs_inicial']:>5} -> {v['dqs_atual']:>5} "
+                  f"({v['variacao_total']:+}) {v['classificacao_atual']}")
+        return 0
+    if args.acao == "regras":
+        for r in p["regras"]:
+            print(f"  {r['codigo']:<26}{r['limiar']:>6}  {r['severidade']:<7}{r['descricao']}")
+        return 0
+    print("acoes: rodar | resumo | fila | regras | historico")
+    return 1
+
+
+def cmd_forecast(args: argparse.Namespace) -> int:
+    """Projecao estatistica (M3): grava em tb_projecao e mostra o resumo."""
+    from workers.forecast_run import run_forecast
+    horizonte = max(1, min(args.horizonte, 3))
+    print(f"== Projecao estatistica (horizonte {horizonte} trimestre(s)) ==")
+    print("metodo: 1 dado -> repete ±15% · 2-5 dados -> média ±2 desvios-padrão · "
+          ">=6 dados -> backtesting (Sazonal-Naive, Holt-Winters damped, "
+          "Ultima-Observacao) com IC95 pela dispersao dos erros.")
+    resumo = run_forecast(horizonte=horizonte,
+                          empresas=[args.empresa] if args.empresa else None,
+                          rubricas=[args.rubrica] if args.rubrica else None)
+    print(f"series projetadas: {resumo['series']} · projecoes gravadas: {resumo['projecoes']}"
+          f" · series ignoradas: {resumo['ignoradas']}")
+    print(f"metodos: {resumo['metodos']} · confianca media: {resumo['confianca_media']}")
+    for aviso in resumo["avisos"][:10]:
+        print(f"  aviso: {aviso}")
+    return 0
+
+
+def cmd_auditoria(args: argparse.Namespace) -> int:
+    """Gestao e controle da auditoria: KPIs, fila e triagem."""
+    from models.repositories import QualityRepository
+    q = QualityRepository()
+    if args.acao == "resumo":
+        r = q.resumo_auditoria()
+        print(f"alertas: {r['total_alertas']} · fila: {r['fila_total']} "
+              f"(abertas {r['fila_aberta']}) · triagem: {r['triagem']}")
+        print(f"severidade: {r['por_severidade']}")
+        print(f"aging: {r['aging']} · taxa de resolucao: {r['taxa_resolucao']}%")
+        for tipo, n in list(r["por_tipo"].items())[:8]:
+            print(f"  {tipo}: {n}")
+        return 0
+    if args.acao == "fila":
+        for r in q.listar_revisao(apenas_abertos=not args.todas)[: args.limite]:
+            print(f"  #{r['id_review']:<5} {r['nome_empresa']:<14} {r['periodo']:<8} "
+                  f"{r['rubrica']:<22} {r['status']:<10} {r['motivo'][:60]}")
+        return 0
+    if args.acao == "decidir":
+        if not args.id or not args.decisao:
+            print("uso: auditoria decidir --id 12 --decisao ACEITO [--comentario '...']")
+            return 1
+        q.decidir("tb_review_queue", args.id, args.decisao.upper(), args.comentario)
+        print(f"registro #{args.id} -> {args.decisao.upper()}")
+        return 0
+    if args.acao == "reabrir":
+        if not args.id:
+            print("uso: auditoria reabrir --id 12 [--comentario '...']")
+            return 1
+        ok = q.reabrir("tb_review_queue", args.id, args.comentario)
+        print(f"registro #{args.id} -> {'reaberto (voltou para PENDENTE)' if ok else 'nao estava decidido'}")
+        return 0 if ok else 1
+    if args.acao == "decisoes":
+        from workers.relatorio_auditoria import decisoes_periodo
+        linhas = decisoes_periodo(q.db, args.de, args.ate)
+        print(f"{len(linhas)} decisao(oes) em {args.de or 'inicio'}..{args.ate or 'hoje'}")
+        for d in linhas[: args.limite]:
+            print(f"  {d['decidido_em']}  {d['decisao']:<10} "
+                  f"{(d['nome_empresa'] or '(alerta)'):<14} {(d['periodo'] or '-'):<9}"
+                  f"{(d['rubrica'] or '-'):<22} por {d['decidido_por']}")
+        return 0
+    if args.acao == "relatorio":
+        from controllers import SourceController
+        r = SourceController(q.db).relatorio_auditoria(args.de, args.ate, args.saida)
+        print(f"Relatorio de auditoria PDF: {r['arquivo']}")
+        return 0
+    print("acoes: resumo | fila | decidir | reabrir | decisoes | relatorio")
+    return 1
+
+
 def cmd_fontes(args: argparse.Namespace) -> int:
     """CRUD do sub-sistema de gestao de fontes publicas."""
     ctrl = SourceController()
@@ -247,10 +398,27 @@ def cmd_fontes(args: argparse.Namespace) -> int:
         for f in faltantes[:20]:
             print(f"  #{f['id_fonte']} {f['caminho_local']}")
         return 0
+    if acao == "metrica":
+        # M8.12: mede páginas/tabelas dos PDFs que ainda não têm métrica
+        from workers.pdf_metrics import medir_metricas_pdf
+        r = medir_metricas_pdf(limite=args.limite if args.limite != 50 else None,
+                               jobs=args.jobs, verbose=True)
+        print(f"medidos={r['medidos']} paginas={r['paginas']} tabelas={r['tabelas']} "
+              f"sem_arquivo={r['sem_arquivo']} restantes={r['restantes']} "
+              f"({r['jobs']} processo(s))")
+        p = SourceController().resumo_etl()["pdf"]
+        print(f"painel ETL: {p['documentos']} PDFs · {p['paginas_lidas']} páginas lidas · "
+              f"{p['paginas_por_seg']} pág/s · {p['tabelas']} tabelas")
+        return 0
     return 1
 
 
 def cmd_pdf(args: argparse.Namespace) -> int:
+    if getattr(args, "pptx", False):
+        from workers.apresentacao_pptx import construir
+        destino = construir(args.saida)
+        print(f"Apresentacao PPTX: {destino}")
+        return 0
     from workers.deck_pdf import gerar_pdf
     destino = gerar_pdf(args.saida, args.periodo)
     print(f"Slide deck PDF: {destino}")
@@ -261,6 +429,14 @@ def cmd_email(args: argparse.Namespace) -> int:
     """Gera (ou envia) o e-mail com o gráfico anexado: HTML + PNG + CSV."""
     import os
     import webbrowser
+    if args.alerta:  # M7.25: e-mail de ALERTAS P1 da fila de qualidade
+        from workers.mailer import alertar_p1
+        rota = alertar_p1(args.para, dry_run=not args.enviar)
+        if rota is None:
+            print("sem alertas P1 abertos — nenhum e-mail gerado.")
+            return 0
+        print(("ENVIADO para" if args.enviar else "e-mail de alerta gerado em"), rota)
+        return 0
     from controllers import MailController
     try:
         r = MailController().enviar(args.para, args.rubrica, args.periodo,
@@ -304,6 +480,10 @@ def main(argv: list[str] | None = None) -> int:
     etl = sub.add_parser("etl")
     etl.add_argument("--extra", nargs="*", default=[],
                      help="periodos adicionais p/ preencher historico (ex.: 2024Q2)")
+    etl.add_argument("--novos", action="store_true",
+                     help="incremental: varre o Container e processa SO os arquivos novos")
+    etl.add_argument("--jobs", type=int, default=None,
+                     help="processos para o parse (padrao: automatico, 1 = serial)")
     web = sub.add_parser("web")
     web.add_argument("--periodo", default="2026Q2")
     web.add_argument("--serve", action="store_true")
@@ -322,11 +502,28 @@ def main(argv: list[str] | None = None) -> int:
                         help="baixa os documentos descobertos (com dedup)")
     coleta.add_argument("--mercado", action="store_true",
                         help="carrega snapshot Investidor10 no banco")
-    pdf = sub.add_parser("pdf")
+    descoberta = sub.add_parser("descoberta",
+                             help="acha o que foi anunciado (SEC/RI) e ainda nao esta no acervo")
+    descoberta.add_argument("--periodo", default=None,
+                            help="trimestre alvo (padrao: o que se espera agora, ex.: 2026Q3)")
+    descoberta.add_argument("--site", default="all", choices=["all", "sec", "ri"],
+                            help="canal de descoberta")
+    descoberta.add_argument("--empresa", nargs="*", default=None,
+                            help="restringe a empresas (ex.: PETROBRAS BP)")
+    descoberta.add_argument("--baixar", action="store_true",
+                            help="baixa os documentos novos para data/downloads")
+    descoberta.add_argument("--sem-registrar", action="store_true",
+                            help="apenas relata: nao grava no catalogo de fontes")
+    descoberta.add_argument("--json", action="store_true", help="saida em JSON")
+    pdf = sub.add_parser("pdf", help="deck executivo (PDF) ou apresentacao (PPTX)")
     pdf.add_argument("--periodo", default="2026Q2")
     pdf.add_argument("--saida", default=None)
+    pdf.add_argument("--pptx", action="store_true",
+                     help="gera a apresentacao em PowerPoint (padrao: deck em PDF)")
     email = sub.add_parser("email")
     email.add_argument("--para", required=True)
+    email.add_argument("--alerta", action="store_true",
+                       help="M7.25: envia o e-mail de ALERTAS P1 da fila de qualidade")
     email.add_argument("--rubrica", default="RECEITA_LIQUIDA")
     email.add_argument("--periodo", default="2026Q2")
     email.add_argument("--enviar", action="store_true",
@@ -335,8 +532,11 @@ def main(argv: list[str] | None = None) -> int:
                        help="somente CSV, sem HTML/PNG do gráfico")
     email.add_argument("--abrir", action="store_true",
                        help="abre o .eml gerado no programa de e-mail padrão")
-    fontes = sub.add_parser("fontes", help="CRUD do catalogo de fontes publicas")
-    fontes.add_argument("acao", choices=["list", "add", "edit", "del", "show", "api", "check"])
+    fontes = sub.add_parser("fontes", help="CRUD e gestao do catalogo de fontes")
+    fontes.add_argument("acao", choices=["list", "add", "edit", "del", "show", "api",
+                                        "check", "metrica"])
+    fontes.add_argument("--jobs", type=int, default=None,
+                        help="processos para medir (metrica); padrao: automatico")
     fontes.add_argument("id", nargs="?", type=int, help="id_fonte (edit/del/show)")
     fontes.add_argument("--empresa", default=None)
     fontes.add_argument("--url", default=None)
@@ -348,6 +548,26 @@ def main(argv: list[str] | None = None) -> int:
     fontes.add_argument("--status", default=None)
     fontes.add_argument("--cik", default=None)
     fontes.add_argument("--limite", type=int, default=50)
+    qa = sub.add_parser("qualidade", help="gestao e controle de qualidade (M7)")
+    qa.add_argument("acao", choices=["rodar", "resumo", "fila", "regras", "historico"])
+    qa.add_argument("--limite", type=int, default=25)
+    qa.add_argument("--empresa", default=None, help="filtra o historico por empresa")
+    fc = sub.add_parser("projecao", help="projecao estatistica (M3) ate 3 trimestres")
+    fc.add_argument("--horizonte", type=int, default=3)
+    fc.add_argument("--empresa", default=None)
+    fc.add_argument("--rubrica", default=None)
+    aud = sub.add_parser("auditoria", help="gestao e controle da auditoria (M2)")
+    aud.add_argument("acao", choices=["resumo", "fila", "decidir", "reabrir",
+                                      "decisoes", "relatorio"])
+    aud.add_argument("--de", default=None, help="inicio do periodo (YYYY-MM-DD)")
+    aud.add_argument("--ate", default=None, help="fim do periodo (YYYY-MM-DD)")
+    aud.add_argument("--saida", default=None, help="caminho do PDF (relatorio)")
+    aud.add_argument("--id", type=int, default=None, help="id_review (para decidir)")
+    aud.add_argument("--decisao", default=None,
+                    help="aceito | rejeitado | ignorado (não diferencia maiúsculas)")
+    aud.add_argument("--comentario", default=None)
+    aud.add_argument("--todas", action="store_true", help="inclui itens ja decididos")
+    aud.add_argument("--limite", type=int, default=30)
     tri = sub.add_parser("trimestre")
     tri.add_argument("--novo", default=None, help="ex.: 2026Q3")
     tri.add_argument("--pasta", default=None, help="só cria a pasta do trimestre")
@@ -357,9 +577,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     return {"full": cmd_full, "etl": cmd_etl, "web": cmd_web, "gui": cmd_gui,
             "sec": cmd_sec, "efetivo": cmd_efetivo, "coleta": cmd_coleta,
+    "descoberta": cmd_descoberta,
             "derivados": cmd_derivados, "powerbi": cmd_powerbi,
             "pdf": cmd_pdf, "email": cmd_email, "trimestre": cmd_trimestre,
-            "fontes": cmd_fontes, "status": cmd_status, "reset": cmd_reset}[args.cmd](args)
+            "fontes": cmd_fontes, "status": cmd_status, "reset": cmd_reset,
+            "projecao": cmd_forecast, "auditoria": cmd_auditoria,
+            "qualidade": cmd_qualidade}[args.cmd](args)
 
 
 if __name__ == "__main__":

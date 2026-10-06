@@ -20,6 +20,31 @@ QSplitter::handle:horizontal { background:#cbd5e1; border-left:1px solid #007a4d
 """
 
 
+def _cobertura_projecao() -> list[dict]:
+    """Rubrica com fato -> quantas séries foram projetadas (M10).
+
+    Sem isto, uma rubrica fora da lista fixa de "projetáveis" simplesmente não
+    aparecia — FCL, DIVIDA_BRUTA e DESPESA_OPERACIONAL ficavam sem projeção e
+    ninguém percebia.
+    """
+    from models.glossario import obter
+    from models.database import DatabaseManager
+    with DatabaseManager().connect() as conn:
+        com_fato = {r["rubrica_padronizada"]: r["n"] for r in conn.execute(
+            "SELECT rubrica_padronizada, COUNT(*) n FROM tb_fato_financeiro GROUP BY 1")}
+        projetadas = {r["rubrica_padronizada"]: r["n"] for r in conn.execute(
+            "SELECT rubrica_padronizada, COUNT(DISTINCT nome_empresa) n "
+            "FROM tb_projecao GROUP BY 1")}
+    linhas = []
+    for rubrica, fatos in sorted(com_fato.items(), key=lambda x: -x[1]):
+        g = obter(rubrica)
+        linhas.append({"rubrica": rubrica, "nome": g["nome"], "unidade": g["unidade"],
+                       "fatos": fatos, "series_projetadas": projetadas.get(rubrica, 0),
+                       "coberta": bool(projetadas.get(rubrica)),
+                       "formula": g["formula"]})
+    return linhas
+
+
 class BenchmarkGUI:
     CORES = {"PETROBRAS": "#00a86b", "SHELL": "#4a90d9", "BP": "#5b8ff9", "CHEVRON": "#3aa6c9",
              "EXXONMOBIL": "#2f7fd0", "TOTALENERGIES": "#6a9fd8", "EQUINOR": "#41b8a6"}
@@ -33,12 +58,15 @@ class BenchmarkGUI:
         self.window = None
         self._plots: list = []
 
+
     def build(self):
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGridLayout, QGroupBox,
-                                       QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton,
-                                       QScrollArea, QSplitter, QTabWidget, QTableWidget,
-                                       QTableWidgetItem, QToolBox, QVBoxLayout, QWidget)
+        from PySide6.QtCore import QDate, Qt
+        from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDateEdit,
+                                       QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
+                                       QHeaderView, QLabel, QLineEdit, QMainWindow,
+                                       QPushButton, QScrollArea, QSplitter, QTabWidget,
+                                       QTableWidget, QTableWidgetItem, QToolBox, QVBoxLayout,
+                                       QWidget)
         import pyqtgraph as pg
         from controllers import AnalyticsController, SourceController
 
@@ -380,6 +408,44 @@ class BenchmarkGUI:
             btns.addWidget(b)
         fg.addLayout(btns, 2, 0, 1, 8)
         tl.addWidget(form)
+        # --- Gestão e Controle de Fontes (M1): visão consolidada acima do CRUD ---
+        _pf = sources.painel_fontes()
+        _rs = _pf["resumo"]
+        kpi_f = QHBoxLayout()
+        for _rot, _val, _cor in (("Fontes", _rs["total"], "#0f172a"),
+                                 ("Processadas", _rs["processadas"], "#046c4e"),
+                                 ("Com erro", _rs["com_erro"], "#dc2626"),
+                                 ("Não baixadas", _rs["nao_baixados"], "#4b5563"),
+                                 ("API JSON", _pf["com_api_json"], "#0f172a"),
+                                 ("Arq. ausente", _pf["integridade"]["arquivos_ausentes"], "#b45309"),
+                                 ("Lacunas", len(_pf["lacunas"]), "#b45309")):
+            _c = QGroupBox(_rot)
+            _l = QVBoxLayout(_c)
+            _lb = QLabel(str(_val))
+            _lb.setStyleSheet(f"font-size:15px;font-weight:800;color:{_cor}")
+            _l.addWidget(_lb)
+            kpi_f.addWidget(_c)
+        tl.addLayout(kpi_f)
+        cob = QTableWidget()
+        _periodos = _pf["periodos"]
+        _empresas_f = sorted(_pf["por_empresa"])
+        cob.setRowCount(len(_empresas_f))
+        cob.setColumnCount(len(_periodos) + 1)
+        cob.setHorizontalHeaderLabels(["Empresa"] + _periodos + ["Total"])
+        for i, _e in enumerate(_empresas_f):
+            cob.setItem(i, 0, QTableWidgetItem(_e))
+            for j, _p in enumerate(_periodos):
+                _ok = _p in _pf["cobertura"].get(_e, [])
+                _it = QTableWidgetItem("OK" if _ok else "—")
+                from PySide6.QtGui import QColor as _QC
+                _it.setForeground(_QC("#046c4e" if _ok else "#b45309"))
+                cob.setItem(i, j + 1, _it)
+            cob.setItem(i, len(_periodos) + 1,
+                        QTableWidgetItem(str(sum(_pf["por_empresa"][_e].values()))))
+        _polir_tabela(cob)
+        cob.setMaximumHeight(160)
+        tl.addWidget(QLabel("Cobertura empresa × período (OK = a empresa tem fonte no trimestre)"))
+        tl.addWidget(cob)
         tabela = QTableWidget()
         rotulo_fontes = QLabel(f"Fontes catalogadas: {len(fontes)}")
 
@@ -442,26 +508,358 @@ class BenchmarkGUI:
                 plot_ef.addItem(_t)
         el.addWidget(plot_ef)
         tabs.addTab(tab3, "Efetivo")
-        tab4 = QWidget()
+        tab4 = QWidget()          # --- Gestão e Controle da Auditoria (M2) ---
         al = QVBoxLayout(tab4)
-        qual = SourceController().qualidade()
-        al.addWidget(QLabel(f"Alertas: {len(qual['alertas'])} · Fila de revisão: {len(qual['revisao'])}"))
-        tab_alert = QTableWidget()
-        _al = qual["alertas"][:200]
-        tab_alert.setRowCount(len(_al))
-        tab_alert.setColumnCount(3)
-        tab_alert.setHorizontalHeaderLabels(["Tipo", "Descrição", "Severidade"])
-        for i, a in enumerate(_al):
-            tab_alert.setItem(i, 0, QTableWidgetItem(str(a.get("tipo_alerta", ""))))
-            tab_alert.setItem(i, 1, QTableWidgetItem(str(a.get("descricao", ""))[:120]))
-            tab_alert.setItem(i, 2, QTableWidgetItem(str(a.get("severidade", ""))))
-        tab_alert.horizontalHeader().setStretchLastSection(True)
-        al.addWidget(tab_alert)
-        _polir_tabela(tab_alert)
-        _paginar(al, tab_alert)
+        _ctrl = SourceController()
+        _ra = _ctrl.resumo_auditoria()
+        kpis_aud = QHBoxLayout()
+        for _rot, _val, _cor in (("Alertas", _ra["total_alertas"], "#0f172a"),
+                                 ("Fila", _ra["fila_total"], "#0f172a"),
+                                 ("Abertas", _ra["fila_aberta"], "#b45309"),
+                                 ("Alta", _ra["por_severidade"].get("HIGH", 0), "#dc2626"),
+                                 ("Média", _ra["por_severidade"].get("MEDIUM", 0), "#b45309"),
+                                 ("0–7d", _ra["aging"]["0-7d"], "#0f172a"),
+                                 ("8–30d", _ra["aging"]["8-30d"], "#b45309"),
+                                 ("+30d", _ra["aging"][">30d"], "#dc2626"),
+                                 ("Triados", sum(_ra["triagem"].values()), "#046c4e")):
+            _c = QGroupBox(_rot)
+            _l = QVBoxLayout(_c)
+            _lb = QLabel(str(_val))
+            _lb.setStyleSheet(f"font-size:15px;font-weight:800;color:{_cor}")
+            _l.addWidget(_lb)
+            kpis_aud.addWidget(_c)
+        al.addLayout(kpis_aud)
+        al.addWidget(QLabel("Triagem da fila (ACEITO → RESOLVIDO · REJEITADO · IGNORADO) "
+                            "— cada decisão fica em tb_auditoria_decisao"))
+        tab_rev = QTableWidget()
+        _rev = _ctrl.qualidade()["revisao"][:200]
+        tab_rev.setRowCount(len(_rev))
+        tab_rev.setColumnCount(7)
+        tab_rev.setHorizontalHeaderLabels(["#", "Empresa", "Período", "Rubrica", "Motivo",
+                                           "Confiança", "Triagem"])
+        for i, r in enumerate(_rev):
+            for j, v in enumerate([r["id_review"], r["nome_empresa"], r["periodo"],
+                                   r["rubrica"], r["motivo"][:90], f"{r['confianca']:.2f}"]):
+                tab_rev.setItem(i, j, QTableWidgetItem(str(v)))
+            bx = QHBoxLayout()
+            for texto, dec in (("aceitar", "ACEITO"), ("rejeitar", "REJEITADO"),
+                               ("ignorar", "IGNORADO")):
+                b = QPushButton(texto)
+
+                def _decidir(_i=r["id_review"], _dec=dec):
+                    try:
+                        _ctrl.decidir(_i, _dec, "decidido na GUI")
+                        win.statusBar().showMessage(f"registro #{_i} → {_dec}")
+                        self._recarregar_auditoria()
+                    except Exception as exc:
+                        win.statusBar().showMessage(f"Falha na triagem: {exc}")
+
+                b.clicked.connect(_decidir)
+                bx.addWidget(b)
+            wrap = QWidget()
+            wrap.setLayout(bx)
+            tab_rev.setCellWidget(i, 6, wrap)
+        _polir_tabela(tab_rev)
+        al.addWidget(tab_rev)
+        _paginar(al, tab_rev)
+        # --- relatorio de auditoria em PDF (M2.10) ---
+        barra_pdf = QHBoxLayout()
+        dt_de, dt_ate, lbl_pdf = QDateEdit(), QDateEdit(), QLabel("")
+        for _d in (dt_de, dt_ate):
+            _d.setCalendarPopup(True)
+            _d.setDisplayFormat("yyyy-MM-dd")
+        dt_de.setDate(QDate.currentDate().addDays(-90))
+        dt_ate.setDate(QDate.currentDate())
+        btn_pdf = QPushButton("📄 Gerar relatório da auditoria (PDF)")
+        barra_pdf.addWidget(QLabel("De:"))
+        barra_pdf.addWidget(dt_de)
+        barra_pdf.addWidget(QLabel("Até:"))
+        barra_pdf.addWidget(dt_ate)
+        barra_pdf.addWidget(btn_pdf)
+        barra_pdf.addWidget(lbl_pdf, 1)
+
+        def _gerar_relatorio():
+            de = dt_de.date().toString("yyyy-MM-dd")
+            ate = dt_ate.date().toString("yyyy-MM-dd")
+            try:
+                r = _ctrl.relatorio_auditoria(de, ate)
+                lbl_pdf.setText(f"PDF: {r['arquivo']}")
+                win.statusBar().showMessage("Relatório de auditoria gerado")
+            except Exception as exc:
+                lbl_pdf.setText(f"falha: {exc}")
+                win.statusBar().showMessage(f"Falha no relatório: {exc}")
+
+        btn_pdf.clicked.connect(_gerar_relatorio)
+        al.addLayout(barra_pdf)
+        self._recarregar_auditoria = lambda: None
+        al.addWidget(QLabel(f"Alertas: {_ra['total_alertas']} · "
+                            f"severidades: {_ra['por_severidade']} · "
+                            f"tipos: {list(_ra['por_tipo'])[:4]}"))
         tabs.addTab(tab4, "Auditoria")
-        tab5 = QWidget()          # --- Gestão do ETL: o que rodou, o que falhou, quanto tempo ---
-        et = QVBoxLayout(tab5)
+        tab5 = QWidget()          # --- Projeções estatísticas (M3) ---
+        pr = QVBoxLayout(tab5)
+        pr.addWidget(QLabel(
+            "Projeção estatística até 3 trimestres: Sazonal-Naive, Holt-Winters damped "
+            "e Última-Observação — o método é escolhido por BACKTESTING (menor MAE). "
+            "Poucos dados: 1 valor → repete ±15% · 2–5 valores → média ±2 desvios-padrão. "
+            "IC95 pela dispersão dos erros. Projeção nunca vira fato real."))
+        barra_pr = QHBoxLayout()
+        cb_pr_emp = QComboBox()
+        cb_pr_emp.addItems(["PETROBRAS", "SHELL", "BP", "CHEVRON", "EXXONMOBIL",
+                            "TOTALENERGIES", "EQUINOR"])
+        cb_pr_rub = QComboBox()
+        cb_pr_rub.addItems([i["codigo"] for i in
+                            __import__("config").INDICATORS if i["categoria"] == "Financeiro"])
+        cb_pr_h = QComboBox()
+        cb_pr_h.addItems(["1", "2", "3"])
+        cb_pr_h.setCurrentText("3")
+        btn_pr = QPushButton("⟳ Recalcular projeções")
+        barra_pr.addWidget(QLabel("Empresa:"))
+        barra_pr.addWidget(cb_pr_emp)
+        barra_pr.addWidget(QLabel("Rubrica:"))
+        barra_pr.addWidget(cb_pr_rub)
+        barra_pr.addWidget(QLabel("Horizonte:"))
+        barra_pr.addWidget(cb_pr_h)
+        barra_pr.addWidget(btn_pr)
+        barra_pr.addStretch(1)
+        lbl_pr_status = QLabel("")
+        barra_pr.addWidget(lbl_pr_status)
+        pr.addLayout(barra_pr)
+        # --- cobertura das projeções (M10): toda rubrica com fato é projetada ---
+        lbl_pr_cob = QLabel("")
+        lbl_pr_cob.setStyleSheet("font-weight:600;color:#007a4d")
+        tab_cob = QTableWidget(0, 5)
+        tab_cob.setHorizontalHeaderLabels(
+            ["Rubrica", "Indicador", "Unidade", "Séries projetadas", "Fórmula"])
+        tab_cob.verticalHeader().setVisible(False)
+        tab_cob.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        tab_cob.setMaximumHeight(190)
+        pr.addWidget(QLabel("Cobertura: quais indicadores são projetados"))
+        pr.addWidget(lbl_pr_cob)
+        pr.addWidget(tab_cob)
+        _polir_tabela(tab_cob)
+        plot_pr = pg.PlotWidget(title="Real x projetado (IC 95%)")
+        _polilar(plot_pr, "Cenário")
+        plot_pr.installEventFilter(self._plot_events)
+        self._plots.append(plot_pr)
+        pr.addWidget(plot_pr, 1)
+        tab_pr = QTableWidget()
+        tab_pr.setColumnCount(8)
+        tab_pr.setHorizontalHeaderLabels(["Empresa", "Rubrica", "Base", "Período", "h",
+                                           "Valor (USD bi)", "IC 95%", "Método / confiança"])
+        self._tabela_proj = tab_pr
+        _polir_tabela(tab_pr)
+        pr.addWidget(tab_pr)
+        _paginar(pr, tab_pr)
+
+        def _desenhar_projecao():
+            from controllers import ForecastController
+            emp, rub = cb_pr_emp.currentText(), cb_pr_rub.currentText()
+            try:
+                painel = ForecastController().painel(emp, rub)
+            except Exception as exc:
+                lbl_pr_status.setText(f"erro: {exc}")
+                return
+            cen = (painel["cenarios"] or {}).get(f"{emp}|{rub}")
+            plot_pr.clear()
+            plot_pr.addLegend()
+            if not cen or not cen["periodos_projetados"]:
+                lbl_pr_status.setText("sem projeção — clique em recalcular")
+                # pg.TextItem e nao plot_pr.addTextItem: o metodo do PlotItem foi
+                # removido no pyqtgraph 0.14 e quebrava a GUI com base vazia.
+                plot_pr.addItem(pg.TextItem("sem projeção", color="#64748b", anchor=(0.1, 0.5)))
+                return
+            rotulos = list(cen["periodos_reais"]) + list(cen["periodos_projetados"])
+            _ancora = cen["valores_reais"][-1]
+            n_real = len(cen["valores_reais"])
+            xs = list(range(len(rotulos)))
+            plot_pr.setLabel("bottom", "trimestre", units=None)
+            plot_pr.setLabel("left", "USD bi", units=None)
+            plot_pr.addItem(pg.PlotDataItem(xs[:n_real], cen["valores_reais"],
+                                            pen=pg.mkPen("#0f172a", width=3), symbol="o",
+                                            symbolBrush="#0f172a", name="Real"))
+            xs_p = xs[n_real - 1:]
+            y_proj = [_ancora] + list(cen["valores_projetados"])
+            plot_pr.addItem(pg.PlotDataItem(xs_p, y_proj,
+                                            pen=pg.mkPen("#D55E00", width=2,
+                                                        style=Qt.PenStyle.DashLine),
+                                            symbol="o", symbolSize=8, symbolBrush="#D55E00",
+                                            name="Projetado"))
+            sup = pg.PlotDataItem(xs_p, [_ancora] + list(cen["sup"]),
+                                  pen=pg.mkPen("#D55E00", width=1))
+            inf = pg.PlotDataItem(xs_p, [_ancora] + list(cen["inf"]),
+                                  pen=pg.mkPen("#D55E00", width=1))
+            plot_pr.addItem(pg.FillBetweenItem(sup, inf, brush=pg.mkBrush(213, 94, 0, 38)))
+            todos = cen["valores_reais"] + list(cen["sup"])
+            plot_pr.setYRange(min(0, min(cen["inf"])), max(todos) * 1.15, padding=0)
+            plot_pr.setXRange(-0.6, len(rotulos) - 0.4, padding=0)
+            # pyqtgraph 0.14 nao aceita x string: rotulos entram como ticks do eixo
+            _ax_b = plot_pr.getAxis("bottom")
+            _ax_b.setTicks([[(i, r) for i, r in enumerate(rotulos)]])
+            _ax_b.setStyle(showValues=True, tickTextHeight=18)
+            tab_pr.setRowCount(len(painel["projecoes"]))
+            for i, p in enumerate(painel["projecoes"]):
+                vals = [p["nome_empresa"], p["rubrica_padronizada"], p["periodo_base"],
+                        p["periodo_projetado"], p["horizonte"], f"{p['valor']:,.2f}",
+                        f"{p['intervalo_inf']:,.1f} … {p['intervalo_sup']:,.1f}",
+                        f"{p['metodo']} · conf {p['confianca']:.2f}"]
+                for j, v in enumerate(vals):
+                    tab_pr.setItem(i, j, QTableWidgetItem(str(v)))
+            lbl_pr_status.setText(
+                f"{painel['total']} projeções · {painel['series']} séries · "
+                f"confiança média {painel['confianca_media']} · método do cenário: {cen['metodo']}")
+            # cobertura: toda rubrica com fato deve ter projeção (M10)
+            cob = _cobertura_projecao()
+            sem_cob = [c for c in cob if not c["coberta"]]
+            lbl_pr_cob.setText(
+                f"Cobertura: {len(cob) - len(sem_cob)}/{len(cob)} rubricas com fato "
+                f"são projetadas"
+                + (f" · SEM COBERTURA: {', '.join(c['rubrica'] for c in sem_cob)}"
+                   if sem_cob else " · cobertura completa"))
+            tab_cob.setRowCount(len(cob))
+            for i, c in enumerate(cob):
+                vals = [c["rubrica"], c["nome"], c["unidade"],
+                        str(c["series_projetadas"]) if c["coberta"] else "⚠ sem dado",
+                        c["formula"] or "valor publicado"]
+                for j, v in enumerate(vals):
+                    tab_cob.setItem(i, j, QTableWidgetItem(str(v)))
+
+        def _recalcular_proj():
+            from controllers import ForecastController
+            from workers.forecast_run import run_forecast
+            try:
+                run_forecast(horizonte=int(cb_pr_h.currentText()))
+                lbl_pr_status.setText("projeções recalculadas")
+            except Exception as exc:
+                lbl_pr_status.setText(f"erro: {exc}")
+            _desenhar_projecao()
+
+        btn_pr.clicked.connect(_recalcular_proj)
+        cb_pr_emp.currentTextChanged.connect(lambda _t: _desenhar_projecao())
+        cb_pr_rub.currentTextChanged.connect(lambda _t: _desenhar_projecao())
+        _desenhar_projecao()
+        tabs.addTab(tab5, "Projeções")
+        tab8 = QWidget()          # --- Qualidade e Rastreabilidade (M7) ---
+        ql = QVBoxLayout(tab8)
+        from workers.quality_score import painel_qualidade as _painel_qual
+        _pq = _painel_qual()
+        ql.addWidget(QLabel(
+            "Scorecard de qualidade e rastreabilidade: DQS 0-100 por empresa x trimestre "
+            "(Completude 30% · Plausibilidade 25% · Consistência 15% · Rastreabilidade 15% "
+            "· Tempestividade 15%). CONFIÁVEL >= 80 · REVISAR 60-79 · NÃO CONFIÁVEL < 60."))
+        kpis_q = QHBoxLayout()
+        _cl = _pq["resumo"]["classificacao"]
+        for _rot, _val, _cor in (("DQS médio", _pq["resumo"]["dqs_medio"], "#0f172a"),
+                                 ("Scorecards", len(_pq["cards"]), "#0f172a"),
+                                 ("CONFIÁVEL", _cl.get("CONFIÁVEL", 0), "#046c4e"),
+                                 ("REVISAR", _cl.get("REVISAR", 0), "#b45309"),
+                                 ("NÃO CONFIÁVEL", _cl.get("NÃO CONFIÁVEL", 0), "#dc2626"),
+                                 ("Fila", len(_pq["fila"]), "#0f172a"),
+                                 ("P1", sum(1 for i in _pq["fila"] if i["prioridade"] == "P1"), "#dc2626"),
+                                 ("Regras", len(_pq["regras"]), "#0f172a")):
+            _c = QGroupBox(_rot)
+            _l = QVBoxLayout(_c)
+            _lb = QLabel(str(_val))
+            _lb.setStyleSheet(f"font-size:15px;font-weight:800;color:{_cor}")
+            _l.addWidget(_lb)
+            kpis_q.addWidget(_c)
+        ql.addLayout(kpis_q)
+        plot_q = pg.PlotWidget(title="Dimensões da qualidade (média da base)")
+        _polilar(plot_q, "Dimensões")
+        plot_q.installEventFilter(self._plot_events)
+        self._plots.append(plot_q)
+        plot_dims = None
+        _med = _pq["resumo"]["por_dimensao"]
+        _n = len(_pq["dimensoes"])
+        plot_dims = pg.BarGraphItem(x=list(range(_n)),
+                                   height=[_med.get(d["codigo"], 0) for d in _pq["dimensoes"]],
+                                   width=0.62,
+                                   brushes=[self.CORES.get(["PETROBRAS", "TOTALENERGIES", "BP",
+                                                           "EQUINOR", "SHELL"][i], "#4a90d9")
+                                            for i in range(_n)])
+        plot_q.addItem(plot_dims)
+        plot_q.getAxis("bottom").setTicks(
+            [[(i, d["nome"][:9]) for i, d in enumerate(_pq["dimensoes"])]])
+        plot_q.getAxis("bottom").setStyle(showValues=True, tickTextHeight=16)
+        plot_q.setLabel("left", "%")
+        plot_q.setXRange(-0.7, _n - 0.3, padding=0)
+        plot_q.setYRange(0, 115, padding=0)
+        ql.addWidget(plot_q)
+        tab_score = QTableWidget()
+        tab_score.setColumnCount(7)
+        tab_score.setHorizontalHeaderLabels(["Empresa", "Período", "Completude", "Tempest.",
+                                             "Plausib.", "Consist.", "Rastreab.", ])
+        _cards = sorted(_pq["cards"], key=lambda c: c["dqs"])
+        tab_score.setColumnCount(7)
+        tab_score.setRowCount(min(len(_cards), 200))
+        for i, c in enumerate(_cards[:200]):
+            for j, v in enumerate([c["nome_empresa"], c["periodo"], f"{c['completude']:.0f}%",
+                                   f"{c['tempestividade']:.0f}%", f"{c['plausibilidade']:.0f}%",
+                                   f"{c['consistencia']:.0f}%", f"{c['rastreabilidade']:.0f}%"]):
+                tab_score.setItem(i, j, QTableWidgetItem(str(v)))
+        _polir_tabela(tab_score)
+        tab_score.setMaximumHeight(200)
+        ql.addWidget(QLabel("Scorecards (pior DQS primeiro)"))
+        ql.addWidget(tab_score)
+        # --- scorecard historico (M7.23): DQS ao longo do tempo ---
+        _hist = _pq.get("historico") or {}
+        _por_empresa = _hist.get("por_empresa") or {}
+        _media_hist = _hist.get("media_por_periodo") or []
+        plot_hist = pg.PlotWidget(title="DQS ao longo do tempo")
+        _polilar(plot_hist, "Período")
+        plot_hist.installEventFilter(self._plot_events)
+        self._plots.append(plot_hist)
+        _periodos_hist = [m["periodo"] for m in _media_hist]
+        if _periodos_hist:
+            plot_hist.plot(list(range(len(_periodos_hist))),
+                           [m["dqs_medio"] for m in _media_hist],
+                           pen=pg.mkPen("#5a6472", width=3))
+            for _i, _emp in enumerate(sorted(_por_empresa)):
+                _pts = {p["periodo"]: p["dqs"] for p in _por_empresa[_emp]["pontos"]}
+                _ys = [_pts.get(_p) for _p in _periodos_hist]
+                if all(y is not None for y in _ys):
+                    plot_hist.plot(list(range(len(_ys))), _ys,
+                                   pen=pg.mkPen(self.CORES.get(_emp, "#4a90d9"), width=2),
+                                   symbol="o", symbolSize=6, symbolBrush=self.CORES.get(_emp))
+            plot_hist.getAxis("bottom").setTicks(
+                [[(i, p) for i, p in enumerate(_periodos_hist)]])
+            plot_hist.setYRange(0, 100, padding=0)
+            plot_hist.setLabel("left", "DQS")
+        else:
+            plot_hist.setLabel("left", "sem histórico")
+        plot_hist.setMaximumHeight(220)
+        ql.addWidget(plot_hist)
+        tab_hist = QTableWidget()
+        _linhas_hist = [(e, p) for e in sorted(_por_empresa)
+                        for p in _por_empresa[e]["pontos"]]
+        tab_hist.setColumnCount(5)
+        tab_hist.setRowCount(len(_linhas_hist))
+        tab_hist.setHorizontalHeaderLabels(["Empresa", "Período", "DQS", "Variação", "Classe"])
+        for i, (emp, p) in enumerate(_linhas_hist):
+            _var = ("—" if p["variacao"] is None else f"{p['variacao']:+.1f}")
+            for j, v in enumerate([emp, p["periodo"], p["dqs"], _var, p["classificacao"]]):
+                tab_hist.setItem(i, j, QTableWidgetItem(str(v)))
+        _polir_tabela(tab_hist)
+        tab_hist.setMaximumHeight(200)
+        ql.addWidget(QLabel("Histórico do DQS (um ponto por mudança real de score)"))
+        ql.addWidget(tab_hist)
+        tab_fila_q = QTableWidget()
+        tab_fila_q.setColumnCount(5)
+        tab_fila_q.setHorizontalHeaderLabels(["Prioridade", "Código", "Empresa", "Período",
+                                              "Motivo"])
+        _fq = _pq["fila"][:300]
+        tab_fila_q.setRowCount(len(_fq))
+        for i, it in enumerate(_fq):
+            for j, v in enumerate([it["prioridade"], it["codigo"], it["empresa"],
+                                   it["periodo"], it["motivo"][:110]]):
+                tab_fila_q.setItem(i, j, QTableWidgetItem(str(v)))
+        _polir_tabela(tab_fila_q)
+        ql.addWidget(QLabel("Fila de análise priorizada (P1 urgente · P2 revisar · P3 completar)"))
+        ql.addWidget(tab_fila_q)
+        _paginar(ql, tab_fila_q)
+        tabs.addTab(tab8, "Qualidade")
+        tab7 = QWidget()          # --- Gestão e Controle do ETL ---
+        et = QVBoxLayout(tab7)
         painel = sources.painel_etl()
         res = painel["resumo"]
 
@@ -478,7 +876,12 @@ class BenchmarkGUI:
                 ("Não baixadas", str(res["nao_baixados"]), "#4b5563"),
                 ("Duração total", _ms(res["duracao_total_ms"]), ""),
                 ("Duração média", _ms(res["duracao_media_ms"]), ""),
-                ("Execuções", str(res["total_execucoes"]), "")):
+                ("Execuções", str(res["total_execucoes"]), ""),
+                # Métrica de leitura do PDF (M8.12)
+                ("PDFs medidos", str(res["pdf"]["documentos"]), ""),
+                ("Páginas lidas", str(res["pdf"]["paginas_lidas"]), ""),
+                ("Tabelas", str(res["pdf"]["tabelas"]), ""),
+                ("Páginas/seg", f"{res['pdf']['paginas_por_seg']:.1f}", "#0072B2")):
             card = QGroupBox(rotulo)
             lay = QVBoxLayout(card)
             lb = QLabel(valor)
@@ -502,7 +905,7 @@ class BenchmarkGUI:
 
         tab_etl = QTableWidget()
         cols_etl = ["ID", "Empresa", "Documento", "Ext", "Status", "Extr.", "Duração",
-                    "Download", "Processado em", "Erro"]
+                    "Págs.", "Lidas", "Tab.", "Pág/s", "Download", "Processado em", "Erro"]
 
         def _montar_etl():
             dados = painel["fontes"]
@@ -511,10 +914,16 @@ class BenchmarkGUI:
             tab_etl.setHorizontalHeaderLabels(cols_etl)
             for i, f in enumerate(dados):
                 dur = f.get("duracao_ms")
+                pags = f.get("n_paginas")
+                lidas = f.get("n_paginas_lidas")
                 cel = [f.get("id_fonte"), f.get("nome_empresa"),
                        (f.get("nome_documento") or "")[:40], f.get("extensao"),
                        f.get("status_processamento"), f.get("n_extracoes"),
                        f"{dur / 1000:.2f}s" if dur else "",
+                       pags if pags is not None else "",
+                       lidas if lidas is not None else "",
+                       f.get("n_tabelas") if f.get("n_tabelas") is not None else "",
+                       f"{1000 * (lidas or 0) / dur:.1f}" if (lidas and dur) else "",
                        (f.get("data_download") or "")[:19],
                        (f.get("data_processamento") or "")[:19],
                        (f.get("erro") or "")[:120]]
@@ -538,7 +947,7 @@ class BenchmarkGUI:
                 itens = [tab_etl.item(i, j).text() if tab_etl.item(i, j) else "" for j in range(5)]
                 ok_st = st == "(todos)" or itens[4] == st
                 ok_t = not termo or termo in " ".join(itens).lower() or termo in (
-                    tab_etl.item(i, 9).text().lower() if tab_etl.item(i, 9) else "")
+                    tab_etl.item(i, 13).text().lower() if tab_etl.item(i, 13) else "")
                 tab_etl.setRowHidden(i, not (ok_st and ok_t))
 
         cb_status.currentTextChanged.connect(lambda _t: _filtrar_etl())
@@ -551,14 +960,16 @@ class BenchmarkGUI:
         hist = QTableWidget()
         _ex = painel["execucoes"][:25]
         hist.setRowCount(len(_ex))
-        hist.setColumnCount(9)
+        hist.setColumnCount(11)
         hist.setHorizontalHeaderLabels(["Início", "Fim", "Duração", "Arquivos", "Extrações",
-                                        "Cargas", "PDFs pulados", "Revisão", "Erros"])
+                                        "Cargas", "PDFs pulados", "Revisão", "Erros",
+                                        "Págs.", "Tab."])
         for i, e in enumerate(_ex):
             vals = [e["inicio_em"], e["fim_em"],
                     f"{e['duracao_ms'] / 1000:.2f}s" if e.get("duracao_ms") else "",
                     e["arquivos_processados"], e["extracoes"], e["cargas"],
-                    e["pulados_pdf"], e["revisao"], e["erros"]]
+                    e["pulados_pdf"], e["revisao"], e["erros"],
+                    e.get("paginas_lidas") or 0, e.get("tabelas_detectadas") or 0]
             for j, v in enumerate(vals):
                 hist.setItem(i, j, QTableWidgetItem(str(v if v is not None else "")))
         _polir_tabela(hist)
@@ -566,7 +977,71 @@ class BenchmarkGUI:
         et.addWidget(QLabel("Histórico de execuções do pipeline"))
         et.addWidget(hist)
         _paginar(et, hist)
-        tabs.addTab(tab5, "Gestão ETL")
+        tabs.addTab(tab7, "Gestão ETL")
+
+        # --- Glossário: definição, unidade, fórmula e sinal de cada indicador ---
+        from models import glossario as _glo
+        tab9 = QWidget()
+        gl = QVBoxLayout(tab9)
+        gl.setContentsMargins(10, 8, 10, 8)
+        gl.setSpacing(6)
+        busca = QLineEdit()
+        busca.setPlaceholderText("Filtrar por código, nome, definição ou fórmula…")
+        gl.addWidget(busca)
+        self._glo_tabela = QTableWidget(0, 6)
+        self._glo_tabela.setHorizontalHeaderLabels(
+            ["Código", "Indicador", "Unidade", "Categoria", "Fórmula", "Sinal"])
+        self._glo_tabela.verticalHeader().setVisible(False)
+        self._glo_tabela.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._glo_tabela.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        self._glo_tabela.setWordWrap(True)
+        cabec = self._glo_tabela.horizontalHeader()
+        for col, larg in zip(range(6), (170, 200, 80, 100, 330, 170)):
+            cabec.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+            self._glo_tabela.setColumnWidth(col, larg)
+        gl.addWidget(self._glo_tabela, 1)
+        self._glo_detalhe = QLabel("Selecione um indicador para ver a definição completa.")
+        self._glo_detalhe.setWordWrap(True)
+        self._glo_detalhe.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        gl.addWidget(self._glo_detalhe)
+
+        def _glo_preencher() -> None:
+            termo = busca.text().strip().lower()
+            lista = _glo.buscar(termo)
+            t = self._glo_tabela
+            t.setRowCount(len(lista))
+            for i, g in enumerate(lista):
+                formula = g["formula"] or "— (publicado pela empresa)"
+                for j, v in enumerate((g["codigo"], g["nome"], g["unidade"] or "—",
+                                       g["categoria"], formula, g["sinal"] or "—")):
+                    t.setItem(i, j, QTableWidgetItem(str(v)))
+            self._glo_lista = lista
+            self._glo_detalhe.setText(
+                f"{len(lista)} indicador(es) no glossário."
+                + (f"  Filtro: '{termo}'." if termo else ""))
+
+        def _glo_detalhe_ao_clicar() -> None:
+            linha = self._glo_tabela.currentRow()
+            if linha < 0 or linha >= len(getattr(self, "_glo_lista", [])):
+                return
+            g = self._glo_lista[linha]
+            partes = [f"<b>{g['nome']}</b> ({g['codigo']}) — {g['categoria']}, "
+                      f"unidade {g['unidade'] or '—'}", g["definicao"]]
+            if g["formula"]:
+                partes.append(f"<b>Fórmula:</b> {g['formula']}")
+            if g["depende"]:
+                partes.append("Depende de: " + ", ".join(g["depende"]))
+            partes.append(f"<b>Sinal:</b> {g['sinal'] or '—'}")
+            partes.append(f"<b>Fonte:</b> {g['fonte'] or '—'}")
+            self._glo_detalhe.setText("<br>".join(partes))
+
+        busca.textChanged.connect(_glo_preencher)
+        self._glo_tabela.itemSelectionChanged.connect(_glo_detalhe_ao_clicar)
+        _glo_preencher()
+        tabs.addTab(tab9, "Glossário")
+
         work_l.addWidget(tabs)
 
         # --- UX: foco em tela cheia (reparenta o plot e devolve ao fechar) ---

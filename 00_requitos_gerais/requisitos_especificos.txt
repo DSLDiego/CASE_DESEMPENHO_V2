@@ -210,6 +210,16 @@ Para web app e gui app:
 5) Crie uma funcionalidade de enviar o gráfico por email.
 
 
+Adicione na lista de tarefas as melhorias:
+1) tab Fontes para um sistema de Gestão e Controle de Fontes
+2) tab Auditoria para um sistema de Gestão e Controle de Auditoria.
+3) Adicione uma metodologia estatística para dados projetivos de previsão (próximos trimestres - até 3 trimestres a frente)
+Continue e termine as tarefas pendentes
+
+Nas projeções:
+1) Para casos de poucos dados faça a média dos valores e use 2*desvio padrao para o próximos 3 trimestres
+2) Caso so tenho 1 dado. repita o dado e faça um intervalo de + 15% e - 15% em relação ao valor
+
 Leia e Releia todos os documentos abaixo:
 
 "C:\Users\diego\Downloads\CASE_DESEMPENHO\01_app_notellm\chat_history\Exportação do Gemini_ 4 de outubro de 2026 às 16_56_51 BRT.md"

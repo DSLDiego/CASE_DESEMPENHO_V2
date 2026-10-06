@@ -1,0 +1,62 @@
+Subject: [PetroAnalytics] ALERTAS P1 =?utf-8?b?4oCU?= 60 itens na fila
+From: petroanalytics@exemplo.com
+To: equipe@exemplo.com
+Date: Tue, 06 Oct 2026 07:31:11 -0300
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+PetroAnalytics =E2=80=94 60 alerta(s) P1 na fila de qualidade:
+
+  [ATRASO_TRIMESTRE] (todas) 2026Q2 =E2=80=94 =C3=BAltimo trimestre carregado=
+ =C3=A9 2026Q2, esperado 2026Q3 =E2=80=94 pipeline possivelmente parado
+  [CONTAGEM_PERIODO] (todas) 2023Q3 =E2=80=94 volume de fatos caiu de 19 para=
+ 7 (-63%) em 2023Q3
+  [CONTAGEM_PERIODO] (todas) 2023Q4 =E2=80=94 volume de fatos caiu de 7 para =
+1 (-86%) em 2023Q4
+  [CONTAGEM_PERIODO] (todas) 2024Q3 =E2=80=94 volume de fatos caiu de 31 para=
+ 9 (-71%) em 2024Q3
+  [CONTAGEM_PERIODO] (todas) 2024Q4 =E2=80=94 volume de fatos caiu de 9 para =
+1 (-89%) em 2024Q4
+  [CONTAGEM_PERIODO] (todas) 2025Q3 =E2=80=94 volume de fatos caiu de 21 para=
+ 9 (-57%) em 2025Q3
+  [DRIFT_ZSCORE] BP 2026Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCO 2026=
+Q1: valor 2.86 desvia -5.2=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] BP 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCO 2026=
+Q2: valor 10.86 desvia +2.5=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] BP 2025Q4 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUCRO_LI=
+QUIDO 2025Q4: valor -3.42 desvia -4.8=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] BP 2026Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] RECEITA_=
+LIQUIDA 2026Q1: valor 52.26 desvia +4.8=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] BP 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] RECEITA_=
+LIQUIDA 2026Q2: valor 69.11 desvia +10.7=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCL=
+ 2026Q2: valor 18.09 desvia +8.3=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2024Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCO=
+ 2024Q2: valor 35.23 desvia +3.4=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCO=
+ 2026Q2: valor 45.32 desvia +2.5=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2024Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2024Q1: valor 5.50 desvia -3.4=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2024Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2024Q2: valor 4.44 desvia -3.9=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2025Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2025Q1: valor 3.50 desvia -2.4=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2025Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2025Q2: valor 2.49 desvia -2.5=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2026Q2: valor 12.21 desvia +14.1=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2025Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] REC=
+EITA_LIQUIDA 2025Q2: valor 44.82 desvia -2.5=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] CHEVRON 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] REC=
+EITA_LIQUIDA 2026Q2: valor 67.20 desvia +9.3=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] EQUINOR 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] FCO=
+ 2026Q2: valor 9.47 desvia +2.7=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] EQUINOR 2026Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2026Q1: valor 3.10 desvia +2.2=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] EQUINOR 2026Q2 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] LUC=
+RO_LIQUIDO 2026Q2: valor 4.84 desvia +3.0=CF=83 da s=C3=A9rie anterior
+  [DRIFT_ZSCORE] EQUINOR 2026Q1 =E2=80=94 [escalado: 39 ocorr=C3=AAncias] REC=
+EITA_LIQUIDA 2026Q1: valor 27.84 desvia +7.0=CF=83 da s=C3=A9rie anterior
+
+Triagem: python app_main.py auditoria fila --prioridade P1

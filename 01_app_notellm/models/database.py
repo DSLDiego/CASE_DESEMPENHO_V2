@@ -101,13 +101,99 @@ CREATE TABLE IF NOT EXISTS tb_etl_execucao (
     revisao INTEGER DEFAULT 0,
     erros INTEGER DEFAULT 0,
     status TEXT DEFAULT 'EM_ANDAMENTO',
-    detalhe TEXT
+    detalhe TEXT,
+    paginas_lidas INTEGER DEFAULT 0,
+    tabelas_detectadas INTEGER DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_fato_emp_per
     ON tb_fato_financeiro (nome_empresa, periodo, rubrica_padronizada);
 CREATE INDEX IF NOT EXISTS idx_oper_emp_per
     ON tb_fato_operacional (nome_empresa, periodo, indicador);
+-- Projecoes estatisticas (NAO sobrescrevem fatos reais; vive separada).
+CREATE TABLE IF NOT EXISTS tb_projecao (
+    id_projecao INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome_empresa TEXT NOT NULL,
+    rubrica_padronizada TEXT NOT NULL,
+    periodo_base TEXT NOT NULL,
+    periodo_projetado TEXT NOT NULL,
+    horizonte INTEGER NOT NULL,
+    valor REAL NOT NULL,
+    intervalo_inf REAL,
+    intervalo_sup REAL,
+    metodo TEXT NOT NULL,
+    confianca REAL DEFAULT 0.0,
+    mae REAL,
+    mape REAL,
+    serie_json TEXT,
+    gerado_em TEXT DEFAULT (datetime('now')),
+    UNIQUE (nome_empresa, rubrica_padronizada, periodo_projetado)
+);
+
+CREATE INDEX IF NOT EXISTS idx_projecao_chave ON tb_projecao (nome_empresa, rubrica_padronizada);
+-- Trilha de decisao da auditoria (quem aceitou/rejeitou/ignorou cada achado).
+CREATE TABLE IF NOT EXISTS tb_auditoria_decisao (
+    id_decisao INTEGER PRIMARY KEY AUTOINCREMENT,
+    tabela_ref TEXT NOT NULL,
+    registro_id INTEGER NOT NULL,
+    decisao TEXT NOT NULL,
+    comentario TEXT,
+    decidido_em TEXT DEFAULT (datetime('now')),
+    decidido_por TEXT DEFAULT 'usuario'
+);
+
+CREATE INDEX IF NOT EXISTS idx_decisao_ref ON tb_auditoria_decisao (tabela_ref, registro_id);
+
+-- Scorecard de qualidade e confiabilidade (M7): 1 linha por empresa x periodo.
+CREATE TABLE IF NOT EXISTS tb_qualidade_score (
+    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome_empresa TEXT NOT NULL,
+    periodo TEXT NOT NULL,
+    completude REAL,
+    tempestividade REAL,
+    plausibilidade REAL,
+    consistencia REAL,
+    rastreabilidade REAL,
+    dqs REAL,
+    classificacao TEXT,
+    n_fatos INTEGER DEFAULT 0,
+    n_esperadas INTEGER DEFAULT 0,
+    detalhes_json TEXT,
+    gerado_em TEXT DEFAULT (datetime('now')),
+    UNIQUE (nome_empresa, periodo)
+);
+
+-- Serie historica do scorecard (M7.23): DQS ao longo do tempo.
+-- tb_qualidade_score guarda o ULTIMO estado (UNIQUE empresa x periodo, sobrescrito
+-- a cada recalculo); sem esta tabela a evolucao da qualidade some. Aqui cada ponto
+-- e gravado quando o DQS muda de verdade — assim a serie mostra mudanca, nao execucao.
+CREATE TABLE IF NOT EXISTS tb_qualidade_historico (
+    id_hist INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome_empresa TEXT NOT NULL,
+    periodo TEXT NOT NULL,
+    completude REAL,
+    tempestividade REAL,
+    plausibilidade REAL,
+    consistencia REAL,
+    rastreabilidade REAL,
+    dqs REAL,
+    classificacao TEXT,
+    n_fatos INTEGER DEFAULT 0,
+    gerado_em TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_qhist_chave ON tb_qualidade_historico (nome_empresa, periodo, gerado_em);
+
+-- Registro das regras de alerta/limiar (permite calibrar e reduzir alarme).
+CREATE TABLE IF NOT EXISTS tb_regra_alerta (
+    codigo TEXT PRIMARY KEY,
+    descricao TEXT,
+    limiar REAL,
+    severidade TEXT DEFAULT 'MEDIUM',
+    ativo INTEGER DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_score_periodo ON tb_qualidade_score (periodo);
 CREATE INDEX IF NOT EXISTS idx_fonte_hash ON tb_fonte_dados (hash_arquivo);
 CREATE INDEX IF NOT EXISTS idx_fonte_status ON tb_fonte_dados (status_processamento);
 CREATE INDEX IF NOT EXISTS idx_etl_exec_inicio ON tb_etl_execucao (inicio_em);
@@ -125,6 +211,17 @@ MIGRATIONS: dict[str, dict[str, str]] = {
         "duracao_ms": "INTEGER",
         "erro": "TEXT",
         "n_extracoes": "INTEGER DEFAULT 0",
+        # Metricas de leitura do PDF (M8.12): n_paginas e o TAMANHO do documento,
+        # n_paginas_lidas o que o parse percorreu de fato (limitado por politica de
+        # profundidade). O throughput (paginas/seg) usa as lidas — dividir o total
+        # do arquivo pelo tempo do parse inflaria o numero. NULL = nao medido.
+        "n_paginas": "INTEGER",
+        "n_paginas_lidas": "INTEGER",
+        "n_tabelas": "INTEGER",
+    },
+    "tb_etl_execucao": {
+        "paginas_lidas": "INTEGER DEFAULT 0",
+        "tabelas_detectadas": "INTEGER DEFAULT 0",
     },
 }
 
@@ -174,6 +271,7 @@ class DatabaseManager:
         with self.connect() as conn:
             for tbl in ("tb_review_queue", "tb_quality_alerts", "tb_fato_operacional",
                         "tb_fato_financeiro", "tb_depara_rubrica", "tb_fonte_dados",
-                        "tb_etl_execucao"):
+                        "tb_etl_execucao", "tb_projecao", "tb_auditoria_decisao",
+                        "tb_qualidade_historico", "tb_qualidade_score", "tb_regra_alerta"):
                 conn.execute(f"DELETE FROM {tbl};")
             conn.commit()

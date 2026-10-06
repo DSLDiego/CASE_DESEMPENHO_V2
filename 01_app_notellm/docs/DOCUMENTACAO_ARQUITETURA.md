@@ -158,6 +158,52 @@ Um teste valida a distância mínima de matiz (≥0.08) entre quaisquer duas emp
 ele que reprovou a primeira tentativa (`#0072B2` vs `#56B4E9`, ambos azuis). Barras usam
 a mesma paleta com borda branca; séries ficam legíveis também em escala de cinza.
 
+## 7.2 Gestão e Controle de Auditoria (M2) e Projeções (M3)
+
+**Auditoria** — `tb_auditoria_decisao` guarda a trilha de triagem
+(`ACEITO`→RESOLVIDO, `REJEITADO`, `IGNORADO) com comentário, autor e data.
+`QualityRepository.resumo_auditoria()` devolve alertas por severidade, fila por status,
+**aging** (0–7d / 8–30d / >30d), taxa de resolução e ranking por tipo. UI: botões por linha
+na web e 3 botões por item na GUI; CLI `auditoria resumo|fila|decidir`; API `GET|POST
+/api/auditoria`.
+
+**Projeções** — `workers/forecast.py` decide o método por série:
+
+```
+1 dado            -> REPETIR_15        (repete o valor, IC ±15%)
+2 a 5 dados       -> MEDIA_2DP         (média da série, IC ±2 desvios-padrão)
+6+ dados          -> backtesting entre ULTIMA_OBSERVACAO / SAZONAL_NAIVE /
+                     HOLT_WINTERS_DAMPED (Holt aditivo amortecido, sazonalidade k=4);
+                     vence a de menor MAE; IC95 = ±1,96·σ·√h (σ dos erros de backtesting)
+```
+`workers/forecast_run.py` orquestra (lê fatos → projeta → grava), `ProjectionRepository`
+persiste em `tb_projecao` com método, intervalo e confiança. Um teste garante que
+`tb_fato_financeiro` fica intacto e que `run_forecast` é idempotente.
+
+## 7.3 Qualidade e Rastreabilidade (M7)
+
+```
+avaliar_periodo()  -> 5 dimensoes + DQS 0-100 + classificacao  ->  tb_qualidade_score
+detectar_desvios() -> DRIFT_ZSCORE | QUEBRA_ESTRUTURAL | CONTAGEM_PERIODO | ATRASO_TRIMESTRE
+_revisao_entre_execucoes() -> REVISAO_ENTRE_EXECUCOES (mudaça de dados no tempo)
+fila_analise()     -> P1/P2/P3 + codigo de motivo (+ RUBRICA_AUSENTE, SEM_FONTE)
+run_quality_score()-> scorecard + alertas idempotentes + itens P1/P2 na fila de revisao
+```
+
+| Dimensão | Peso | Como é medida |
+|---|---|---|
+| Completude | 30% | rubricas financeiras presentes / 10 esperadas no trimestre |
+| Plausibilidade | 25% | sinais impossíveis (fato negativo onde não cabe) |
+| Consistência | 15% | confiança média dos fatos (normalizada por 0,95) |
+| Rastreabilidade | 15% | fatos com `id_fonte` válido |
+| Tempestividade | 15% | o período é o mais recente carregado? |
+
+Classificação: `CONFIÁVEL ≥ 80` · `REVISAR 60–79` · `NÃO CONFIÁVEL < 60`. Os limiares das
+regras de desvio vivem em `tb_regra_alerta` (calibráveis sem alterar código), o que
+evita alarme falso. Estado real da base: DQS médio 75,4 · 67 scorecards · 449 itens de
+fila (6 P1) — completude (40,4) é a dimensão que mais derruba a nota, coerente com a
+cobertura parcial de rubricas nos trimestres SEC.
+
 ## 8. Escala (universo completo)
 
 Adicionar empresa = 1 linha em `COMPANIES` (+CIK); novo indicador = 1 regra em

@@ -78,11 +78,17 @@ ESTILO_SERIE: dict[str, dict[str, object]] = {
 # PTAX fallback (BRL por USD, fechamento do trimestre) p/ conversao BRL->USD.
 PTAX_FALLBACK = {"2025Q4": 5.40, "2026Q1": 5.26, "2026Q2": 5.05}
 
-# Arquivos PDF que valem parsing profundo (releases/resultados). Transcripts e
-# slides vao para o catalogo mas nao bloqueiam o pipeline.
+# Quais PDFs valem parsing profundo e quais sao so narracao (transcricao/slides) e
+# era decidido por substring em config.py, o que quebrava com acento, espaco, hifen
+# e cifrao ("Transcricao 1T25.pdf" era parseado; "... - US$.pdf" nao casava).
+# A regra agora e REGEX sobre o nome normalizado, em workers/naming.py:
+#   SKIP_RE (narrativo: transcript/slides/remarks/webcast) e ALLOW_RE
+#   (numerico: results/demonstracoes/desempenho/ITR/DFS/supplement).
+# Mantido aqui so como documentacao do formato antigo:
 PDF_PARSE_ALLOW = ("release", "result", "desempenho", "qra", "accounts", "press",
-                     "financial-statement", "statements-and-review")
-PDF_PARSE_SKIP = ("transcript", "slides", "presentation", "speech", "webcast", "transcricao")
+                   "financial-statement", "statements-and-review")
+PDF_PARSE_SKIP = ("transcript", "slides", "presentation", "speech", "webcast",
+                  "transcricao")
 
 CONFIDENCE_MIN = 0.70
 QOQ_SPIKE_PCT = 40.0
