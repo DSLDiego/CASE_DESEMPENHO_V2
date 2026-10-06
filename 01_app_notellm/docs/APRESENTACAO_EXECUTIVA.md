@@ -69,7 +69,7 @@ Três garantias que sustentam o resto:
 
 | Camada | Pasta | Papel |
 |---|---|---|
-| Model | `models/` | 11 tabelas SQLite, De-Para, glossário, repositórios |
+| Model | `models/` | 12 tabelas SQLite, De-Para, glossário, repositórios |
 | Worker | `workers/` | scan, `parse_tab`, `parse_pdf`, `parse_html`, SEC, qualidade, projeção, descoberta, deck |
 | Controller | `controllers/` | casos de uso finos; nenhuma regra de negócio no dele |
 | View | `views/` | Web (Plotly + JS), GUI (PySide6/pyqtgraph), servidor REST |
@@ -89,7 +89,7 @@ Padrões aplicados: MVC-W, repositório, injeção por construtor, SRP, `type hi
 | **Plotly** | Web | interativo, exporta PNG sem navegador extra |
 | **PySide6 + pyqtgraph** | GUI | desktop nativo, gráficos de alta performance |
 | **reportlab + Kaleido** | PDF e PNG | entregáveis sem dependência de navegador |
-| **pytest** | 87 testes | regressão real (14 bugs encontrados por teste) |
+| **pytest** | 116 testes | regressão real (21 bugs encontrados por teste) |
 
 **Destaque honesto:** as libs Rust de PDF (PDFOxide, pdf-inspector) foram
 benchmarkadas e **não** adotadas — são redundantes com o MuPDF (mesmas 35
@@ -102,7 +102,7 @@ extrações) e 2,8× mais lentas.
 | Métrica | Valor |
 |---|---|
 | Empresas / períodos com dado | 7 · 14 trimestres (2023Q1–2026Q2) |
-| Fontes catalogadas | 828 (160 com arquivo local) |
+| Fontes catalogadas | 871 (183 com arquivo local) |
 | Fatos | 272 financeiros + 121 operacionais |
 | Processadas / sem dado / puladas | 26 / 82 / 52 (erros: **0**) |
 | Cobertura de projeções | 10 de 10 rubricas |
@@ -119,7 +119,7 @@ e lucro; Shell lidera EBITDA (20,7 USD bi); margem EBITDA da Petrobras 55,4%.
 - Completude 30% · Plausibilidade 25% · Consistência 15% · Rastreabilidade 15% ·
   Tempestividade 15%.
 - Classificação: CONFIÁVEL ≥80 · REVISAR 60–79 · NÃO CONFIÁVEL <60.
-- Fila P1/P2/P3 com código de motivo — 449 itens (6 P1, 44 P2, 399 P3).
+- Fila P1/P2/P3 com código de motivo — 458 itens (60 P1, 398 P3).
 - Regra de ouro: **confiança baixa vai para revisão humana, nunca para o painel
   como se fosse verdade**.
 

@@ -284,6 +284,7 @@ RIGHTS" e "IAN TYLER APPOINTED BP CHAIR".
 | M11.2 | Inventário das **fontes de informação** usadas no ETL (com CIK, tags XBRL e o que não é usado) | `docs/FONTES_DADOS_ETL.md` | ✅ |
 | M11.3 | Roteiro de apresentação executiva em 12 tópicos (utilidade → uso → arquitetura → tecnologia → resultados → limites → próximos passos) | `docs/APRESENTACAO_EXECUTIVA.md` | ✅ |
 | M11.4 | Deck PDF executivo de 13 páginas gerado do banco (números não divergem do painel) | `workers/deck_pdf.py` | ✅ |
+| M11.6 | Apresentação executiva em **PPTX** (23 slides, cores Petrobras, gerada do banco + validador de layout) | `workers/apresentacao_pptx.py` | ✅ |
 | M11.5 | Glossário consolidado nos guias de execução | `docs/INSTRUCOES_EXECUCAO.md` | ✅ |
 
 ## Ordem sugerida de execução (próximos)

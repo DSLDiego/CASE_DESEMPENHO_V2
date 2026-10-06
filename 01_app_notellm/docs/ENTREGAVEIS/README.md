@@ -13,6 +13,7 @@ Gerado em 06/10/2026 contra a base real (`data/petro_analytics.db`).
 | 6 | **Apresentação da construção (entrevista, 15 min)** | `6_APRESENTACAO_ENTREVISTA_15MIN.md` | roteiro por blocos, com as perguntas e as respostas |
 | 7 | **Alertas cross-sectional (análise fora da curva)** | `7_ALERTAS_CROSS_SECTIONAL.md` | os 10 achados e a causa do CAPEX da Petrobras |
 | 8 | **Relatório de auditoria em PDF** | `RELATORIO_AUDITORIA.pdf` | gerado do banco: situação, aging, quem decidiu e a trilha do período |
+| 9 | **Apresentação executiva em PowerPoint** | [`../APRESENTACAO_PETROBRAS.pptx`](../APRESENTACAO_PETROBRAS.pptx) | 23 slides nas cores da Petrobras, gerados do banco — [`../APRESENTACAO_PPTX.md`](../APRESENTACAO_PPTX.md) |
 
 Complementares: [`../MELHORIAS_IMPLEMENTADAS.md`](../MELHORIAS_IMPLEMENTADAS.md) ·
 [`../APRESENTACAO_EXECUTIVA.md`](../APRESENTACAO_EXECUTIVA.md) ·
@@ -55,13 +56,14 @@ embutidos. Para versão interativa com dados ao vivo:
 | Projeções | 147 pontos · 49 séries · **10 de 10 rubricas** |
 | ETL completo / incremental | 135 s (3 processos) / 2–5 s |
 | Leitura de PDF (M8.12) | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
-| Testes | **110 passam**, 2 skips |
+| Apresentação | [`../APRESENTACAO_PETROBRAS.pptx`](../APRESENTACAO_PETROBRAS.pptx) — 23 slides, cores Petrobras, números do banco |
+| Testes | **114 passam**, 2 skips |
 | Erros de carga | 0 · contrato de dados: 393 fatos verificados, 0 violações |
 
 ## Como reproduzir tudo
 
 ```bat
-python -m pytest tests/ -q                        :: 110 passam
+python -m pytest tests/ -q                        :: 114 passam
 python app_main.py etl --jobs 4                    :: ETL completo (102s)
 python app_main.py etl --novos                     :: incremental (2-5s)
 python app_main.py fontes metrica                  :: mede páginas/tabelas do acervo
@@ -72,4 +74,5 @@ python app_main.py projecao                        :: 147 projeções
 python app_main.py web --periodo 2026Q2 --serve    :: painel em http://localhost:8080
 python app_main.py descoberta                      :: o que foi anunciado (SEC/RI)
 python app_main.py pdf --periodo 2026Q2            :: deck executivo em PDF
+python app_main.py pdf --pptx                      :: apresentação em PowerPoint (23 slides)
 ```

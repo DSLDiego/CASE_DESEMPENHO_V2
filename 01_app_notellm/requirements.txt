@@ -17,8 +17,9 @@ pyqtgraph>=0.13
 # Testes
 pytest>=8.0
 
-# PDF oficial (slide deck)
+# PDF oficial (slide deck) e PPTX (apresentacao executiva)
 reportlab>=5.0
+python-pptx>=1.0        # `app_main.py pdf --pptx` → docs/APRESENTACAO_PETROBRAS.pptx
 
 # Envio de e-mail com o gráfico anexado em PNG (fallback: HTML + CSV)
 kaleido>=1.0

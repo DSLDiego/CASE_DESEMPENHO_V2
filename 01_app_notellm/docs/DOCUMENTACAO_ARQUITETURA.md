@@ -200,8 +200,8 @@ run_quality_score()-> scorecard + alertas idempotentes + itens P1/P2 na fila de 
 
 Classificação: `CONFIÁVEL ≥ 80` · `REVISAR 60–79` · `NÃO CONFIÁVEL < 60`. Os limiares das
 regras de desvio vivem em `tb_regra_alerta` (calibráveis sem alterar código), o que
-evita alarme falso. Estado real da base: DQS médio 75,4 · 67 scorecards · 449 itens de
-fila (6 P1) — completude (40,4) é a dimensão que mais derruba a nota, coerente com a
+evita alarme falso. Estado real da base: DQS médio 75,5 · 67 scorecards · 458 itens de
+fila (60 P1) — completude (40,6) é a dimensão que mais derruba a nota, coerente com a
 cobertura parcial de rubricas nos trimestres SEC.
 
 ## 8. Escala (universo completo)

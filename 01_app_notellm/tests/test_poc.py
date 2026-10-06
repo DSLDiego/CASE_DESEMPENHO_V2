@@ -2269,6 +2269,120 @@ def test_backfill_metrica_preenche_pdf_nunca_parsed(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+# ------------------------------------------------- apresentacao PPTX
+def test_pptx_gera_deck_com_numeros_do_banco(tmp_path, monkeypatch):
+    """O deck é gerado do banco: 23 slides, cores Petrobras e nenhum número inventado."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FatoRepository, FonteRepository
+    idf = FonteRepository().registrar("PETROBRAS", "http://ri/x.pdf", "PDF")
+    repo = FatoRepository()
+    for rub in ("RECEITA_LIQUIDA", "EBITDA_AJUSTADO", "LUCRO_LIQUIDO"):
+        repo.upsert_financeiro("PETROBRAS", "2026Q2", rub, 10.0, "USD", idf, 0.9)
+    repo.upsert_financeiro("SHELL", "2026Q2", "RECEITA_LIQUIDA", 20.0, "USD", idf, 0.9)
+    from workers.quality_score import run_quality_score
+    run_quality_score()
+
+    from workers.apresentacao_pptx import (AMARELO, VERDE, _numeros, construir)
+    destino = tmp_path / "deck.pptx"
+    caminho = construir(destino)
+    assert Path(caminho) == destino and destino.exists()
+    assert destino.read_bytes()[:2] == b"PK"          # container OOXML (zip)
+
+    from pptx import Presentation
+    prs = Presentation(str(destino))
+    assert len(prs.slides) >= 20, "a apresentação cobre todos os tópicos do projeto"
+    # nenhum elemento pode estar fora da área do slide
+    for i, slide in enumerate(prs.slides, start=1):
+        for forma in slide.shapes:
+            assert forma.left >= -9144, f"slide {i}: forma fora do slide"
+            assert forma.left + forma.width <= prs.slide_width + 9144, \
+                f"slide {i}: forma estoura a largura"
+            assert forma.top + forma.height <= prs.slide_height + 9144, \
+                f"slide {i}: forma estoura a altura"
+    # paleta da Petrobras presente no XML. O .pptx é um zip, então as cores estão
+    # no XML COMPRIMIDO do slide — procurar no binário cru não acha (verificado).
+    import zipfile
+    xml = b"".join(zipfile.ZipFile(destino).read(nome)
+                   for nome in zipfile.ZipFile(destino).namelist()
+                   if nome.endswith(".xml"))
+    for cor in (VERDE, AMARELO):
+        assert cor.encode() in xml, cor
+    # os números do banco aparecem no deck
+    n = _numeros()
+    texto = " ".join(f.text_frame.text for s in prs.slides for f in s.shapes
+                     if f.has_text_frame)
+    for valor in (str(n["fatos"]), str(n["fontes"]), str(n["projecoes"]), str(n["dqs"])):
+        assert valor in texto, f"número do banco ausente no deck: {valor}"
+    assert str(n["fatos"]) != "0" and n["dqs"] > 0
+    DatabaseManager._instance = None
+
+
+def test_kpis_exige_valor_no_primeiro_lugar(tmp_path, monkeypatch):
+    """(rótulo, valor) invertido na _kpis produz slide com legenda no lugar do número.
+
+    Regressão real: numa faixa só, o par invertido mostrava "empresas comparadas / 7".
+    A ordem da tupla é conferida na função, não conferida a olho no slide.
+    """
+    pytest.importorskip("pptx")
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from workers import apresentacao_pptx as ap
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    s = ap._slide(prs)
+    ap._kpis(s, [(42, "quarenta e dois", ap.VERDE)])
+    texto = " ".join(f.text_frame.text for f in s.shapes if f.has_text_frame)
+    assert "42" in texto and "quarenta e dois" in texto
+    with pytest.raises(ValueError):
+        ap._kpis(s, [("rotulo-sem-numero", ap.VERDE)])
+    DatabaseManager._instance = None
+
+
+def test_validar_pptx_detecta_forma_fora_do_slide(tmp_path, monkeypatch):
+    """O validador só é útil se pegar estouro de caixa — testar o teste."""
+    pytest.importorskip("pptx")
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from workers import apresentacao_pptx as ap
+    from workers.validar_pptx import validar
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    destino = tmp_path / "ruim.pptx"
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    s.shapes.add_textbox(Inches(12.0), Inches(7.0), Inches(4.0), Inches(1.0))
+    prs.save(str(destino))
+    problemas = validar(destino)
+    assert problemas and any("estoura" in p or "fora do slide" in p for p in problemas), problemas
+
+    # deck íntegro: o mesmo validador não acusa nada
+    ok = tmp_path / "ok.pptx"
+    ap.construir(ok, n=ap._numeros())
+    assert validar(ok) == []
+    DatabaseManager._instance = None
+
+
+def test_pptx_pelo_cli(tmp_path, monkeypatch):
+    """`app_main.py pdf --pptx` gera o deck no caminho pedido."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    import app_main
+    saida = tmp_path / "deck_cli.pptx"
+    assert app_main.main(["pdf", "--pptx", "--saida", str(saida)]) == 0
+    assert saida.exists() and saida.read_bytes()[:2] == b"PK"
+    DatabaseManager._instance = None
+
+
 # ------------------------------------------------- M7.23: scorecard historico
 def test_historico_scorecar_registra_somente_mudanca(tmp_path, monkeypatch):
     """O histórico guarda o DQS ao longo do tempo, mas só quando ele MUDA.

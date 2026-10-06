@@ -41,7 +41,7 @@ Tabelas criadas: `tb_fonte_dados`, `tb_depara_rubrica`, `tb_fato_financeiro`,
 - Auditoria de integridade: fonte web sem arquivo = `NAO_BAIXADO` (**não é erro**);
   arquivo local que sumiu = `ERRO` com caminho na mensagem.
 
-**Ganho:** de "caixa preta" para catálogo auditável de 828 fontes.
+**Ganho:** de "caixa preta" para catálogo auditável de 871 fontes.
 
 ## 2. M2 — Gestão e controle da auditoria
 
@@ -300,9 +300,14 @@ era projetada antes.
 
 ## 11. Engenharia de interface que vale registrar
 
+- **Apresentação executiva em PPTX** (`workers/apresentacao_pptx.py`, 23 slides nas
+  cores da Petrobras): gerada do banco, com `workers/validar_pptx.py` conferindo
+  layout (nenhum elemento fora do slide) e a presença dos números — um deck escrito
+  à mão divergiria do painel no primeiro trimestre novo, que é o defeito que o
+  projeto existe para evitar. Detalhes em `docs/APRESENTACAO_PPTX.md`.
 - **Paginação das tabelas grandes** (Fontes, Auditoria, Projeções, ETL, Qualidade):
   as tabelas preenchidas por JS recebiam o paginador antes de terem linhas, então a
-  fila de 449 itens renderizava inteira. `paginate()` passou a ser idempotente e há
+  fila de 458 itens renderizava inteira. `paginate()` passou a ser idempotente e há
   `rePaginar()` para as tabelas dinâmicas.
 - **Filtro com debounce** e ordenação por coluna nas tabelas de gestão.
 - Layout com `clamp()` para não estourar em telas menores.
@@ -332,6 +337,7 @@ era projetada antes.
 | 18 | `PlotItem.addTextItem` removido no pyqtgraph 0.14 quebrava a GUI com base vazia | teste da aba Projeções sem projeção |
 | 19 | Métrica de páginas/seg inflada em 3× (contava o total do arquivo, não o lido) | revisão da métrica antes de documentar |
 | 20 | `historico_scorecard(empresa=...)` devolvia a base inteira em vez de série vazia | teste do filtro por empresa |
+| 21 | Faixa de KPI com o par (rótulo, valor) invertido: o slide mostrava "empresas comparadas / 7" | renderização do PPTX em PNG |
 
 ---
 
@@ -340,7 +346,7 @@ era projetada antes.
 | Métrica | Valor |
 |---|---|
 | Empresas | 7 (Petrobras, Shell, BP, Chevron, ExxonMobil, TotalEnergies, Equinor) |
-| Fontes catalogadas | 828 (160 com arquivo local, 668 apenas com URL de origem) |
+| Fontes catalogadas | 871 (183 com arquivo local, 688 apenas com URL de origem) |
 | Fatos financeiros | 272 · operacionais 121 |
 | Períodos com dado | 14 trimestres (2023Q1 a 2026Q2) |
 | Processadas / sem dado / puladas | 26 / 82 / 52 (erros: 0) |
@@ -350,6 +356,6 @@ era projetada antes.
 | Auditoria | 134 alertas · 877 na fila (875 abertas) · taxa de resolução 50,0% (2 de 4) |
 | Projeções | 147 pontos, 49 séries, 10 rubricas, confiança média 0,58 |
 | Leitura de PDF | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
-| Testes | 110 passando, 2 skips (2023/2024 sem pasta no Container) |
+| Testes | 114 passando, 2 skips (2023/2024 sem pasta no Container) |
 | ETL completo | 252 s serial → **135 s** com 3 processos (1,87x) |
 | ETL incremental | 2–5 s (só o que é novo) |

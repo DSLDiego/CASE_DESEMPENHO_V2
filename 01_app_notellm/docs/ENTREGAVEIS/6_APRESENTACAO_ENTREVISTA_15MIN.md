@@ -54,7 +54,7 @@ Container/inventário → varredura (SHA-256) → classificação do documento
 
 Quatro camadas, e a regra de separação que **mais importa**:
 
-- `models/` — 11 tabelas SQLite, De-Para, glossário, repositórios.
+- `models/` — 12 tabelas SQLite, De-Para, glossário, repositórios.
 - `workers/` — scan, parsers, SEC, qualidade, projeção, descoberta, deck.
 - `controllers/` — casos de uso finos, **sem regra de negócio**.
 - `views/` — Web (Plotly + JS, 11 abas) e GUI (PySide6, 8 abas), mais REST.
@@ -141,7 +141,7 @@ não um defeito de dado. Já completude 40,6 diz que falta rubrica — e aí é 
 > "Escrevi os testes para provar as decisões, e eles acharam coisas que eu não
 > veria lendo o código."
 
-**20 bugs reais**, dos quais cito três que mostram o tipo de raciocínio:
+**21 bugs reais**, dos quais cito três que mostram o tipo de raciocínio:
 
 1. **`Transcrição 1T25.pdf` era parseado.** Eu comparava nome de arquivo
    por substring; o acento quebrava o casamento. O documento narrativo entrava na
@@ -271,6 +271,7 @@ fonte seria apresentar um bug como resultado de negócio.
 | Projeções | 147 pontos · 49 séries · 10 de 10 rubricas |
 | ETL completo / incremental | 135 s (3 processos) / 2–5 s |
 | Leitura de PDF (M8.12) | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
-| Testes | 110 passam, 2 skips |
+| Apresentação | 23 slides em PPTX, cores Petrobras, gerados do banco (`app_main.py pdf --pptx`) |
+| Testes | 114 passam, 2 skips |
 | Erros de carga | 0 |
 | Contrato de dados | 393 fatos verificados, 0 violações |
