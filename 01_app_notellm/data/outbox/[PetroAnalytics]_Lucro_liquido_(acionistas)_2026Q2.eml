@@ -1,11 +1,11 @@
 Subject: [PetroAnalytics] Lucro liquido (acionistas) 2026Q2
 From: petroanalytics@exemplo.com
 To: a@b.com
-Date: Tue, 06 Oct 2026 10:17:08 -0300
+Date: Tue, 06 Oct 2026 11:23:00 -0300
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============4969206240632498664=="
+Content-Type: multipart/mixed; boundary="===============5393647447395794979=="
 
---===============4969206240632498664==
+--===============5393647447395794979==
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
@@ -17,7 +17,7 @@ Fonte: base comparativa (1 empresas). Ver painel e catálogo.
 
 Em anexo: benchmark.html (gráfico interativo), PNG e CSV.
 
---===============4969206240632498664==
+--===============5393647447395794979==
 Content-Type: text/html
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.html"
@@ -47,7 +47,7 @@ emVybycsYXV0b21hcmdpbjp0cnVlfSx4YXhpczp7YXV0b21hcmdpbjp0cnVlLHRpY2thbmdsZTot
 MjB9LAogICB0ZW1wbGF0ZToncGxvdGx5Jyx1bmlmb3JtdGV4dDp7bWluc2l6ZTo5fSxzaG93bGVn
 ZW5kOmZhbHNlfSx7cmVzcG9uc2l2ZTp0cnVlfSk7Cjwvc2NyaXB0PjwvaHRtbD4=
 
---===============4969206240632498664==
+--===============5393647447395794979==
 Content-Type: image/png
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.png"
@@ -1150,7 +1150,7 @@ ECBAgACBxQQ0CBcjcYAAAQJVF1A/AQIECBAgQIAAAQIECBAgkL6AhAQIECBAYOgCGoRDt3MlAQIE
 CBAgQKBYAasRIECAAAECBAgQIECAAAEC6QtISKAAAQ3CApAtQYAAAQIECBAgQIAAgYEEnCNAgAAB
 AgQIECBAgAABAkUK/H8AAAD//zpwbTcAAAAGSURBVAMA3EZWNRSloswAAAAASUVORK5CYII=
 
---===============4969206240632498664==
+--===============5393647447395794979==
 Content-Type: text/csv
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="LUCRO_LIQUIDO_2026Q2.csv"
@@ -1159,4 +1159,4 @@ MIME-Version: 1.0
 77u/ZW1wcmVzYTtwZXJpb2RvO3J1YnJpY2E7dmFsb3JfdXNkX2JpO2ZvbnRlDQpQRVRST0JSQVM7
 MjAyNlEyO0xVQ1JPX0xJUVVJRE87MTAuNDI4MDsNCg==
 
---===============4969206240632498664==--
+--===============5393647447395794979==--

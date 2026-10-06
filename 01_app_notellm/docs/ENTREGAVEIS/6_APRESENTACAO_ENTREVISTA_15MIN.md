@@ -141,7 +141,7 @@ não um defeito de dado. Já completude 40,6 diz que falta rubrica — e aí é 
 > "Escrevi os testes para provar as decisões, e eles acharam coisas que eu não
 > veria lendo o código."
 
-**21 bugs reais**, dos quais cito três que mostram o tipo de raciocínio:
+**22 bugs reais**, dos quais cito quatro que mostram o tipo de raciocínio:
 
 1. **`Transcrição 1T25.pdf` era parseado.** Eu comparava nome de arquivo
    por substring; o acento quebrava o casamento. O documento narrativo entrava na
@@ -220,6 +220,14 @@ Assumir o limite é o que me dá credibilidade:
 4. **Cenários com Brent/FX** e intervalo que responda à covariância dos fatores.
 5. **Fechar o canal primário** com render de JS, hoje bloqueado em 2 de 7 empresas.
 
+E um detalhe de método, se perguntarem como eu mostro o produto:
+
+> "Eu **capturei as telas do painel rodando** em Chrome headless — 11 abas, uma por
+> slide. Um mock-up desenhado à mão prova que eu sei desenhar tela, não que o
+> sistema funciona. E as telas de governança usam janela maior que as outras,
+> porque a métrica nova fica abaixo da dobra: com o print de 1000px eu estaria
+> entregando uma tela bonita que esconde justamente o que eu fiz."
+
 ---
 
 ## Fecho — o que eu quero que levem deste projeto (1 min)
@@ -272,6 +280,6 @@ fonte seria apresentar um bug como resultado de negócio.
 | ETL completo / incremental | 135 s (3 processos) / 2–5 s |
 | Leitura de PDF (M8.12) | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
 | Apresentação | 23 slides em PPTX, cores Petrobras, gerados do banco (`app_main.py pdf --pptx`) |
-| Testes | 114 passam, 2 skips |
+| Testes | 117 passam, 2 skips |
 | Erros de carga | 0 |
 | Contrato de dados | 393 fatos verificados, 0 violações |

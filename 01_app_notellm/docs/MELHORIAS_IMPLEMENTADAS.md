@@ -338,6 +338,7 @@ era projetada antes.
 | 19 | Métrica de páginas/seg inflada em 3× (contava o total do arquivo, não o lido) | revisão da métrica antes de documentar |
 | 20 | `historico_scorecard(empresa=...)` devolvia a base inteira em vez de série vazia | teste do filtro por empresa |
 | 21 | Faixa de KPI com o par (rótulo, valor) invertido: o slide mostrava "empresas comparadas / 7" | renderização do PPTX em PNG |
+| 22 | `corClasse` era arrow local de `qualRender`; ao virar função própria, a aba Qualidade parava no meio com "API indisponível" (mentira: a API tinha respondido) | teste do DOM no Chrome headless |
 
 ---
 
@@ -356,6 +357,6 @@ era projetada antes.
 | Auditoria | 134 alertas · 877 na fila (875 abertas) · taxa de resolução 50,0% (2 de 4) |
 | Projeções | 147 pontos, 49 séries, 10 rubricas, confiança média 0,58 |
 | Leitura de PDF | 133 PDFs · 1.366 páginas lidas · 6,7 pág/s · 1.205 tabelas |
-| Testes | 114 passando, 2 skips (2023/2024 sem pasta no Container) |
+| Testes | 117 passando, 2 skips (2023/2024 sem pasta no Container) |
 | ETL completo | 252 s serial → **135 s** com 3 processos (1,87x) |
 | ETL incremental | 2–5 s (só o que é novo) |

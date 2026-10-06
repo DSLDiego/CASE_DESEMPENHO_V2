@@ -44,7 +44,9 @@ Ou pelo menu: `main_vis.bat` → opção 1.
 | `python app_main.py derivados` | margens e alavancagem a partir dos fatos (faixa Rentabilidade no painel) |
 | `python app_main.py powerbi` | exporta 5 CSVs (`;`) em `data/powerbi/` prontos p/ import no Power BI |
 | `python app_main.py pdf --periodo 2026Q2` | slide deck oficial em `docs/SLIDES_APRESENTACAO.pdf` |
-| `python app_main.py pdf --pptx` | apresentação em PowerPoint (23 slides, cores Petrobras) em `docs/APRESENTACAO_PETROBRAS.pptx` |
+| `python app_main.py pdf --pptx` | apresentação de conteúdo (23 slides, cores Petrobras) em `docs/APRESENTACAO_PETROBRAS.pptx` |
+| `python app_main.py pdf --visual` | apresentação visual (13 slides), uma tela real do painel por slide |
+| `python workers\screenshots.py` | recaptura as telas do painel (Chrome headless, com o servidor no ar) |
 | `python app_main.py email --para d@ex.com --rubrica RECEITA_LIQUIDA` | `.eml` em `data/outbox/` com **HTML + PNG + CSV**; `--enviar` usa SMTP_*, `--abrir` abre no cliente de e-mail, `--sem-grafico` só CSV |
 | `python app_main.py trimestre --novo 2026Q3` | automação trimestral completa (ETL→SEC→painel→docs) |
 | `python app_main.py efetivo` | aplica as 9 âncoras anuais de headcount (idempotente) |
@@ -63,7 +65,7 @@ Ou pelo menu: `main_vis.bat` → opção 1.
 | `python app_main.py auditoria relatorio --de ... --ate ...` | relatório de auditoria em PDF (M2.10) |
 | `python app_main.py qualidade rodar\|resumo\|fila\|regras\|historico` | scorecard, alertas, fila, limiares e evolução do DQS |
 | `python app_main.py sec --periodos 2023Q1 2024Q4` | completa o histórico 4 anos via XBRL |
-| `python -m pytest tests/ -q` | suíte de testes (**116 testes: 114 passam, 2 skip** por Container sem 2023/2024) |
+| `python -m pytest tests/ -q` | suíte de testes (**119 testes: 117 passam, 2 skip** por Container sem 2023/2024) |
 
 ## 3.1 CRUD de fontes pela interface
 - **Web**: `python app_main.py web --periodo 2026Q2 --serve` → aba **Fontes (CRUD)**:

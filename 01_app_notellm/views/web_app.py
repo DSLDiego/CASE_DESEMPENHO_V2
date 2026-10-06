@@ -1283,10 +1283,15 @@ async function qualCarregar() {{
     qualRender();
   }} catch (e) {{ qMsg('API indisponível — rode com --serve', false); }}
 }}
+// COR da classificacao do DQS. Funcao de topo (e nao arrow dentro de qualRender)
+// porque qualHistoricoRender tambem usa: quando o historico virou funcao propria,
+// a arrow local deixou de existir no escopo dela e a aba quebrava com
+// "cor is not defined" DEPOIS de o grafico ja ter desenhado.
+function corClasse(k) {{ return k === 'CONFIÁVEL' ? '#046c4e' : k === 'REVISAR' ? '#b45309' : '#dc2626'; }}
 function qualRender() {{
   if (!_qual) return;
   const r = _qual.resumo, c = plotColors();
-  const cor = k => k === 'CONFIÁVEL' ? '#046c4e' : k === 'REVISAR' ? '#b45309' : '#dc2626';
+  const cor = corClasse;
   document.getElementById('qual_kpis').innerHTML = [
     ['DQS médio', r.dqs_medio], ['Empresas', r.empresas], ['Períodos', r.periodos],
     ['Scorecards', (_qual.cards || []).length],
@@ -1353,6 +1358,14 @@ function qualRender() {{
   rePaginar('#qual_hist', 10);
 }}
 function qualHistorico() {{
+  // try/catch de propósito: sem ele, UMA falha de render (gráfico ou tabela)
+  // interrompe o resto da aba e a tela fica com os KPIs pela metade e a
+  // mensagem "API indisponível" — que é mentira: a API respondeu.
+  try {{ qualHistoricoRender(); }}
+  catch (e) {{ console.error('qualHistorico:', e); qMsg('Histórico indisponível: ' + e.message, false); }}
+}}
+function qualHistoricoRender() {{
+  const cor = corClasse;
   const h = (_qual || {{}}).historico || {{}};
   const porEmp = h.por_empresa || {{}}, media = h.media_por_periodo || [];
   const sel = document.getElementById('hist_empresa');

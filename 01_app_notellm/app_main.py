@@ -87,8 +87,11 @@ def cmd_web(args: argparse.Namespace) -> int:
     print(f"Leitura executiva [{args.periodo}]: {insight}")
     if args.serve:
         from views.web_server import serve
-        print(f"Servindo em http://localhost:8080/{WEB_HTML.name} (API CRUD: /api/fontes)")
-        return serve(WEB_HTML.parent)
+        porta = getattr(args, "porta", None) or 8080
+        abrir = not getattr(args, "sem_abrir", False)
+        print(f"Servindo em http://localhost:{porta}/{WEB_HTML.name} "
+              f"(API CRUD: /api/fontes)")
+        return serve(WEB_HTML.parent, porta=porta, abrir=abrir)
     return 0
 
 
@@ -414,6 +417,11 @@ def cmd_fontes(args: argparse.Namespace) -> int:
 
 
 def cmd_pdf(args: argparse.Namespace) -> int:
+    if getattr(args, "visual", False):
+        from workers.apresentacao_pptx import construir_visual
+        destino = construir_visual(args.saida)
+        print(f"Apresentacao VISUAL PPTX: {destino}")
+        return 0
     if getattr(args, "pptx", False):
         from workers.apresentacao_pptx import construir
         destino = construir(args.saida)
@@ -487,6 +495,10 @@ def main(argv: list[str] | None = None) -> int:
     web = sub.add_parser("web")
     web.add_argument("--periodo", default="2026Q2")
     web.add_argument("--serve", action="store_true")
+    web.add_argument("--porta", type=int, default=8080,
+                     help="porta do servidor (padrao: 8080)")
+    web.add_argument("--sem-abrir", action="store_true",
+                     help="nao abre o navegador (uso em script/screenshot)")
     gui = sub.add_parser("gui")
     gui.add_argument("--periodo", default="2026Q2")
     sec = sub.add_parser("sec")
@@ -519,7 +531,9 @@ def main(argv: list[str] | None = None) -> int:
     pdf.add_argument("--periodo", default="2026Q2")
     pdf.add_argument("--saida", default=None)
     pdf.add_argument("--pptx", action="store_true",
-                     help="gera a apresentacao em PowerPoint (padrao: deck em PDF)")
+                     help="deck de conteudo em PPTX (padrao: deck em PDF)")
+    pdf.add_argument("--visual", action="store_true",
+                     help="deck VISUAL: uma tela real do painel por slide")
     email = sub.add_parser("email")
     email.add_argument("--para", required=True)
     email.add_argument("--alerta", action="store_true",

@@ -1,7 +1,13 @@
-"""Gera a apresentação executiva em PPTX (python-pptx), nas cores da Petrobras.
+"""Apresentação VISUAL em PPTX: uma tela real do produto por slide.
 
-Todos os números vêm do banco (`_numeros()`), nunca de texto fixo: um slide que
-divergisse do painel seria exatamente o defeito que o projeto existe para evitar.
+Diferente de `apresentacao_pptx.py`, que é um deck de conteúdo (números, método,
+decisões), este aqui mostra **a tela rodando**. As imagens vêm de
+`workers/screenshots.py` — Chrome headless contra o painel servindo de verdade,
+porque uma figura desenhada à mão provaria o quê? Um mock-up.
+
+Se a imagem faltar, o slide não some: ele avisa e segue com o texto. Melhor uma
+apresentação com um slide sem figura do que uma apresentação que quebra na
+primeira máquina sem Chrome.
 """
 from __future__ import annotations
 
@@ -9,7 +15,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Rodável direto (`python workers/apresentacao_pptx.py`) ou importado pelo app_main.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import DOCS_DIR
@@ -298,6 +303,32 @@ def _bullets(slide, itens: list[str], x, y, w, h, tamanho=13, cor=PRETO, espaco=
         run.font.name = "Segoe UI"
         run.font.bold = negrito
     return forma
+
+
+def _figura(slide, caminho: Path, x: float, y: float, max_w: float, max_h: float,
+            legenda: str = "", rodape: str = "") -> bool:
+    """Coloca a tela do produto, cabendo inteira (nunca esticando/distorcendo).
+
+    Mantém a proporção do PNG e centraliza na área pedida. Sem o arquivo, devolve
+    False: o slide continua com o texto, em vez de virar um buraco.
+    """
+    from PIL import Image
+    from pptx.util import Inches as In
+    if not caminho.exists():
+        return False
+    largura_px, altura_px = Image.open(caminho).size
+    escala = min(max_w / largura_px, max_h / altura_px)
+    larg, alt = largura_px * escala, altura_px * escala
+    px = x + (max_w - larg) / 2
+    py = y + (max_h - alt) / 2
+    # moldura fina: separa a figura do fundo branco sem pesar
+    slide.shapes.add_picture(str(caminho), In(px), In(py), In(larg), In(alt))
+    if legenda:
+        _caixa(slide, px, py + alt + 0.06, larg, 0.3, legenda, 9.5, CINZA, align="meio")
+    if rodape:
+        _caixa(slide, px, py + alt + (0.34 if legenda else 0.06), larg, 0.3,
+               rodape, 10.5, VERDE_ESCURO, True, "meio")
+    return True
 
 
 # ------------------------------------------------------------------ os slides
@@ -862,5 +893,136 @@ def construir(destino: Path | None = None, n: dict[str, Any] | None = None) -> s
     return str(destino)
 
 
+# ============================================================================
+# APRESENTAÇÃO VISUAL — uma tela do produto por slide
+# ============================================================================
+IMAGENS = DOCS_DIR / "ENTREGAVEIS" / "1_PAINEL_E_IMAGENS"
+
+# (arquivo, título, subtítulo, o que a tela prova)
+SLIDES_VISUAIS = [
+    ("aba_00_visao_executiva", "Visão executiva", "Leitura do trimestre e gráficos de apoio",
+     "O painel abre em uma pergunta, não em uma lista de tabelas: como está o "
+     "benchmark neste trimestre."),
+    ("aba_01_comparacao", "Comparação entre empresas", "Matriz do trimestre, mesma unidade",
+     "Sete empresas em uma matriz só — receita, EBITDA, lucro, fluxo de caixa, "
+     "investimento e dívida, em USD bilhões."),
+    ("aba_03_evolucao_historica", "Evolução histórica", "Série temporal das empresas",
+     "O gráfico é a resposta para “como foi a evolução”, não uma foto de hoje."),
+    ("aba_02_expandidos", "Indicadores expandidos", "12 indicadores, com fórmula e dependências",
+     "Cada indicador derivado declara de quais rubricas depende — o número não é "
+     "uma caixa-preta."),
+    ("aba_04_efetivo", "Efetivo", "Âncora anual de headcount",
+     "Efetivo é o único indicador obrigatório de todo o setor, e é anual: vira "
+     "âncora de conferência do resto."),
+    ("aba_08_projecoes", "Projeções", "Real × projetado com IC 95%",
+     "A projeção é desenhada separada do fato e sempre rotulada — nunca entra na "
+     "matriz como se fosse número publicado."),
+    ("aba_06_gestao_etl", "Gestão ETL — o que rodou e quanto leu", "M8.12",
+     "O parser não é uma caixa-preta: cada PDF diz quantas páginas ele percorreu, "
+     "quantas tabelas achou e qual o throughput."),
+    ("aba_09_qualidade", "Evolução da qualidade no tempo", "M7.23",
+     "O scorecard guardava só o último estado. A série mostra se a qualidade "
+     "subiu, caiu ou estagnou — e quem mais mudou."),
+    ("aba_07_auditoria", "Auditoria", "M2",
+     "O que exige olho humano, com triagem: aceitar, rejeitar, ignorar. Cada "
+     "decisão fica na trilha e pode virar relatório em PDF."),
+    ("aba_05_fontes_gestao", "Gestão de fontes", "M1",
+     "Cada documento catalogado com origem, hash e status — e o CRUD que permite "
+     "corrigir o acervo."),
+    ("aba_10_glossario", "Glossário", "12 indicadores definidos",
+     "Por que a despesa é negativa e o CAPEX positivo está escrito, com a fórmula "
+     "de cada derivado."),
+]
+
+
+def construir_visual(destino: Path | None = None,
+                     n: dict[str, Any] | None = None) -> str:
+    """Deck de telas do produto: uma imagem real por slide, com legenda curta."""
+    from pptx import Presentation
+    from pptx.util import Inches as In, Pt
+
+    n = n or _numeros()
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = In(13.333), In(7.5)
+    num = 0
+    sem_imagem: list[str] = []
+
+    def prox(titulo: str, subtitulo: str = "") -> Any:
+        nonlocal num
+        num += 1
+        s = _slide(prs)
+        _cabecalho(s, titulo, subtitulo, num)
+        _rodape(s)
+        return s
+
+    # capa
+    s = _slide(prs, VERDE_ESCURO)
+    faixa = s.shapes.add_shape(1, In(0), In(5.6), In(13.333), In(0.22))
+    faixa.fill.solid()
+    faixa.fill.fore_color.rgb = _rgb(AMARELO)
+    faixa.line.fill.background()
+    faixa.shadow.inherit = False
+    _caixa(s, 0.9, 1.35, 11.5, 1.0, "PetroAnalytics", 50, BRANCO, True)
+    _caixa(s, 0.95, 2.35, 11.5, 0.55,
+           "Benchmark Petrobras vs 6 pares — o produto, tela por tela", 20, AMARELO)
+    _caixa(s, 0.95, 3.1, 11.5, 1.5,
+           f"{n['empresas']} empresas · {n['periodos']} trimestres (2023Q1–2026Q2) · "
+           f"{n['fontes']} fontes catalogadas · {n['fatos']} fatos com fonte, data, "
+           f"unidade e confiança\nDQS {n['dqs']} · {n['projecoes']} projeções · "
+           f"{n['erros']} erros de carga", 15, "E8F5EE", espaco=8)
+    _caixa(s, 0.95, 5.95, 11.5, 0.5,
+           "Telas capturadas do painel rodando (Chrome headless) — nenhum mock-up",
+           12.5, "BFD9CC")
+
+    for arquivo, titulo, subtitulo, leitura in SLIDES_VISUAIS:
+        s = prox(titulo, subtitulo)
+        caminho = IMAGENS / f"{arquivo}.png"
+        # max_h = 5.35 e não 4.85: a área útil vai de 1,25 a 6,6 (a legenda ocupa
+        # 0,3 abaixo). Com 4.85 a figura de 1500x1000 saía com 8,5cm de margem
+        # lateral vazia — o slide parecia "a foto pequena no meio do vazio".
+        if not _figura(s, caminho, 0.3, 1.2, 12.73, 5.35,
+                       legenda=leitura, rodape=""):
+            sem_imagem.append(arquivo)
+            _caixa(s, 0.45, 2.5, 12.45, 1.2,
+                   f"(sem imagem: rode `python workers\\screenshots.py` para gerar "
+                   f"{arquivo}.png)", 14, LARANJA, align="meio")
+        _ = Pt
+
+    # fecho com as telas de uma vez
+    s = prox("O produto inteiro", "11 telas, um sistema")
+    # 3x3 preenchendo a área: cada miniatura é centralizada na CÉLULA (não no
+    # canto) e traz o nome da aba embaixo. Sem centralizar, as telas com proporção
+    # mais baixa (ETL 1500x720) encostavam em cima e deixavam um vão embaixo.
+    from PIL import Image
+    cols, linhas = 3, 3
+    larg = 12.45 / cols
+    alt = (6.55 - 1.2) / linhas
+    for i, (arquivo, titulo, _, _) in enumerate(SLIDES_VISUAIS[:9]):
+        caminho = IMAGENS / f"{arquivo}.png"
+        if not caminho.exists():
+            continue
+        cx = 0.45 + (i % cols) * larg
+        cy = 1.2 + (i // cols) * alt
+        w, h = Image.open(caminho).size
+        cel_w, cel_h = larg - 0.16, alt - 0.42      # 0.42 = nome da aba + folga
+        escala = min(cel_w / w, cel_h / h)
+        larg_fig, alt_fig = w * escala, h * escala
+        s.shapes.add_picture(str(caminho), In(cx + (larg - larg_fig) / 2),
+                             In(cy + (alt - alt_fig - 0.28) / 2),
+                             In(larg_fig), In(alt_fig))
+        _caixa(s, cx, cy + alt - 0.3, larg, 0.28, titulo, 10, CINZA, align="meio")
+    _caixa(s, 0.45, 6.55, 12.45, 0.4,
+           f"{n['empresas']} empresas · {n['fatos']} fatos · DQS {n['dqs']} · "
+           f"{n['projecoes']} projeções · {n['erros']} erros de carga · 114 testes",
+           13, VERDE_ESCURO, True, "meio")
+
+    destino = Path(destino) if destino else DOCS_DIR / "APRESENTACAO_VISUAL.pptx"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    prs.save(str(destino))
+    if sem_imagem:
+        print(f"  ! slides sem imagem: {', '.join(sem_imagem)}")
+    return str(destino)
+
+
 if __name__ == "__main__":
-    print(construir())
+    print(construir_visual())

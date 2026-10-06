@@ -1,17 +1,74 @@
-# Apresentação executiva em PowerPoint
+# Duas apresentações
 
-Deck de **23 slides** gerado do banco, nas cores da Petrobras
-(verde `#006B3F` · amarelo `#FFCD00` · verde-escuro `#00432A`).
+| Arquivo | Tipo | Slides | Quando usar |
+|---|---|---|---|
+| APRESENTACAO_PETROBRAS.pptx | **conteúdo** | 23 | quando o número, o método e a decisão importam mais que a tela |
+| APRESENTACAO_VISUAL.pptx | **visual** | 13 | quando mostrar o produto rodando importa mais que ler sobre ele |
 
-```bat
-python app_main.py pdf --pptx                          :: docs/APRESENTACAO_PETROBRAS.pptx
-python app_main.py pdf --pptx --saida C:\deck.pptx     :: outro caminho
-python workers\validar_pptx.py                         :: confere layout e números
-python workers\render_pptx.py                          :: converte em PDF/PNG (preview)
-```
+`at
+python app_main.py pdf --pptx                    :: deck de conteúdo (23 slides)
+python app_main.py pdf --visual                  :: deck visual (13 slides)
+python workers\screenshots.py                    :: recaptura as telas do painel
+python workers\validar_pptx.py                   :: confere layout e números dos dois
+python workers\render_pptx.py <arquivo.pptx>    :: converte em PDF/PNG (preview)
+`
 
-Gerador: `workers/apresentacao_pptx.py` · Validador: `workers/validar_pptx.py` ·
-Prévia: `workers/render_pptx.py`
+Ambos são **gerados do banco**: um slide escrito à mão divergiria do painel no
+primeiro trimestre novo, que é exatamente o defeito que o projeto existe para evitar.
+
+## O deck visual
+
+Uma **tela real do produto** por slide, com legenda curta do que ela prova.
+As imagens vêm de workers/screenshots.py — Chrome headless contra o painel
+servindo de verdade, --headless --screenshot. Um mock-up desenhado à mão
+provaria o quê? Nada.
+
+Capa · 11 telas · fecho com grade 3×3 das telas.
+
+| Tela | Slide | O que prova |
+|---|---|---|
+| ba_00_visao_executiva | 1 | o painel abre em uma pergunta, não numa lista de tabelas |
+| ba_01_comparacao | 2 | 7 empresas numa matriz, mesma unidade |
+| ba_03_evolucao_historica | 3 | evolução é resposta, não foto de hoje |
+| ba_02_expandidos | 4 | indicador derivado declara de quais rubricas depende |
+| ba_04_efetivo | 5 | efetivo é a âncora obrigatória do setor |
+| ba_08_projecoes | 6 | projeção separada do fato e sempre rotulada |
+| ba_06_gestao_etl | 7 | **M8.12** — o parser não é caixa-preta: páginas lidas, tabelas, pág/s |
+| ba_09_qualidade | 8 | **M7.23** — DQS subiu, caiu ou estagnou, e quem mais mudou |
+| ba_07_auditoria | 9 | **M2** — triagem com trilha de decisão |
+| ba_05_fontes_gestao | 10 | catálogo com origem, hash e status + CRUD |
+| ba_10_glossario | 11 | por que a despesa é negativa e o CAPEX positivo |
+
+## Capturar as telas
+
+`at
+python workers\screenshots.py
+`
+
+Sobe o painel com --serve numa porta livre, espera /api/etl responder e
+captura cada aba. **Precisa do servidor**: Gestão ETL, Auditoria e Qualidade
+carregam por etch, e no HTML estático sairiam vazias — o print mostraria um
+produto quebrado.
+
+Dois cuidados que só apareceram no print:
+
+- **Altura por aba.** O conteúdo novo das três abas de governança fica *abaixo da
+  dobra*: numa janela de 1000px o print sai bonito e não mostra nem a métrica de
+  PDF, nem a evolução do DQS. As abas 6/7/8/9 usam 1450–2350px.
+- **--hide-scrollbars obrigatório.** Com a barra visível, a última coluna da
+  tabela some do print (o recorte é da largura da barra) — na Auditoria o
+  status saía cortado, sem ninguém perceber.
+
+As abas 6 e 9 têm **recorte vertical**: o print mostra a faixa de métrica /
+o gráfico e a tabela da feature, e larga a lista de 67 scorecards, que é ruído
+para a apresentação. É o mesmo corte que o olho faria.
+
+## O deck de conteúdo
+
+23 slides: capa, roteiro, problema, utilidade, uso, cadeia, arquitetura,
+tecnologia, benchmark de PDF, resultados, acervo, DQS, evolução no tempo, fila,
+alerta cross-sectional, projeção, governança, auditoria, glossário, testes,
+limites, próximos passos e fecho. Detalhes na tabela completa abaixo.
 
 ## Por que o deck é gerado e não escrito à mão
 

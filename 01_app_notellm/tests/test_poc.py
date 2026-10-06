@@ -2371,6 +2371,78 @@ def test_validar_pptx_detecta_forma_fora_do_slide(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+def test_apresentacao_visual_uma_tela_por_slide(tmp_path, monkeypatch):
+    """Deck visual: uma imagem real do painel por slide, mantendo a proporção."""
+    pytest.importorskip("pptx")
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from PIL import Image
+    from pptx import Presentation
+    from workers import apresentacao_pptx as ap
+
+    # as figuras existem? (são as telas capturadas do painel)
+    faltando = [a for a, _, _, _ in ap.SLIDES_VISUAIS
+                 if not (ap.IMAGENS / f"{a}.png").exists()]
+    assert not faltando, f"rode `python workers/screenshots.py` — faltam: {faltando}"
+
+    destino = tmp_path / "visual.pptx"
+    caminho = ap.construir_visual(destino, n=ap._numeros())
+    prs = Presentation(caminho)
+    # capa + 1 slide por tela + fecho
+    assert len(prs.slides) == len(ap.SLIDES_VISUAIS) + 2
+    # uma figura por slide de tela (a capa e o fecho têm outras figuras)
+    com_figura = sum(1 for s in prs.slides
+                     if any(f.shape_type == 13 for f in s.shapes))
+    assert com_figura >= len(ap.SLIDES_VISUAIS)
+    # nenhum elemento fora do slide
+    for i, slide in enumerate(prs.slides, start=1):
+        for forma in slide.shapes:
+            assert forma.left >= -9144, f"slide {i}: figura fora"
+            assert forma.top + forma.height <= prs.slide_height + 9144, f"slide {i}: estoura"
+    # a figura NÃO pode ser distorcida: o python-pptx estica se os dois lados forem
+    # passados com proporções diferentes do arquivo. Cada tela tem SUA proporção
+    # (o recorte do ETL é 1500x720 e o da qualidade 1500x1000), então a comparação
+    # é figura a figura, contra o arquivo de origem daquele slide.
+    for posicao, (arquivo, titulo, _, _) in enumerate(ap.SLIDES_VISUAIS):
+        slide = list(prs.slides)[posicao + 1]          # 0 = capa
+        original = Image.open(ap.IMAGENS / f"{arquivo}.png")
+        proporcao = original.width / original.height
+        fotos = [f for f in slide.shapes if f.shape_type == 13]
+        assert fotos, f"slide “{titulo}” sem figura"
+        assert len(fotos) == 1, f"slide “{titulo}” com {len(fotos)} figuras"
+        assert abs((fotos[0].width / fotos[0].height) / proporcao - 1) < 0.02, \
+            f"slide “{titulo}”: figura esticada"
+    # e o deck visual passa no validador
+    from workers.validar_pptx import validar_visual
+    assert validar_visual(Path(caminho)) == []
+
+    import app_main
+    saida = tmp_path / "cli_visual.pptx"
+    assert app_main.main(["pdf", "--visual", "--saida", str(saida)]) == 0
+    assert saida.exists() and saida.read_bytes()[:2] == b"PK"
+    DatabaseManager._instance = None
+
+
+def test_screenshots_rodaveis_sem_chrome(tmp_path, monkeypatch):
+    """Sem Chrome, o gerador de telas avisa e sai com código próprio.
+
+    Não pode estourar: numa máquina sem navegador (o caso de quem só vai ler o
+    repositório), um ImportError seria pior que uma mensagem clara.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from workers import screenshots as sc
+    monkeypatch.setattr(sc, "navegador", lambda: None)
+    assert sc.main() == 2
+    # e com Chrome inexistente, cada aba é esperada falhar — sem exception
+    monkeypatch.setattr(sc, "navegador", lambda: str(tmp_path / "chrome.exe"))
+    monkeypatch.setattr(sc, "esperar_servidor", lambda *a, **k: False)
+    assert sc.main() == 1
+    DatabaseManager._instance = None
+
+
 def test_pptx_pelo_cli(tmp_path, monkeypatch):
     """`app_main.py pdf --pptx` gera o deck no caminho pedido."""
     import config
@@ -2485,6 +2557,93 @@ def test_historico_scorecard_no_painel_e_cli(tmp_path, monkeypatch):
     rc = app_main.main(["qualidade", "historico"])
     assert rc == 0
     DatabaseManager._instance = None
+
+
+def test_js_da_aba_qualidade_nao_depende_de_escopo_local(tmp_path, monkeypatch):
+    """A aba Qualidade renderiza os blocos DEPOIS do histórico sem quebrar.
+
+    Regressão real: `corClasse` era uma arrow declarada dentro de `qualRender`.
+    Quando o histórico passou a ser função própria, ela ficou fora do escopo e a
+    aba parava no meio — gráfico desenhado, tabela e fila vazias, e a mensagem
+    "API indisponível" na tela, que é mentira (a API tinha respondido).
+
+    O teste roda o JS de verdade no Chrome headless e confere no DOM final.
+    """
+    import shutil
+    import socket
+    import subprocess
+    import sys
+    import time
+    chrome = next((c for c in (
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe")
+        if Path(c).exists()), None)
+    if chrome is None or shutil.which("node") is None:
+        pytest.skip("chrome headless indisponivel")
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr(config, "WEB_HTML", tmp_path / "p.html")
+    DatabaseManager._instance = None
+    from models.repositories import FatoRepository, FonteRepository
+    idf = FonteRepository().registrar("BP", "http://ri/z.pdf", "PDF")
+    repo = FatoRepository()
+    for per in ("2025Q4", "2026Q1"):
+        for rub in ("RECEITA_LIQUIDA", "EBITDA_AJUSTADO"):
+            repo.upsert_financeiro("BP", per, rub, 8.0, "USD", idf, 0.9)
+    from workers.quality_score import run_quality_score
+    run_quality_score()
+
+    import urllib.request
+    from views.web_app import build_dashboard
+    build_dashboard("2026Q2")
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        porta = s.getsockname()[1]
+    servidor = subprocess.Popen(
+        [sys.executable, "app_main.py", "web", "--serve", "--porta", str(porta),
+         "--sem-abrir"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        cwd=str(PROJETO))
+    try:
+        pronto = False
+        for _ in range(40):
+            try:
+                with urllib.request.urlopen(
+                        f"http://127.0.0.1:{porta}/api/qualidade", timeout=3) as r:
+                    pronto = r.status == 200
+                if pronto:
+                    break
+            except Exception:                     # noqa: BLE001
+                time.sleep(0.5)
+        assert pronto, "a API não subiu"
+        import re
+        import tempfile
+        with tempfile.TemporaryDirectory() as perfil:
+            # encoding utf-8 explicito: o console do Windows e cp1252 e o DOM tem
+            # acento ("Evolução", "CONFIÁVEL") — sem isso o dump quebra na leitura.
+            dom = subprocess.run(
+                [chrome, "--headless=new", "--disable-gpu", f"--user-data-dir={perfil}",
+                 "--virtual-time-budget=9000", "--no-first-run", "--dump-dom",
+                 f"http://127.0.0.1:{porta}/painel_benchmark.html?tab=9"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=180).stdout
+        def bloco(alvo: str) -> str:
+            m = re.search(rf'id="{alvo}"[^>]*>(.*?)</(?:div|tbody|span|table)>', dom, re.S)
+            return (m.group(1) if m else "").strip()
+        # nenhum bloco pode ficar vazio: era o sintoma da falha de escopo
+        for alvo in ("qual_hist", "qual_fila", "qual_regras", "contrato_box"):
+            assert bloco(alvo), f"{alvo} ficou vazio na aba Qualidade"
+        assert "DQS médio" in bloco("qual_kpis")
+        assert "DQS inicial" in bloco("qual_hist_kpis")
+        # e a tela não pode anunciar API fora do ar
+        assert bloco("qual_msg") == "", bloco("qual_msg")
+    finally:
+        servidor.terminate()
+        try:
+            servidor.wait(timeout=10)
+        except subprocess.TimeoutExpired:          # pragma: no cover
+            servidor.kill()
+        DatabaseManager._instance = None
 
 
 def test_historico_no_painel_web_e_gui(tmp_path, monkeypatch):

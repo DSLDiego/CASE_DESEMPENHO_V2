@@ -72,6 +72,25 @@ def _conferir_numeros(destino: Path, n: dict) -> list[str]:
     return problemas
 
 
+def validar_visual(destino: Path) -> list[str]:
+    """Deck visual: uma tela real por slide, sem estouro e com legenda."""
+    problemas: list[str] = []
+    prs = Presentation(str(destino))
+    largura, altura = prs.slide_width, prs.slide_height
+    from workers.apresentacao_pptx import IMAGENS, SLIDES_VISUAIS
+    for arquivo, titulo, _, _ in SLIDES_VISUAIS:
+        if not (IMAGENS / f"{arquivo}.png").exists():
+            problemas.append(f"imagem ausente para o slide “{titulo}”: {arquivo}.png")
+    figuras = sum(1 for s in prs.slides for f in s.shapes if f.shape_type == 13)
+    if figuras < len(SLIDES_VISUAIS):
+        problemas.append(f"só {figuras} figuras no deck, "
+                         f"esperadas ao menos {len(SLIDES_VISUAIS)}")
+    for i, slide in enumerate(prs.slides, start=1):
+        for forma in slide.shapes:
+            problemas += [f"slide {i}: {p}" for p in _dentro(slide, forma, largura, altura)]
+    return problemas
+
+
 def main() -> int:
     destino = Path("docs/APRESENTACAO_PETROBRAS.pptx")
     caminho = construir(destino)
@@ -84,10 +103,22 @@ def main() -> int:
     prs = Presentation(caminho)
     print(f"{caminho}: {len(prs.slides)} slides, {len(list(prs.slides[0].shapes))} "
           f"formas no primeiro")
+
+    visual = Path("docs/APRESENTACAO_VISUAL.pptx")
+    from workers.apresentacao_pptx import construir_visual
+    caminho_visual = construir_visual(visual)
+    problemas_visual = validar_visual(Path(caminho_visual))
+    pv = Presentation(caminho_visual)
+    figuras = sum(1 for s in pv.slides for f in s.shapes if f.shape_type == 13)
+    print(f"{caminho_visual}: {len(pv.slides)} slides, {figuras} telas do produto")
+
     for p in problemas:
         print("  !", p)
-    print("OK" if not problemas else f"{len(problemas)} problema(s)")
-    return 1 if problemas else 0
+    for p in problemas_visual:
+        print("  ! visual:", p)
+    total = problemas + problemas_visual
+    print("OK" if not total else f"{len(total)} problema(s)")
+    return 1 if total else 0
 
 
 if __name__ == "__main__":
