@@ -140,6 +140,15 @@ CREATE TABLE IF NOT EXISTS tb_macro_fator (
     valor REAL NOT NULL,
     PRIMARY KEY (periodo, fator)
 );
+
+-- Chaves CIK da SEC EDGAR por empresa (gestao de chaves). O config.COMPANIES
+-- alimenta a primeira carga; o usuario pode inserir/atualizar sem editar codigo.
+CREATE TABLE IF NOT EXISTS tb_cik_empresa (
+    nome_empresa TEXT PRIMARY KEY,
+    cik TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    atualizado_em TEXT DEFAULT (datetime('now'))
+);
 -- Trilha de decisao da auditoria (quem aceitou/rejeitou/ignorou cada achado).
 CREATE TABLE IF NOT EXISTS tb_auditoria_decisao (
     id_decisao INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -309,6 +318,7 @@ class DatabaseManager:
                         "tb_fato_financeiro", "tb_depara_rubrica", "tb_fonte_dados",
                         "tb_etl_execucao", "tb_projecao", "tb_auditoria_decisao",
                         "tb_qualidade_historico", "tb_qualidade_score",
-                        "tb_regra_alerta", "tb_regra_limiar", "tb_macro_fator"):
+                        "tb_regra_alerta", "tb_regra_limiar", "tb_macro_fator",
+                        "tb_cik_empresa"):
                 conn.execute(f"DELETE FROM {tbl};")
             conn.commit()

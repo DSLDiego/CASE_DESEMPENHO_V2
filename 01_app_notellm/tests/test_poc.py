@@ -2094,6 +2094,139 @@ def test_aba_projecoes_nao_deixa_o_grafico_sumir(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+def test_cik_repository_seed_salvar_e_fallback(tmp_path, monkeypatch):
+    """M9.15: chaves CIK no banco — o que o usuario grava manda sobre o config.
+
+    Sem isso, inserir uma chave nova exigiria editar o config e o codigo: a
+    coleta `sec` lia CIK só de uma constante. O teste confere o seed idempotente,
+    o upsert e o fallback quando a empresa não tem chave gravada.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import CikRepository
+    repo = CikRepository()
+    # seed idempotente a partir do config
+    primeiro = repo.seed()
+    assert primeiro >= 7, "as 7 empresas do config deviam entrar no seed"
+    assert repo.seed() == 0, "seed de novo nao sobrescreve nem duplica"
+    # o que o usuario grava manda
+    r = repo.salvar("petrobras", "12345678")     # minuscula + 8 digitos
+    assert r == {"empresa": "PETROBRAS", "cik": "0012345678", "ativo": 1}
+    assert repo.cik_de("PETROBRAS") == "0012345678"
+    assert repo.cik_de("SHELL") == config.COMPANIES["SHELL"]["cik"]   # fallback
+    assert repo.cik_de("INVENTADA") is None
+    # CIK invalido falha alto, nao silenciosamente
+    with pytest.raises(ValueError):
+        repo.salvar("PETROBRAS", "abc")
+    with pytest.raises(ValueError):
+        repo.salvar("", "1234567890")
+    # listar traz tudo, del remove e o config volta
+    assert {c["nome_empresa"] for c in repo.listar()} >= {"PETROBRAS", "SHELL"}
+    assert repo.excluir("PETROBRAS")
+    assert repo.cik_de("PETROBRAS") == config.COMPANIES["PETROBRAS"]["cik"]
+    DatabaseManager._instance = None
+
+
+def test_cik_api_e_cli(tmp_path, monkeypatch):
+    """M9.15: API (GET lista, POST salva, testar na SEC) e CLI."""
+    import json as _json
+    import threading
+    import urllib.error
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from views.web_server import DashboardHandler
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), DashboardHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    porta = httpd.server_address[1]
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{porta}/api/cik",
+                                    timeout=30) as r:
+            j = _json.loads(r.read().decode())
+        assert j["total"] >= 7 and any(c["nome_empresa"] == "PETROBRAS"
+                                       for c in j["chaves"])
+        # POST salva nova chave (formato invalido e 400, nao 500)
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{porta}/api/cik",
+            data=_json.dumps({"empresa": "PETROBRAS", "cik": "0009999999"}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            salvo = _json.loads(r.read().decode())
+        assert salvo["cik"] == "0009999999"
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{porta}/api/cik",
+            data=_json.dumps({"empresa": "PETROBRAS", "cik": "abc"}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(urllib.error.HTTPError) as ei:
+            urllib.request.urlopen(req2, timeout=30)
+        assert ei.value.code == 400
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    import app_main
+    assert app_main.main(["cik", "list"]) == 0
+    assert app_main.main(["cik", "set", "--empresa", "PETROBRAS", "--cik", "42"]) == 0
+    from models.repositories import CikRepository
+    assert CikRepository().cik_de("PETROBRAS") == "0000000042"
+    assert app_main.main(["cik", "set", "--empresa", "X", "--cik", "abc"]) == 2
+    DatabaseManager._instance = None
+
+
+def test_sidebar_tem_gestao_de_cik(tmp_path, monkeypatch):
+    """M9.15: o sidebar mostra as chaves e tem o formulario de nova chave."""
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    for alvo in ("Chaves CIK (SEC)", "cikSalvar()", "cikTestar()",
+                 "async function cikSalvar", "async function cikTestar",
+                 'id="cik_emp"', 'id="cik_val"', "/api/cik", "<code>0001119639</code>"):
+        assert alvo in html, alvo
+    # datalist com id proprio (o empreset da aba Fontes nao pode duplicar)
+    assert html.count('id="empreset"') == 1
+    DatabaseManager._instance = None
+
+
+def test_series_historicas_outros_indicadores_e_grid_nxm(tmp_path, monkeypatch):
+    """M12: séries históricas com TODA rubrica financeira com dados + grade NxM.
+
+    Antes eram só 6 rubricas fixas: LUCRO_BRUTO, FCL, DESPESA_OPERACIONAL e
+    DIVIDA_BRUTA tinham dados no banco e não apareciam. E a grade era só de
+    colunas: agora o usuário escolhe N colunas × M linhas, e o tamanho de cada
+    gráfico recalcula com o layout (autoFit com width/height explícitos).
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    id_ = FonteRepository().registrar("PETROBRAS", "https://ri/a.pdf", "PDF",
+                                      origem="MANUAL")
+    fatos = FatoRepository()
+    for i, v in enumerate([80, 72, 95, 84, 82]):
+        fatos.upsert_financeiro("PETROBRAS", f"{2025 + i // 4}Q{i % 4 + 1}",
+                                "RECEITA_LIQUIDA", v, "USD", id_, 0.9)
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "LUCRO_BRUTO", 20.0, "USD", id_, 0.9)
+    fatos.upsert_financeiro("PETROBRAS", "2026Q2", "DIVIDA_BRUTA", 55.0, "USD", id_, 0.9)
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    # os indicadores novos entram nas series historicas (nao so os 6 fixos)
+    assert "Lucro bruto — série temporal" in html
+    assert "Divida bruta — série temporal" in html
+    # grade NxM: seletor de linhas + função + CSS da altura por layout
+    for alvo in ("gridRows('evo'", "function gridRows", "data-grupo='rows'",
+                 "grid-auto-rows:var(--rowh,auto)", "<span class='note'>linhas</span>"):
+        assert alvo in html, alvo
+    # renderização do tamanho: autoFit passa width/height explícitos por célula
+    assert "relayout(el,{width:w,height:h})" in html
+    DatabaseManager._instance = None
+
+
 def test_email_publicacao_trimestre(tmp_path, monkeypatch):
     """M9.14: o e-mail de publicação sai do trimestre mais recente da base.
 

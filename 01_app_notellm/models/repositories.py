@@ -562,6 +562,78 @@ class ProjectionRepository:
                 "confianca": proy[0]["confianca"] if proy else None}
 
 
+class CikRepository:
+    """Chaves CIK da SEC EDGAR por empresa (gestao de chaves, M9.15).
+
+    O config.COMPANIES alimenta a primeira carga (seed); o que o usuário grava
+    aqui passa a mandar — a coleta SEC le o CIK do BANCO, e nao do codigo.
+    """
+
+    def __init__(self, db: DatabaseManager | None = None) -> None:
+        self.db = db or DatabaseManager()
+
+    def seed(self) -> int:
+        """Primeira carga a partir do config: idempotente, nunca sobrescreve."""
+        import config
+        with self.db.connect() as conn:
+            n = 0
+            for empresa, meta in config.COMPANIES.items():
+                cik = (meta.get("cik") or "").strip()
+                if not cik:
+                    continue
+                cur = conn.execute(
+                    "INSERT OR IGNORE INTO tb_cik_empresa (nome_empresa, cik)"
+                    " VALUES (?, ?)", (empresa, cik))
+                n += cur.rowcount
+            conn.commit()
+        return n
+
+    def listar(self) -> list[dict[str, Any]]:
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT nome_empresa, cik, ativo, atualizado_em"
+                " FROM tb_cik_empresa ORDER BY nome_empresa").fetchall()
+        return [dict(r) for r in rows]
+
+    def salvar(self, empresa: str, cik: str, ativo: int = 1) -> dict[str, Any]:
+        """Insere ou atualiza a chave da empresa. CIK e normalizado (10 digitos)."""
+        cik = (cik or "").strip()
+        if not cik.isdigit():
+            raise ValueError(f"CIK deve conter apenas digitos: {cik!r}")
+        cik = cik.zfill(10)
+        empresa = (empresa or "").strip().upper()
+        if not empresa:
+            raise ValueError("empresa obrigatoria")
+        with self.db.connect() as conn:
+            conn.execute(
+                "INSERT INTO tb_cik_empresa (nome_empresa, cik, ativo, atualizado_em)"
+                " VALUES (?, ?, ?, datetime('now'))"
+                " ON CONFLICT (nome_empresa) DO UPDATE SET"
+                " cik = excluded.cik, ativo = excluded.ativo,"
+                " atualizado_em = datetime('now')", (empresa, cik, int(ativo)))
+            conn.commit()
+        return {"empresa": empresa, "cik": cik, "ativo": int(ativo)}
+
+    def excluir(self, empresa: str) -> bool:
+        with self.db.connect() as conn:
+            cur = conn.execute("DELETE FROM tb_cik_empresa WHERE nome_empresa = ?",
+                               ((empresa or "").strip().upper(),))
+            conn.commit()
+        return cur.rowcount > 0
+
+    def cik_de(self, empresa: str) -> str | None:
+        """CIK em vigor: banco primeiro (o que o usuario gravou manda)."""
+        empresa = (empresa or "").strip().upper()
+        with self.db.connect() as conn:
+            row = conn.execute(
+                "SELECT cik FROM tb_cik_empresa WHERE nome_empresa = ? AND ativo = 1",
+                (empresa,)).fetchone()
+        if row:
+            return row["cik"]
+        import config
+        return config.COMPANIES.get(empresa, {}).get("cik")
+
+
 class QualityRepository:
     def __init__(self, db: DatabaseManager | None = None) -> None:
         self.db = db or DatabaseManager()

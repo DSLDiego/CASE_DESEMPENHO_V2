@@ -1,2 +1,2 @@
 id_fonte,nome_empresa,cik,url_fonte,tipo_arquivo,caminho_local,hash_arquivo,data_download,status_processamento,nome_documento,extensao,pasta_sistema,api_json,origem,data_processamento,duracao_ms,erro,n_extracoes,n_paginas,n_paginas_lidas,n_tabelas
-1,BP,,http://ri/z.pdf,PDF,,,2026-10-06 22:28:01,PENDENTE,,.pdf,,,CONTAINER,,,,0,,,
+1,BP,,http://ri/z.pdf,PDF,,,2026-10-07 02:24:02,PENDENTE,,.pdf,,,CONTAINER,,,,0,,,

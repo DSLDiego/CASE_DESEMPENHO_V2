@@ -55,6 +55,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     qual_prefix = "/api/qualidade"
     desc_prefix = "/api/descoberta"
     glo_prefix = "/api/glossario"
+    cik_prefix = "/api/cik"
 
     def log_message(self, fmt: str, *args) -> None:  # silencia log de arquivo
         pass
@@ -157,6 +158,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                     "filtro": termo}
             self._json(200, dados)
             return
+        if rota == self.cik_prefix:  # chaves CIK da SEC (M9.15)
+            ctrl = SourceController()
+            dados = ctrl.ciks()
+            # ?empresa=X&testar=1 valida a chave na SEC ao vivo (requer internet)
+            q = parse_qs(urlparse(self.path).query)
+            empresa = (q.get("empresa") or [""])[0]
+            if empresa and (q.get("testar") or ["0"])[0] in ("1", "true"):
+                dados["teste"] = ctrl.testar_cik(empresa)
+            self._json(200, dados)
+            return
         if rota == self.desc_prefix:  # descoberta do que foi anunciado (M9)
             from controllers import PipelineController
             q = parse_qs(urlparse(self.path).query)
@@ -197,6 +208,17 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             except ValueError as exc:
                 self._json(400, {"erro": str(exc)})
                 return
+            self._json(200, r)
+            return
+        if rota == self.cik_prefix:  # insere/atualiza chave CIK (M9.15)
+            try:
+                r = SourceController().salvar_cik(
+                    (dados.get("empresa") or "").strip(), (dados.get("cik") or "").strip())
+            except ValueError as exc:
+                self._json(400, {"erro": str(exc)})
+                return
+            if dados.get("testar"):
+                r["teste"] = SourceController().testar_cik(r["empresa"])
             self._json(200, r)
             return
         if rota == self.proj_prefix:  # gera projecoes sob demanda

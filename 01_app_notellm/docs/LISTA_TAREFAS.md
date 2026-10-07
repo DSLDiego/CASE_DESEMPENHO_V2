@@ -1,7 +1,7 @@
 # Lista de Tarefas — Melhorias M1 a M6
 
 Status: ✅ implementado e testado · 🔄 em andamento · ⬜ planejado
-Validação: `python -m pytest tests/ -q` (155 testes: 153 passam, 2 skip) · harness Node do painel (35 asserções)
+Validação: `python -m pytest tests/ -q` (159 testes: 157 passam, 2 skip) · harness Node do painel (35 asserções)
 
 ## M1 — Aba Fontes: Gestão e Controle de Fontes ✅
 
@@ -329,3 +329,21 @@ gráfico). A nota de cobertura não acumula mais a cada troca de filtro
 2. M3.14 rolling-origin · M10.9 erro real das projeções
 3. M7.27 score de proveniência · M9.13 RI com render de JS
 4. M3.15 intervalo no .eml · M10.8 covariância dos fatores · M8.7 parser por classe
+
+
+## M12 — Séries históricas: indicadores e grade NxM ✅
+
+| # | Tarefa | Onde | Status |
+|---|---|---|---|
+| M12.1 | Outros indicadores financeiros nos gráficos de séries históricas (antes eram só 6 fixos) | `_rubs_ts` deriva de SERIES (todas as rubricas com dados) | ✅ |
+| M12.2 | Grid layout NxM à escolha do usuário (N colunas × M linhas) | `gridbar(com_linhas=True)` + `gridRows()` | ✅ |
+| M12.3 | Renderização do tamanho dos gráficos para cada layout escolhido | `gridRows` (viewport/M) + `autoFit` (relayout width/height explícitos) | ✅ |
+
+**Séries históricas (M12):** a aba era um recorte de 6 rubricas fixas — LUCRO_BRUTO,
+FCL, DESPESA_OPERACIONAL e DIVIDA_BRUTA tinham dados no banco e não apareciam.
+Agora **toda rubrica financeira com dados** entra (a base real mostrou 10 séries,
+não 6). E a grade passou a ser **N colunas × M linhas** à escolha do operador: o
+realce dos botões por `data-grupo` (o `slice(4)` antigo marcava o botão errado
+com os botões de linha na mesma barra) e a altura de cada célula recalcula com
+o M escolhido (viewport/M, piso 220px) — o `autoFit` redesenha cada Plotly com
+width/height explícitos, que é o mecanismo do M4.2.

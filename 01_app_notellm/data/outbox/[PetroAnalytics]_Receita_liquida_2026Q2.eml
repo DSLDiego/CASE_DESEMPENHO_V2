@@ -1,11 +1,11 @@
 Subject: [PetroAnalytics] Receita liquida 2026Q2
 From: petroanalytics@exemplo.com
 To: diego@exemplo.com
-Date: Tue, 06 Oct 2026 22:25:51 -0300
+Date: Wed, 07 Oct 2026 02:21:52 -0300
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="===============8529575067345522069=="
+Content-Type: multipart/mixed; boundary="===============4840010473540776893=="
 
---===============8529575067345522069==
+--===============4840010473540776893==
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
@@ -18,7 +18,7 @@ Fonte: base comparativa (2 empresas). Ver painel e catálogo.
 
 Em anexo: benchmark.html (gráfico interativo), PNG e CSV.
 
---===============8529575067345522069==
+--===============4840010473540776893==
 Content-Type: text/html
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.html"
@@ -50,7 +50,7 @@ dHJ1ZX0seGF4aXM6e2F1dG9tYXJnaW46dHJ1ZSx0aWNrYW5nbGU6LTIwfSwKICAgdGVtcGxhdGU6
 J3Bsb3RseScsdW5pZm9ybXRleHQ6e21pbnNpemU6OX0sc2hvd2xlZ2VuZDpmYWxzZX0sCiAge3Jl
 c3BvbnNpdmU6dHJ1ZX0pOwo8L3NjcmlwdD48L2h0bWw+
 
---===============8529575067345522069==
+--===============4840010473540776893==
 Content-Type: image/png
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.png"
@@ -1233,7 +1233,7 @@ lmUlzIMAAQIECBAgQIAAgRwFZCJAgAABAgQIECBAgAABAqUTUCCs+JLokAABAgQIECBAgAABAgQI
 EMhfQEICBAgQIECAAAECtSvw/wEAAP//Ps0ehAAAAAZJREFUAwAi2EcR6kuRYwAAAABJRU5ErkJg
 gg==
 
---===============8529575067345522069==
+--===============4840010473540776893==
 Content-Type: text/csv
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="RECEITA_LIQUIDA_2026Q2.csv"
@@ -1243,4 +1243,4 @@ MIME-Version: 1.0
 UTI7UkVDRUlUQV9MSVFVSURBOzY0LjA5MDA7DQpQRVRST0JSQVM7MjAyNlEyO1JFQ0VJVEFfTElR
 VUlEQTszMy42MDcwOw0K
 
---===============8529575067345522069==--
+--===============4840010473540776893==--

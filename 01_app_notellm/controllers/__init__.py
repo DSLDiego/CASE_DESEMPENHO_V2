@@ -305,6 +305,46 @@ class SourceController:
                 "limiar_efetivo": limiar_efetivo(self.db, codigo, empresa, rubrica),
                 "excecoes": listar_limiares(self.db, codigo)}
 
+    def ciks(self) -> dict:
+        """Chaves CIK da SEC por empresa (M9.15): lista + total."""
+        from models.repositories import CikRepository
+        repo = CikRepository(self.db)
+        repo.seed()
+        chaves = repo.listar()
+        return {"chaves": chaves, "total": len(chaves),
+                "ativas": sum(1 for c in chaves if c["ativo"])}
+
+    def salvar_cik(self, empresa: str, cik: str) -> dict:
+        """Insere/atualiza a chave CIK da empresa — passa a ser usada pela coleta SEC."""
+        from models.repositories import CikRepository
+        repo = CikRepository(self.db)
+        r = repo.salvar(empresa, cik)
+        r["origem"] = "usuario"
+        return r
+
+    def testar_cik(self, empresa: str) -> dict:
+        """Consulta a SEC EDGAR com o CIK em vigor e diz se responde 200.
+
+        Requer internet: sem rede, o erro volta com a mensagem clara — não
+        fingimos que testamos.
+        """
+        from models.repositories import CikRepository
+        from workers.sec_edgar import BASE, fetch_companyfacts
+        cik = CikRepository(self.db).cik_de(empresa)
+        if not cik:
+            return {"empresa": (empresa or "").upper(), "cik": None,
+                    "ok": False, "detalhe": "sem chave CIK cadastrada"}
+        try:
+            payload = fetch_companyfacts(cik)
+        except Exception as exc:  # noqa: BLE001
+            return {"empresa": (empresa or "").upper(), "cik": cik,
+                    "ok": False, "detalhe": str(exc)}
+        nome = ((payload or {}).get("entityName")
+                or (payload or {}).get("name") or "")
+        return {"empresa": (empresa or "").upper(), "cik": cik, "ok": True,
+                "nome_na_sec": nome,
+                "conceitos": sum(1 for _ in (payload or {}).get("facts", {}).items())}
+
     def proveniencia(self, empresa: str | None = None, periodo: str | None = None,
                      reanotar: bool = False) -> dict:
         """Cadeia de origem dos fatos (M7.27): primário -> SEC -> derivada.

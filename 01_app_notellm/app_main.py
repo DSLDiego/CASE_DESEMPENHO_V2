@@ -168,22 +168,33 @@ def cmd_gui(args: argparse.Namespace) -> int:
 
 
 def cmd_sec(args: argparse.Namespace) -> int:
-    from config import COMPANIES
-    from models.repositories import FatoRepository, FonteRepository, QualityRepository
-    from workers.sec_edgar import BASE, collect_empresa
+    from models.repositories import CikRepository, FatoRepository, FonteRepository, QualityRepository
+    from workers.sec_edgar import BASE, cik_da_empresa, collect_empresa
     fatos = FatoRepository()
     fontes = FonteRepository()
     quality = QualityRepository()
+    # chaves CIK em vigor vêm do banco (gestao de chaves): as que o usuário
+    # gravou mandam sobre o config; empresas novas sem chave ficam de fora
+    repositorio_cik = CikRepository()
+    repositorio_cik.seed()
+    empresas = [c["nome_empresa"] for c in repositorio_cik.listar() if c["ativo"]]
+    if getattr(args, "empresa", None):
+        pedidas = {e.upper() for e in args.empresa}
+        empresas = [e for e in empresas if e in pedidas]
     periodos = set(getattr(args, "periodos", None) or PERIODS) | set(PERIODS)
     total = 0
-    for empresa, meta in COMPANIES.items():
+    for empresa in empresas:
+        cik = cik_da_empresa(empresa)
+        if not cik:
+            print(f"[SEC] {empresa}: sem chave CIK cadastrada (`cik set --empresa {empresa}`).")
+            continue
         try:
-            exts = collect_empresa(meta["cik"], empresa, periodos)
+            exts = collect_empresa(cik, empresa, periodos)
         except Exception as exc:
             print(f"[SEC] {empresa}: falha ({exc})")
             continue
-        url = BASE.format(cik=meta["cik"].zfill(10))
-        id_fonte = fontes.registrar(empresa, url, "JSON", None, meta["cik"], "PROCESSADO")
+        url = BASE.format(cik=cik.zfill(10))
+        id_fonte = fontes.registrar(empresa, url, "JSON", None, cik, "PROCESSADO")
         for ext in exts:
             atual = fatos.obter(empresa, ext.periodo, ext.rubrica)
             if atual and atual.get("valor"):
@@ -466,6 +477,59 @@ def cmd_forecast(args: argparse.Namespace) -> int:
     for aviso in resumo["avisos"][:10]:
         print(f"  aviso: {aviso}")
     return 0
+
+
+def cmd_cik(args: argparse.Namespace) -> int:
+    """Gestao das chaves CIK da SEC EDGAR (M9.15)."""
+    from models.repositories import CikRepository
+    repo = CikRepository()
+    repo.seed()
+    acao = args.acao
+    if acao == "list":
+        chaves = repo.listar()
+        print(f"chaves CIK cadastradas: {len(chaves)}")
+        for c in chaves:
+            marca = "" if c["ativo"] else " (inativa)"
+            print(f"  {c['nome_empresa']:<16}{c['cik']:<14}{(c['atualizado_em'] or '')[:16]}{marca}")
+        return 0
+    if acao == "set":
+        if not args.empresa or not args.cik:
+            print("informe --empresa e --cik.", file=sys.stderr)
+            return 2
+        try:
+            r = repo.salvar(args.empresa, args.cik)
+        except ValueError as exc:
+            print(f"erro: {exc}", file=sys.stderr)
+            return 2
+        print(f"CIK de {r['empresa']} gravado: {r['cik']} — a coleta sec já usa esta chave.")
+        return 0
+    if acao == "testar":
+        if not args.empresa:
+            print("informe --empresa.", file=sys.stderr)
+            return 2
+        from controllers import SourceController
+        t = SourceController().testar_cik(args.empresa)
+        if t["ok"]:
+            print(f"OK: SEC respondeu para {t['empresa']} (CIK {t['cik']}) — "
+                  f"\"{t.get('nome_na_sec') or 'sem nome'}\" · {t.get('conceitos', 0)} conceitos")
+            return 0
+        print(f"falhou: {t.get('detalhe')}")
+        return 1
+    if acao == "del":
+        if not args.empresa:
+            print("informe --empresa.", file=sys.stderr)
+            return 2
+        if repo.excluir(args.empresa):
+            # config volta a mandar como fallback
+            import config
+            fallback = config.COMPANIES.get(args.empresa.strip().upper(), {}).get("cik")
+            print(f"chave de {args.empresa} removida."
+                  + (f" fallback do config: {fallback}" if fallback else
+                     " (sem fallback: a coleta pula esta empresa)"))
+            return 0
+        print("empresa sem chave no banco.")
+        return 1
+    return 1
 
 
 def cmd_auditoria(args: argparse.Namespace) -> int:
@@ -751,6 +815,8 @@ def main(argv: list[str] | None = None) -> int:
     sec = sub.add_parser("sec")
     sec.add_argument("--periodos", nargs="*", default=None,
                      help="periodos extras p/ historico (ex.: 2023Q1 2024Q4)")
+    sec.add_argument("--empresa", nargs="*", default=None,
+                     help="restringe a empresas do catalogo de CIK (ex.: PETROBRAS BP)")
     sub.add_parser("efetivo")
     sub.add_parser("derivados")
     sub.add_parser("powerbi")
@@ -845,6 +911,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="M3.13/M10.8: mostra cenarios Brent/FX com intervalo covariancia-sensivel")
     fc.add_argument("--avaliar", action="store_true",
                     help="M3.14/M10.9: erro real das projecoes e rolling-origin (metodo x MSE)")
+    cik = sub.add_parser("cik", help="gestao das chaves CIK da SEC EDGAR (M9.15)")
+    cik.add_argument("acao", choices=["list", "set", "testar", "del"])
+    cik.add_argument("--empresa", default=None, help="empresa da chave")
+    cik.add_argument("--cik", default=None, help="chave CIK (10 digitos)")
     aud = sub.add_parser("auditoria", help="gestao e controle da auditoria (M2)")
     aud.add_argument("acao", choices=["resumo", "fila", "decidir", "reabrir",
                                       "decisoes", "relatorio"])
@@ -870,7 +940,7 @@ def main(argv: list[str] | None = None) -> int:
             "derivados": cmd_derivados, "powerbi": cmd_powerbi,
             "pdf": cmd_pdf, "email": cmd_email, "trimestre": cmd_trimestre,
             "fontes": cmd_fontes, "status": cmd_status, "reset": cmd_reset,
-            "projecao": cmd_forecast, "auditoria": cmd_auditoria,
+            "projecao": cmd_forecast, "auditoria": cmd_auditoria, "cik": cmd_cik,
             "qualidade": cmd_qualidade}[args.cmd](args)
 
 

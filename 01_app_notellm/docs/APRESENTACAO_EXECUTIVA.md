@@ -89,7 +89,7 @@ Padrões aplicados: MVC-W, repositório, injeção por construtor, SRP, `type hi
 | **Plotly** | Web | interativo, exporta PNG sem navegador extra |
 | **PySide6 + pyqtgraph** | GUI | desktop nativo, gráficos de alta performance |
 | **reportlab + Kaleido** | PDF e PNG | entregáveis sem dependência de navegador |
-| **pytest** | 155 testes | regressão real (23 bugs encontrados por teste) |
+| **pytest** | 159 testes | regressão real (23 bugs encontrados por teste) |
 
 **Destaque honesto:** as libs Rust de PDF (PDFOxide, pdf-inspector) foram
 benchmarkadas e **não** adotadas — são redundantes com o MuPDF (mesmas 35

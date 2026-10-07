@@ -44,6 +44,12 @@ def _throttle() -> None:
     _LAST_CALL = time.monotonic()
 
 
+def cik_da_empresa(empresa: str) -> str | None:
+    """CIK em vigor: banco (o que o usuário gravou) primeiro, config como fallback."""
+    from models.repositories import CikRepository
+    return CikRepository().cik_de(empresa)
+
+
 def fetch_companyfacts(cik: str, timeout: int = 20) -> dict[str, Any] | None:
     _throttle()
     url = BASE.format(cik=cik.zfill(10))
@@ -60,7 +66,6 @@ def fetch_companyfacts(cik: str, timeout: int = 20) -> dict[str, Any] | None:
 
 def extract_facts(payload: dict[str, Any], empresa: str,
                   periodos: set[str] | None = None) -> list[RawExtraction]:
-    out: list[RawExtraction] = []
     seen: dict[tuple[str, str], RawExtraction] = {}
     for taxonomy, conceito, canon in XBRL_MAP:
         node = payload.get("facts", {}).get(taxonomy, {}).get(conceito)

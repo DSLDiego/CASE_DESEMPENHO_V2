@@ -218,7 +218,12 @@ def build_dashboard(periodo: str = "2026Q2", destino=None) -> str:
                   f"<div class='note'>Derivados calculados (`derivados`) a partir dos fatos {periodo}.</div>")
     ts_cells, traces, ts_ids = [], {}, {}
     nome_ind = {i["codigo"]: i["nome"] for i in INDICATORS}
-    for _rub in [r for r in TS_RUBS if r in SERIES]:
+    # M12: outros indicadores — antes eram só 6 fixos; agora TODA rubrica
+    # financeira com dados entra (LUCRO_BRUTO, FCL, DESPESA_OPERACIONAL,
+    # DIVIDA_BRUTA...). A ordem preferida vem primeiro, o resto na sequência.
+    _rubs_ts = ([r for r in TS_RUBS if r in SERIES]
+                + [r for r in sorted(SERIES) if r not in TS_RUBS])
+    for _rub in _rubs_ts:
         _div, _ordem, _pid = _fig_serie(_rub, "", quarters_all, SERIES)
         traces[_rub] = _ordem
         if _pid:
@@ -227,20 +232,34 @@ def build_dashboard(periodo: str = "2026Q2", destino=None) -> str:
         ts_cells.append(f"<div class='cell'><h4>{_titulo}</h4>{_div}</div>")
     ts_grid = "".join(ts_cells)
 
-    def gridbar(gid: str) -> str:
+    def gridbar(gid: str, com_linhas: bool = False) -> str:
         cols = "".join(
-            f"<button onclick=\"gridCols('{gid}',{n},this)\"{' class=\"on\"' if n == 2 else ''}>{n}</button>"
+            f"<button data-grupo='cols' onclick=\"gridCols('{gid}',{n},this)\"{' class=\"on\"' if n == 2 else ''}>{n}</button>"
             for n in (1, 2, 3, 4))
         sizes = "".join(
-            f"<button onclick=\"gridH('{gid}',{h},this)\"{' class=\"on\"' if lbl == 'P' else ''}>{lbl}</button>"
+            f"<button data-grupo='h' onclick=\"gridH('{gid}',{h},this)\"{' class=\"on\"' if lbl == 'P' else ''}>{lbl}</button>"
             for h, lbl in ((400, "P"), (560, "M"), (760, "G")))
+        # NxM: colunas N x linhas M — o layout da matriz fica a escolha do
+        # usuario, e a altura de cada celula recalcula com o M escolhido
+        linhas = "".join(
+            f"<button data-grupo='rows' onclick=\"gridRows('{gid}',{m},this)\"{' class=\"on\"' if m == 2 else ''}>{m}</button>"
+            for m in (1, 2, 3))
+        extra = (f"<span class='note'>linhas</span> {linhas}" if com_linhas else "")
         return (f"<div class='gridbar'><span class='note'>Grade {gid}:</span> colunas {cols}"
-                f"<span class='note'>altura</span> {sizes}"
+                f"<span class='note'>altura</span> {sizes}{extra}"
                 f"<button onclick=\"fitAll('{gid}')\" title='Redimensionar todos os graficos'>⤢ ajustar</button>"
                 f"<span class='note'>duplo clique no gráfico = tela cheia</span></div>")
 
     insight = analytics.insight_executivo(periodo)
     fontes = sources.catalogo()
+    # M9.15: chaves CIK da SEC por empresa (seed idempotente na primeira carga)
+    from models.repositories import CikRepository as _CikRepo
+    _cik_repo = _CikRepo()
+    _cik_repo.seed()
+    cik_rows = "".join(
+        f"<tr><td>{c['nome_empresa']}</td><td><code>{c['cik']}</code></td>"
+        f"<td class='note'>{(c['atualizado_em'] or '')[:16]}</td></tr>"
+        for c in _cik_repo.listar())
     with analytics.fatos.db.connect() as _conn:
         _ef = [_conn.execute(
             "SELECT nome_empresa, periodo, valor FROM tb_fato_operacional"
@@ -313,7 +332,7 @@ summary{{cursor:pointer;padding:8px;font-weight:600;font-size:11px}}summary::-we
 .tab{{padding:9px 16px;cursor:pointer;border:none;background:none;color:var(--txt);font-size:11px;font-weight:700;white-space:nowrap}}.tab.on{{border-bottom:3px solid var(--acc);color:var(--acc)}}
 .page{{display:none;padding:12px;overflow:auto;flex:1}}.page.on{{display:block}}
 body{{scrollbar-gutter:stable}}
-.grid{{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;align-items:start}}.grid>*{{min-width:0}}
+.grid{{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));grid-auto-rows:var(--rowh,auto);gap:12px;align-items:start}}.grid>*{{min-width:0}}
 .cell{{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px;min-height:var(--cellh,400px);display:flex;flex-direction:column;overflow:hidden;position:relative;contain:layout paint;isolation:isolate}}
 .cell .plotly-graph-div,.cell .js-plotly-plot,.cell .plot-container{{max-width:100%;overflow:hidden}}
 .cell .hoverlayer,.cell .modebar,.cell .annotation,.cell .legend,.cell .infolayer{{overflow:hidden}}
@@ -390,6 +409,21 @@ select,button.sm{{font-size:11px;padding:4px 8px;margin:2px}}.insight{{backgroun
 <details><summary>4 · Qualidade</summary><div class="acc">
 <label>Alertas: <b>{len(qualidade['alertas'])}</b> · Revisão: <b>{len(qualidade['revisao'])}</b></label>
 <label class="note">Ver aba Auditoria. Fontes: {len(fontes)} arquivos.</label></div></details>
+<details><summary>5 · Chaves CIK (SEC) <span class="tag">M9.15</span></summary><div class="acc">
+<label class="note">CIK em vigor por empresa — a coleta SEC (<b>sec</b>) usa a chave
+gravada aqui; inserir/atualizar não exige editar código.</label>
+<div class="twrap"><table>
+<tr><th>Empresa</th><th>CIK</th><th>Atualizado</th></tr>
+{cik_rows}</table></div>
+<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px">
+<input id="cik_emp" placeholder="empresa (ex.: PETROBRAS)" size="14" list="empreset-cik">
+<input id="cik_val" placeholder="CIK (10 dígitos)" size="12" inputmode="numeric">
+<datalist id="empreset-cik">{"".join(f"<option value='{e}'>" for e in CATEGORICAS)}</datalist>
+<button class="sm" onclick="cikSalvar()">💾 salvar</button>
+<button class="sm" onclick="cikTestar()">🔎 testar na SEC</button>
+</div>
+<span class="note" id="cik_msg">salvar/testar requer servidor: <b>python app_main.py web --serve</b></span>
+</div></details>
 </div></div>
 <div id="work">
 <div class="tabs">
@@ -424,8 +458,8 @@ select,button.sm{{font-size:11px;padding:4px 8px;margin:2px}}.insight{{backgroun
 <div class="cell"><h4>Dívida bruta (USD bi) <span class="badge" id="badge-DIVIDA_BRUTA"></span></h4>{bar('DIVIDA_BRUTA','')}</div>
 <div class="cell"><h4>Lucro bruto (USD bi) <span class="badge" id="badge-LUCRO_BRUTO"></span></h4>{bar('LUCRO_BRUTO','')}</div>
 <div class="cell"><h4>Fluxo de caixa livre (USD bi) <span class="badge" id="badge-FCL"></span></h4>{bar('FCL','')}</div></div></div>
-<div class="page"><div class="note">Séries temporais multi-empresa — filtre empresas na barra lateral ou clique na legenda.</div>
-{gridbar('evo')}
+<div class="page"><div class="note">Séries temporais multi-empresa — filtre empresas na barra lateral ou clique na legenda. A grade é <b>N colunas × M linhas</b> à sua escolha.</div>
+{gridbar('evo', com_linhas=True)}
 <div class="grid" id="grid-evo">{ts_grid}</div></div>
 <div class="page"><div class="insight"><b>Efetivo total:</b> os RIs trimestrais não publicam
 headcount por trimestre; exibimos âncoras anuais auditadas (31/dez, relatórios oficiais).
@@ -992,17 +1026,29 @@ function fAprovarSelecionadas(){{
     }}).catch(()=>fLoteMsg('falha ao aprovar', false));
   return r;
 }}
+// realce por grupo (cols/rows/h): posicao na barra nao pode decidir o grupo —
+// com os botoes de linha (NxM) o slice(4) antigo marcava o botao errado
+function _hl(btn){{[...btn.parentElement.querySelectorAll('button')].forEach(b=>{{
+  if(b.dataset.grupo===btn.dataset.grupo) b.classList.remove('on');}});
+  btn.classList.add('on');}}
 function gridCols(id,n,btn){{const g=document.getElementById('grid-'+id);if(!g||!n)return;
   g.style.setProperty('--cols',n);
-  if(btn){{[...btn.parentElement.querySelectorAll('button')].slice(0,4).forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on');}}
+  if(btn) _hl(btn);
   g.querySelectorAll('.plotly-graph-div').forEach(el=>{{try{{Plotly.Plots.resize(el);}}catch(e){{}}}});
   autoFit(); urlSync();
 }}
 function gridH(id,h,btn){{const g=document.getElementById('grid-'+id);if(!g)return;
   g.style.setProperty('--cellh',h+'px'); GRID_H[id]=h-70;
-  if(btn){{[...btn.parentElement.querySelectorAll('button')].slice(4).forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on');}}
+  if(btn) _hl(btn);
+  autoFit(); urlSync();
+}}
+/* NxM: M = linhas visiveis da grade. A altura de cada celula recalcula com o M
+   escolhido (viewport/M) e o autoFit redesenha cada Plotly com width/height
+   explicitos — sem isso o grafico ficava com o tamanho do layout anterior. */
+function gridRows(id,m,btn){{const g=document.getElementById('grid-'+id);if(!g||!m)return;
+  const h=Math.max(220,Math.min(520,Math.round((window.innerHeight-220)/m)));
+  g.style.setProperty('--rowh',h+'px');
+  if(btn) _hl(btn);
   autoFit(); urlSync();
 }}
 function fitAll(gid){{const g=document.getElementById('grid-'+gid);
@@ -1024,6 +1070,34 @@ function setTheme(t){{
 function initTheme(){{let t=null;try{{t=localStorage.getItem('petro-theme');}}catch(e){{}}
   if(t==='light'||t==='dark'){{document.body.setAttribute('data-theme',t);
     document.querySelectorAll('.plotly-graph-div').forEach(el=>{{try{{Plotly.relayout(el,{{template:chartTheme()}});}}catch(e){{}}}});}}
+}}
+/* --- M9.15: gestao das chaves CIK da SEC ---------------------------------
+   A coleta `sec` usa o CIK gravado no banco (o que o usuario salvar manda).
+   Testar consulta a SEC ao vivo: sem rede o erro volta com a mensagem. */
+function cikMsg(t, ok){{const e=document.getElementById('cik_msg');
+  if(e){{e.textContent=t; e.style.color = ok===false?'#dc2626':'';}}}}
+async function cikSalvar(){{
+  const emp=document.getElementById('cik_emp').value.trim().toUpperCase();
+  const cik=document.getElementById('cik_val').value.trim();
+  if(!emp||!cik){{cikMsg('informe empresa e CIK', false);return;}}
+  if(!/^\\d+$/.test(cik)){{cikMsg('CIK deve conter apenas dígitos', false);return;}}
+  try{{
+    const r=await (await fetch('/api/cik',{{method:'POST',headers:{{'Content-Type':'application/json'}},
+      body:JSON.stringify({{empresa:emp,cik:cik}})}})).json();
+    if(r.erro){{cikMsg(r.erro,false);return;}}
+    cikMsg('CIK de '+emp+' gravado: '+r.cik+' — a coleta sec já usa esta chave', true);
+  }}catch(e){{cikMsg('falha — requer servidor: python app_main.py web --serve', false);}}
+}}
+async function cikTestar(){{
+  const emp=document.getElementById('cik_emp').value.trim().toUpperCase();
+  if(!emp){{cikMsg('informe a empresa para testar', false);return;}}
+  cikMsg('consultando a SEC EDGAR ('+emp+')...', true);
+  try{{
+    const r=await (await fetch('/api/cik?empresa='+encodeURIComponent(emp)+'&testar=1')).json();
+    const t=r.teste||{{}};
+    if(t.ok){{cikMsg('OK: SEC respondeu para '+emp+' (CIK '+t.cik+') — "'+(t.nome_na_sec||'sem nome')+'" · '+(t.conceitos||0)+' conceitos', true);}}
+    else{{cikMsg('falhou: '+(t.detalhe||'sem detalhe'), false);}}
+  }}catch(e){{cikMsg('falha — requer servidor: python app_main.py web --serve', false);}}
 }}
 function paginate(tbl, minimo){{
   // Idempotente: remove o paginador anterior e reconstroi com as linhas atuais.
