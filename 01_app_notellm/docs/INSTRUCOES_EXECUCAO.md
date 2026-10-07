@@ -68,7 +68,7 @@ Ou pelo menu: `main_vis.bat` → opção 1.
 | `python app_main.py auditoria relatorio --de ... --ate ...` | relatório de auditoria em PDF (M2.10) |
 | `python app_main.py qualidade rodar\|resumo\|fila\|regras\|historico` | scorecard, alertas, fila, limiares e evolução do DQS |
 | `python app_main.py sec --periodos 2023Q1 2024Q4` | completa o histórico 4 anos via XBRL |
-| `python -m pytest tests/ -q` | suíte de testes (**151 testes: 149 passam, 2 skip** por Container sem 2023/2024) |
+| `python -m pytest tests/ -q` | suíte de testes (**155 testes: 153 passam, 2 skip** por Container sem 2023/2024) |
 
 ## 3.1 CRUD de fontes pela interface
 - **Web**: `python app_main.py web --periodo 2026Q2 --serve` → aba **Fontes (CRUD)**:

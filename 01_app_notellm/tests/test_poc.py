@@ -1906,6 +1906,194 @@ def test_painel_nao_vaza_conteudo_entre_abas(tmp_path, monkeypatch):
     DatabaseManager._instance = None
 
 
+def test_descoberta_fecha_o_ciclo_baixar_etl(monkeypatch, tmp_path):
+    """M9: `descoberta --etl` fecha o ciclo em uma chamada: descobrir -> baixar -> fato.
+
+    Sem isso o usuário via a lista do que faltava e tinha que lembrar de DOIS
+    outros comandos (`descoberta --baixar` e depois `etl --novos`) para o
+    documento virar número. O teste confere a orquestração: baixa os achados
+    (com anexos) e roda o ETL INCREMENTAL — nunca o completo, senão o ciclo
+    reprocessaria os 500 PDFs que já estão no acervo.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    import controllers as _ctl
+    chamadas = {"baixar": [], "etl": []}
+
+    def _descobrir_fake(periodo, sec, ri, registrar, empresas):
+        # forma completa: o resumo_texto le gerado_em/totais/situacao de cada achado
+        return {"gerado_em": "2026-10-06 12:00", "periodo_alvo": periodo or "2026Q3",
+                "totais": {"empresas_com_novos": 1, "itens_novos": 3, "lacunas": 0},
+                "empresas": [{
+                    "empresa": "PETROBRAS", "situacao": "parcial", "no_banco": "2026Q2",
+                    "lacunas": [],
+                    "sec": {"novos": [{"url": "https://sec/10q.htm", "titulo": "10-Q",
+                                       "publicado_em": "2026-11-05", "formulario": "10-Q",
+                                       "periodo": "2026Q3"}],
+                            "anexos_registrados": [{"url": "https://sec/anexo.htm"}],
+                            "descartados": []},
+                    "ri": {"novos": [{"url": "https://ri/2t26.pdf", "titulo": "RI 2T26",
+                                      "periodo": "2T26"}], "total": 1,
+                           "detalhe": {}},
+                }]}
+    monkeypatch.setattr("workers.discovery.descobrir", _descobrir_fake)
+
+    def _baixar_fake(achados, destino_dir=None):
+        # setdefault: o teste limpa `chamadas` entre cenários e a chave
+        # precisa renascer sozinha
+        chamadas.setdefault("baixar", []).append([a["url"] for a in achados])
+        return [{"url": a["url"], "arquivo": str(tmp_path / a["url"][-8:]),
+                 "status": "BAIXADO"} for a in achados]
+    monkeypatch.setattr("workers.discovery.baixar_achados", _baixar_fake)
+
+    def _etl_fake(db, apenas_periodos=None, parse_pdfs=True,
+                  only_new=False, jobs=None):
+        chamadas["etl"].append({"only_new": only_new, "jobs": jobs})
+        return {"arquivos_processados": 2, "cargas": 5, "revisao": 0,
+                "erros": 0, "nao_baixados": 0,
+                "proveniencia": {"financeiro": 5, "operacional": 1}}
+    monkeypatch.setattr(_ctl, "run_etl", _etl_fake)
+
+    # --etl implica baixar: 3 achados (10-Q + anexo + RI) baixados e ETL incremental
+    r = _ctl.PipelineController().descoberta(periodo="2026Q3", etl=True, jobs=4)
+    assert sorted(chamadas["baixar"][0]) == [
+        "https://ri/2t26.pdf", "https://sec/10q.htm", "https://sec/anexo.htm"]
+    assert chamadas["etl"] == [{"only_new": True, "jobs": 4}]
+    assert r["downloads"] and r["etl"]["cargas"] == 5
+
+    # sem etl e sem baixar: não baixa NEM processa (só relata)
+    chamadas.clear()
+    _ctl.PipelineController().descoberta(periodo="2026Q3")
+    assert chamadas == {}
+
+    # baixar sem etl: baixa, mas não processa
+    _ctl.PipelineController().descoberta(periodo="2026Q3", baixar=True)
+    assert len(chamadas["baixar"]) == 1 and "etl" not in chamadas
+    DatabaseManager._instance = None
+
+
+def test_descoberta_etl_pela_cli(monkeypatch, capsys):
+    """CLI: `descoberta --etl` imprime o resumo do ETL; --sem-registrar é recusado.
+
+    O resumo na tela faz parte do recurso: quem usa o menu do .bat precisa ver
+    quantos arquivos entraram e viraram fato sem abrir outro comando.
+    """
+    import controllers as _ctl
+
+    def _descoberta_fake(self, periodo=None, incluir_sec=True, incluir_ri=True,
+                         registrar=True, baixar=False, empresas=None,
+                         etl=False, jobs=None):
+        return {"gerado_em": "2026-10-06 12:00", "periodo_alvo": "2026Q3",
+                "totais": {"empresas_com_novos": 1, "itens_novos": 1, "lacunas": 0},
+                "empresas": [{
+                    "empresa": "PETROBRAS", "situacao": "parcial", "no_banco": "2026Q2",
+                    "lacunas": [],
+                    "sec": {"novos": [], "anexos_registrados": [], "descartados": []},
+                    "ri": {"novos": [], "total": 0, "detalhe": {}}}],
+                "downloads": [{"url": "https://x/a.pdf", "arquivo": "data/downloads/a.pdf",
+                               "status": "BAIXADO"}],
+                "etl": {"arquivos_processados": 1, "cargas": 3, "revisao": 0,
+                        "erros": 0, "nao_baixados": 0,
+                        "proveniencia": {"financeiro": 3, "operacional": 0}}}
+    monkeypatch.setattr(_ctl.PipelineController, "descoberta", _descoberta_fake)
+    import app_main
+    rc = app_main.main(["descoberta", "--etl", "--jobs", "2"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Downloads: 1 arquivo(s)" in out
+    assert "ETL incremental" in out and "cargas: 3" in out
+    assert "procedência: 3 fato(s) financeiro(s)" in out
+
+    # --etl exige registro no catálogo: sem ele não há fonte p/ ligar o arquivo
+    rc2 = app_main.main(["descoberta", "--etl", "--sem-registrar"])
+    err = capsys.readouterr().err
+    assert rc2 == 2 and "não combine com --sem-registrar" in err
+
+
+def test_serie_da_projecao_respeita_o_horizonte(tmp_path, monkeypatch):
+    """M10.10: a série do gráfico corta no horizonte escolhido.
+
+    O UPSERT de tb_projecao é por período — 2026Q3 pode ter vindo de uma rodada
+    com h=1 e 2027Q1 de outra com h=3. Sem o corte, o gráfico misturava rodadas
+    e o filtro de horizonte do painel não fazia nada.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository, ProjectionRepository
+    id_ = FonteRepository().registrar("PETROBRAS", "https://ri/a.pdf", "PDF",
+                                      origem="MANUAL")
+    fatos = FatoRepository()
+    for i, v in enumerate([80, 72, 95, 84, 82, 74]):
+        fatos.upsert_financeiro("PETROBRAS", f"{2024 + i // 4}Q{i % 4 + 1}",
+                               "RECEITA_LIQUIDA", v, "USD", id_, 0.9)
+    proj = ProjectionRepository()
+    # duas "rodadas": primeiro h=1, depois h=3 (o UPSERT deixa a mistura)
+    proj.salvar("PETROBRAS", "RECEITA_LIQUIDA", "2025Q2", 1,
+                {"metodo": "ULTIMA_OBSERVACAO", "valores": [74.0],
+                 "futuros": ["2025Q3"], "inf": [70.0], "sup": [78.0],
+                 "mae": 2.0, "mape": 2.7, "confianca": 0.8, "n": 6,
+                 "lacunas": 0, "perfil": "fluxo", "candidatos": [],
+                 "alternativas": []})
+    proj.salvar("PETROBRAS", "RECEITA_LIQUIDA", "2025Q2", 3,
+                {"metodo": "ULTIMA_OBSERVACAO", "valores": [74.0, 76.0, 78.0],
+                 "futuros": ["2025Q3", "2025Q4", "2026Q1"],
+                 "inf": [70.0, 65.0, 60.0], "sup": [78.0, 87.0, 96.0],
+                 "mae": 2.0, "mape": 2.7, "confianca": 0.8, "n": 6,
+                 "lacunas": 0, "perfil": "fluxo", "candidatos": [],
+                 "alternativas": []})
+    s_todos = proj.serie_com_projezcao("PETROBRAS", "RECEITA_LIQUIDA")
+    assert s_todos["periodos_projetados"] == ["2025Q3", "2025Q4", "2026Q1"]
+    assert s_todos["horizontes"] == [1, 2, 3]
+    # h=1 corta no primeiro trimestre projetado — e só ele
+    s_h1 = proj.serie_com_projezcao("PETROBRAS", "RECEITA_LIQUIDA", horizonte=1)
+    assert s_h1["periodos_projetados"] == ["2025Q3"]
+    assert s_h1["valores_projetados"] == [74.0]
+    assert s_h1["inf"] == [70.0] and s_h1["sup"] == [78.0]
+    # banda alarga com o horizonte (revisão do cálculo: inf cai, sup sobe)
+    assert s_todos["inf"] == sorted(s_todos["inf"], reverse=True)
+    assert s_todos["sup"] == sorted(s_todos["sup"])
+    # sem projeção: metodo/confianca None, listas vazias — o gráfico mostra o aviso
+    s_vazio = proj.serie_com_projezcao("PETROBRAS", "CAPEX")
+    assert s_vazio["periodos_projetados"] == [] and s_vazio["metodo"] is None
+    DatabaseManager._instance = None
+
+
+def test_aba_projecoes_nao_deixa_o_grafico_sumir(tmp_path, monkeypatch):
+    """M10.10: o gráfico da aba Projeções nunca fica em branco.
+
+    Regressão real: trocar o innerHTML sem `Plotly.purge` deixava estado órfão
+    no elemento; o `Plotly.react` seguinte rejeitava a promise (que ninguém
+    capturava) e a div ficava VAZIA para sempre — o gráfico "sumia e não
+    voltava". O teste confere os três guarda-corpos no HTML gerado.
+    """
+    import config
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    DatabaseManager._instance = None
+    from models.repositories import FonteRepository, FatoRepository
+    id_ = FonteRepository().registrar("PETROBRAS", "https://ri/a.pdf", "PDF",
+                                      origem="MANUAL")
+    FatoRepository().upsert_financeiro("PETROBRAS", "2026Q2", "RECEITA_LIQUIDA",
+                                       30.0, "USD", id_, 0.9)
+    from views.web_app import build_dashboard
+    destino = build_dashboard(destino=tmp_path / "painel.html")
+    html = Path(destino).read_text(encoding="utf-8")
+    # 1) o filtro de horizonte passa a redesenhar (antes não tinha onchange)
+    assert 'id="pr_h" onchange="projCarregar()"' in html
+    # 2) antes de trocar o conteúdo, o estado do Plotly é purgado
+    assert "Plotly.purge(box)" in html
+    # 3) a promise do react é capturada: falha vira aviso, nunca div vazia
+    assert "}).catch((e)" in html
+    # 4) o aviso de "sem projeção" orienta o usuário (não é um borrão vazio)
+    assert "sem projeção para" in html and "recalcular projeções" in html
+    # 5) a nota não acumula a cada troca de filtro
+    assert "pr_nota').innerHTML = ''" in html
+    # 6) a série corta pelo horizonte escolhido
+    assert "horizonte ' + h + '" in html
+    DatabaseManager._instance = None
+
+
 def test_email_publicacao_trimestre(tmp_path, monkeypatch):
     """M9.14: o e-mail de publicação sai do trimestre mais recente da base.
 

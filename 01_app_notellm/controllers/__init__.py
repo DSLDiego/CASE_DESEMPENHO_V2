@@ -96,17 +96,28 @@ class PipelineController:
 
     def descoberta(self, periodo: str | None = None, incluir_sec: bool = True,
                    incluir_ri: bool = True, registrar: bool = True,
-                   baixar: bool = False, empresas: list[str] | None = None) -> dict:
-        """Descobre o que foi anunciado (SEC/RI) e ainda nao esta no acervo."""
+                   baixar: bool = False, empresas: list[str] | None = None,
+                   etl: bool = False, jobs: int | None = None) -> dict:
+        """Descobre o que foi anunciado (SEC/RI) e ainda nao esta no acervo.
+
+        Com `etl=True` o ciclo fecha em uma chamada só: descobre -> baixa ->
+        processa. O ETL roda incremental (`only_new`), que processa exatamente
+        o que acabou de ser baixado (marcado BAIXADO, sem `data_processamento`)
+        mais a fila de retry — sem reprocessar os 500 PDFs que já estão no
+        acervo. `etl=True` implica `baixar`: sem download não há nada novo
+        para transformar em fato.
+        """
         from workers.discovery import baixar_achados, descobrir
         dados = descobrir(periodo, incluir_sec, incluir_ri, registrar, empresas)
-        if baixar:
+        if baixar or etl:
             # inclui os anexos do arquivamento: e neles que fica a demonstracao
             achados = [a for r in dados["empresas"]
                        for a in (r["sec"].get("novos", []) + r["ri"].get("novos", []))]
             achados += [ax for r in dados["empresas"]
                         for ax in r["sec"].get("anexos_registrados", [])]
             dados["downloads"] = baixar_achados(achados)
+        if etl:
+            dados["etl"] = run_etl(self.db, only_new=True, jobs=jobs)
         return dados
 
     def auditoria(self) -> dict:

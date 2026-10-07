@@ -594,7 +594,7 @@ sempre rotulada.</div>
 {"".join(f"<option>{e}</option>" for e in CATEGORICAS)}</select>
 <label>Rubrica</label><select id="pr_rub" onchange="projCarregar()">
 {"".join(f"<option value='{r['codigo']}'>{r['nome']}</option>" for r in INDICATORS if r["categoria"] == "Financeiro")}</select>
-<label>Horizonte</label><select id="pr_h"><option>1</option><option>2</option><option selected>3</option></select>
+<label>Horizonte</label><select id="pr_h" onchange="projCarregar()"><option>1</option><option>2</option><option selected>3</option></select>
 <button class="sm" onclick="projGerar()">⟳ recalcular projeções</button>
 <span class="note" id="pr_msg"></span></div>
 <div class="kpis" id="pr_kpis" style="margin:8px 0"></div>
@@ -1634,6 +1634,9 @@ async function projGerar() {{
 async function projCarregar() {{
   const emp = document.getElementById('pr_emp').value;
   const rub = document.getElementById('pr_rub').value;
+  // a nota de cobertura e reescrita a cada carga: acumular com += duplicava o
+  // texto a cada troca de filtro
+  document.getElementById('pr_nota').innerHTML = '';
   try {{
     const j = await (await fetch('/api/projecao?empresa=' + emp + '&rubrica=' + rub +
       '&cobertura=1&cenarios=1&avaliar=1')).json();
@@ -1694,46 +1697,74 @@ async function projCarregar() {{
        <td>${{p.mae == null ? '—' : p.mae}}</td><td>${{p.mape == null ? '—' : Number(p.mape).toFixed(1) + '%'}}</td></tr>`).join('')
       || "<tr><td colspan=11>nenhuma projeção — use ⟳ recalcular projeções</td></tr>";
     rePaginar('#pr_proj tbody', 10);
-    _prGraf(_prCen, emp, rub);
+    _prGraf(_prCen, emp, rub, parseInt(document.getElementById('pr_h').value, 10) || 3);
   }} catch (e) {{ prMsg('API indisponível — rode com --serve', false); }}
 }}
-function _prGraf(cen, emp, rub) {{
+function _prGraf(cen, emp, rub, h) {{
   const box = document.getElementById('pr_graf');
   if (!box) return;
-  if (!cen || !cen.periodos_projetados || !cen.periodos_projetados.length) {{
-    box.innerHTML = "<div class='empty'>sem projeção para esta combinação<br>"
-      + "<span class='note'>use ⟳ recalcular projeções</span></div>";
+  const _vazio = (msg) => {{
+    // o Plotly grava estado no proprio elemento (_fullLayout, _context...).
+    // Trocar o innerHTML sem purge deixa esse estado orfão: o Plotly.react
+    // seguinte tenta editar um grafo que nao existe mais, a promise rejeita
+    // e a div fica VAZIA para sempre — era o bug do "grafico sumiu".
+    try {{ if (box.classList && box.classList.contains('plotly-graph-div')) Plotly.purge(box); }}
+    catch (e) {{ /* sem nada para limpar */ }}
+    box.innerHTML = "<div class='empty'>" + msg + "<br>"
+      + "<span class='note'>use ⟳ recalcular projeções — a projeção exige ao menos"
+      + " 1 trimestre com valor publicado</span></div>";
     document.getElementById('pr_nota').textContent = '';
+  }};
+  if (!cen || !cen.periodos_projetados || !cen.periodos_projetados.length) {{
+    _vazio('sem projeção para ' + emp + ' · ' + rub);
+    return;
+  }}
+  // filtro de horizonte: corta a banda no que o usuario pediu (h=1 mostra so
+  // o proximo trimestre). Antes o select existia mas nao fazia NADA.
+  const corta = (arr) => (cen.horizontes || []).length
+    ? arr.filter((_, i) => (cen.horizontes[i] || 99) <= h)
+    : arr.slice(0, h);
+  const xProjT = corta(cen.periodos_projetados);
+  const yProjT = corta(cen.valores_projetados);
+  const supT = corta(cen.sup || []);
+  const infT = corta(cen.inf || []);
+  if (!xProjT.length || !cen.periodos_reais || !cen.periodos_reais.length) {{
+    _vazio('sem série real para ' + emp + ' · ' + rub);
     return;
   }}
   const c = plotColors();
   const xReal = cen.periodos_reais, yReal = cen.valores_reais;
   const ultimo = xReal[xReal.length - 1];
-  const xProj = [ultimo].concat(cen.periodos_projetados);
-  const yProj = [yReal[yReal.length - 1]].concat(cen.valores_projetados);
+  const xProj = [ultimo].concat(xProjT);
+  const yProj = [yReal[yReal.length - 1]].concat(yProjT);
   const traces = [
     {{ x: xReal, y: yReal, type: 'scatter', mode: 'lines', name: 'Real (RI/SEC)',
       line: {{ color: c.axis, width: 3 }}, hovertemplate: '%{{x}}: %{{y:,.2f}}<extra>real</extra>' }},
-    {{ x: xProj, y: yProj, type: 'scatter', mode: 'lines+markers', name: 'Projetado',
+    {{ x: xProj, y: yProj, type: 'scatter', mode: 'lines+markers', name: 'Projetado (h' + h + ')',
       line: {{ color: '#D55E00', width: 2, dash: 'dash' }}, marker: {{ color: '#D55E00', size: 7 }},
       hovertemplate: '%{{x}}: %{{y:,.2f}}<extra>projeção</extra>' }},
-    {{ x: xProj, y: cen.sup, type: 'scatter', mode: 'lines', line: {{ color: 'rgba(213,94,0,0.25)', width: 1 }},
+    {{ x: xProj, y: supT, type: 'scatter', mode: 'lines', line: {{ color: 'rgba(213,94,0,0.25)', width: 1 }},
       hoverinfo: 'skip', name: 'IC95 sup' }},
-    {{ x: xProj, y: cen.inf, type: 'scatter', mode: 'lines', line: {{ color: 'rgba(213,94,0,0.25)', width: 1 }},
+    {{ x: xProj, y: infT, type: 'scatter', mode: 'lines', line: {{ color: 'rgba(213,94,0,0.25)', width: 1 }},
       fill: 'tonexty', fillcolor: 'rgba(213,94,0,0.12)', hoverinfo: 'skip', name: 'IC95 inf' }},
   ];
-  Plotly.react(box, traces, {{
-    title: rub + ' — ' + emp, template: 'none', showlegend: true,
+  // Plotly.react devolve PROMESSA: sem o catch, uma rejeicao deixava a div
+  // vazia sem mensagem nenhuma (o react ja tinha removido o grafico anterior).
+  Promise.resolve(Plotly.react(box, traces, {{
+    title: rub + ' — ' + emp + ' (horizonte ' + h + ')', template: 'none', showlegend: true,
     legend: {{ orientation: 'h', y: -0.18, font: {{ size: 10, color: c.font }} }},
     yaxis: {{ title: 'USD bi', gridcolor: c.grid, rangemode: 'tozero', automargin: true, tickfont: {{ color: c.axis }} }},
     xaxis: {{ automargin: true, tickangle: -30, gridcolor: c.grid, tickfont: {{ color: c.axis }} }},
     paper_bgcolor: c.paper, plot_bgcolor: c.plot, font: {{ size: 11, color: c.font }},
     margin: {{ t: 50, b: 70, l: 55, r: 20 }}
-  }}, {{ responsive: true, displayModeBar: false }});
-  document.getElementById('pr_nota').innerHTML =
-    'método <b>' + cen.metodo + '</b> · confiança <b>' + cen.confianca +
-    '</b> · cinza = real, laranja tracejado = projetado, banda = IC 95%';
-  setTimeout(() => {{ try {{ Plotly.Plots.resize(box); }} catch (e) {{}} }}, 60);
+  }}, {{ responsive: true, displayModeBar: false }})).then(() => {{
+    document.getElementById('pr_nota').innerHTML =
+      'método <b>' + cen.metodo + '</b> · confiança <b>' + cen.confianca +
+      '</b> · cinza = real, laranja tracejado = projetado, banda = IC 95%';
+    setTimeout(() => {{ try {{ Plotly.Plots.resize(box); }} catch (e) {{}} }}, 60);
+  }}).catch((e) => {{
+    _vazio('falha ao desenhar a projeção de ' + emp + ' · ' + rub);
+  }});
 }}
 </script>
 </body></html>"""

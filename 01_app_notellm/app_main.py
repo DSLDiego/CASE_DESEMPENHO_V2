@@ -99,18 +99,46 @@ def cmd_etl(args: argparse.Namespace) -> int:
 
 
 def cmd_descoberta(args: argparse.Namespace) -> int:
-    """Acha o que foi anunciado (SEC/RI) e ainda nao esta no acervo."""
+    """Acha o que foi anunciado (SEC/RI) e ainda nao esta no acervo.
+
+    `--etl` fecha o ciclo em uma tacada: descobre, baixa o que falta e roda o
+    ETL incremental sobre o que acabou de chegar. Sem isso, o usuário via a
+    lista de documentos faltando e tinha que lembrar de duas outras comandos
+    (`descoberta --baixar` + `etl --novos`) para o dado virar fato.
+    """
     from workers.discovery import resumo_texto
     site = (args.site or "all").upper()
+    quer_etl = bool(getattr(args, "etl", False))
+    if quer_etl and args.sem_registrar:
+        print("--etl precisa das fontes registradas no catálogo: "
+              "não combine com --sem-registrar.", file=sys.stderr)
+        return 2
     dados = PipelineController().descoberta(
         periodo=args.periodo, incluir_sec=site in ("ALL", "SEC"),
         incluir_ri=site in ("ALL", "RI"), registrar=not args.sem_registrar,
-        baixar=args.baixar,
-        empresas=args.empresa or None)
+        baixar=args.baixar, empresas=args.empresa or None,
+        etl=quer_etl, jobs=getattr(args, "jobs", None))
     if args.json:
         print(json.dumps(dados, ensure_ascii=False, indent=2))
         return 0
     print(resumo_texto(dados))
+    if "downloads" in dados:
+        baixados = sum(1 for d in dados["downloads"] if d.get("arquivo"))
+        falhas = len(dados["downloads"]) - baixados
+        print(f"\nDownloads: {baixados} arquivo(s) em data/downloads"
+              + (f" · {falhas} com problema (URL morta/bloqueio)" if falhas else ""))
+    if "etl" in dados:
+        r = dados["etl"]
+        print("\n== ETL incremental sobre o que acabou de baixar ==")
+        print(f"processados: {r.get('arquivos_processados', 0)} · "
+              f"cargas: {r.get('cargas', 0)} · revisão: {r.get('revisao', 0)} · "
+              f"erros: {r.get('erros', 0)} · não baixados: {r.get('nao_baixados', 0)}")
+        prov = r.get("proveniencia") or {}
+        if prov and not prov.get("erro"):
+            print(f"procedência: {prov.get('financeiro', 0)} fato(s) financeiro(s), "
+                  f"{prov.get('operacional', 0)} operacional(is) — "
+                  "níveis em `qualidade proveniencia`")
+        print("próximo passo: `python app_main.py web --periodo <trimestre> --serve`")
     lacunas = sum(len(r["lacunas"]) for r in dados["empresas"])
     if lacunas and site in ("ALL", "SEC"):
         print("\nDica: XBRL do trimestre so aparece depois da publicacao. "
@@ -743,6 +771,11 @@ def main(argv: list[str] | None = None) -> int:
                             help="restringe a empresas (ex.: PETROBRAS BP)")
     descoberta.add_argument("--baixar", action="store_true",
                             help="baixa os documentos novos para data/downloads")
+    descoberta.add_argument("--etl", action="store_true",
+                            help="baixa o que falta e roda o ETL incremental em seguida "
+                                 "(descobrir -> baixar -> fato; requer registro no catálogo)")
+    descoberta.add_argument("--jobs", type=int, default=None,
+                            help="processos do parse no --etl (padrao: automatico)")
     descoberta.add_argument("--sem-registrar", action="store_true",
                             help="apenas relata: nao grava no catalogo de fontes")
     descoberta.add_argument("--json", action="store_true", help="saida em JSON")

@@ -8,7 +8,7 @@ echo =======================================================================
 echo 1. Pipeline ETL completo + efetivo + painel Web
 echo 2. Gerar e servir o painel Web (http://localhost:8080)
 echo 3. Refazer ETL: varre o Container e processa SO os arquivos novos
-echo 4. Descobrir o que foi anunciado (SEC/RI) e ainda falta no acervo
+echo 4. Descoberta (SEC/RI): listar o que falta, baixar e/ou rodar o ETL
 echo 5. Interface Desktop GUI (PySide6)
 echo 6. Status do banco
 echo 7. Coleta SEC EDGAR (XBRL, requer internet)
@@ -23,7 +23,7 @@ set /p op="Escolha uma opcao (1-13): "
 if "%op%"=="1" ( python "%~dp0app_main.py" full & pause & goto menu )
 if "%op%"=="2" ( python "%~dp0app_main.py" web --periodo 2026Q2 --serve & pause & goto menu )
 if "%op%"=="3" ( python "%~dp0app_main.py" etl --novos & pause & goto menu )
-if "%op%"=="4" ( python "%~dp0app_main.py" descoberta & pause & goto menu )
+if "%op%"=="4" ( call :descoberta & pause & goto menu )
 if "%op%"=="5" ( python "%~dp0app_main.py" gui & pause & goto menu )
 if "%op%"=="6" ( python "%~dp0app_main.py" status & pause & goto menu )
 if "%op%"=="7" ( python "%~dp0app_main.py" sec & pause & goto menu )
@@ -48,4 +48,16 @@ if errorlevel 1 (
   )
 )
 python "%~dp0check_env.py" --instalar
+goto :eof
+
+:descoberta
+echo --- Descoberta: o que foi anunciado (SEC/RI) e falta no acervo ---
+echo   (a) apenas listar o que falta
+echo   (b) listar e BAIXAR os documentos novos (data/downloads)
+echo   (c) listar, baixar e rodar o ETL com eles (fluxo completo)
+set /p sub="Escolha (a/b/c): "
+if /I "%sub%"=="a" ( python "%~dp0app_main.py" descoberta & goto :eof )
+if /I "%sub%"=="b" ( python "%~dp0app_main.py" descoberta --baixar & goto :eof )
+if /I "%sub%"=="c" ( python "%~dp0app_main.py" descoberta --etl & goto :eof )
+echo Opcao invalida.
 goto :eof

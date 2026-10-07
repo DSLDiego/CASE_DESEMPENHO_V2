@@ -1,7 +1,7 @@
 # Lista de Tarefas — Melhorias M1 a M6
 
 Status: ✅ implementado e testado · 🔄 em andamento · ⬜ planejado
-Validação: `python -m pytest tests/ -q` (151 testes: 149 passam, 2 skip) · harness Node do painel (35 asserções)
+Validação: `python -m pytest tests/ -q` (155 testes: 153 passam, 2 skip) · harness Node do painel (35 asserções)
 
 ## M1 — Aba Fontes: Gestão e Controle de Fontes ✅
 
@@ -293,6 +293,21 @@ RIGHTS" e "IAN TYLER APPOINTED BP CHAIR".
 | M10.7 | Escolher o método por rubrica (ex.: dívida com nível, não com sazonalidade) | `forecast.perfil_rubrica` | ✅ |
 | M10.8 | Cenários com Brent/FX e intervalo que responda à covariância dos fatores | `workers/macro.py::sensibilidade` (β + 2ββΣ_cov) | ✅ |
 | M10.9 | Rolling-origin: recalcular o histórico de projeções e medir erro real | `workers/rolling_eval.py::erro_real_das_projecoes` | ✅ |
+| M10.10 | Aba Projeções: revisar os cálculos da série e corrigir a renderização conforme os filtros (o gráfico sumia e não voltava) | `serie_com_projezcao(horizonte)`, `_prGraf` (purge + catch do react + filtro de horizonte) | ✅ |
+
+**Renderização da aba Projeções (M10.10):** o gráfico "sumia e não aparecia mais"
+por dois defeitos combinados. (1) Quando a combinação empresa×rubrica não tinha
+projeção, o código trocava o `innerHTML` da div **sem `Plotly.purge`** — o Plotly
+deixa estado interno (`_fullLayout`, `_context`) no elemento; o `Plotly.react`
+seguinte tentava editar um grafo que não existia mais, a **promise rejeitava** e
+ninguém capturava (2) — a div ficava vazia para sempre, sem mensagem. Agora:
+`purge` antes de qualquer troca, `Promise.resolve(...).catch()` com fallback
+visível ("sem projeção para…", com a dica do botão recalcular) e o **filtro de
+horizonte passou a valer** — antes o seletor existia mas não tinha `onchange`,
+então trocar 3→1 não redesenhava nada; a série é cortada pelos horizontes reais
+gravados (linhas de rodadas anteriores com horizontes misturados não poluem o
+gráfico). A nota de cobertura não acumula mais a cada troca de filtro
+(`innerHTML +=` duplicava o texto).
 
 **Resultado medido:** antes 7 rubricas / 34 séries / 102 projeções; agora
 **10 rubricas / 49 séries / 147 projeções**, com `sem cobertura = 0`.

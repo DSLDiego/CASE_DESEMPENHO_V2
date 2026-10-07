@@ -528,20 +528,34 @@ class ProjectionRepository:
         with self.db.connect() as conn:
             return [dict(r) for r in conn.execute(q, params).fetchall()]
 
-    def serie_com_projezcao(self, empresa: str, rubrica: str) -> dict[str, Any]:
-        """Reais + projetados + banda de IC, para o grafico de cenarios."""
+    def serie_com_projezcao(self, empresa: str, rubrica: str,
+                            horizonte: int | None = None) -> dict[str, Any]:
+        """Reais + projetados + banda de IC, para o grafico de cenarios.
+
+        `horizonte` corta a projeção nos primeiros h trimestres. Sem isso o
+        gráfico mostrava linhas de rodadas anteriores com horizontes misturados
+        (o UPSERT é por período, então 2026Q3 pode ter vindo de um h=1 e
+        2027Q1 de um h=3) — e o filtro de horizonte do painel não fazia nada.
+        `intervalo_inf/sup` são nullable no schema: vêm como None e o gráfico
+        desenha gap em vez de quebrar.
+        """
+        sql = ("SELECT * FROM tb_projecao WHERE nome_empresa = ? AND rubrica_padronizada = ?"
+               " ORDER BY periodo_projetado")
+        params: list[Any] = [empresa, rubrica]
+        if horizonte:
+            sql += " LIMIT ?"
+            params.append(int(horizonte))
         with self.db.connect() as conn:
             reais = [dict(r) for r in conn.execute(
                 "SELECT periodo, valor FROM tb_fato_financeiro WHERE nome_empresa = ?"
                 " AND rubrica_padronizada = ? ORDER BY periodo", (empresa, rubrica)).fetchall()]
-            proy = [dict(r) for r in conn.execute(
-                "SELECT * FROM tb_projecao WHERE nome_empresa = ? AND rubrica_padronizada = ?"
-                " ORDER BY periodo_projetado", (empresa, rubrica)).fetchall()]
+            proy = [dict(r) for r in conn.execute(sql, params).fetchall()]
         return {"empresa": empresa, "rubrica": rubrica,
                 "periodos_reais": [r["periodo"] for r in reais],
                 "valores_reais": [r["valor"] for r in reais],
                 "periodos_projetados": [p["periodo_projetado"] for p in proy],
                 "valores_projetados": [p["valor"] for p in proy],
+                "horizontes": [p["horizonte"] for p in proy],
                 "inf": [p["intervalo_inf"] for p in proy],
                 "sup": [p["intervalo_sup"] for p in proy],
                 "metodo": proy[0]["metodo"] if proy else None,
